@@ -1,0 +1,28 @@
+Package: bio.spacetime
+Title: Package that interacts with ecomod and associated projects to provide some spacetime interpolations. 
+Version: 0.1
+Authors@R: c( person("Jae", "Choi", email="choijaeseok@gmail.com", role=c("aut", "cre")) ) 
+Description: This project interacts with the functionality of ecomod 
+    to  provide some spacetime interpolations.
+Depends: R (>= 3.0.0)
+Imports: 
+  lubridate,
+  parallel,
+  sp,
+  mgcv,
+  lattice,
+  gstat,
+  devtools, 
+  bio.base,
+  bio.temperature,
+  bio.utilities
+Suggests: 
+  INLA,
+  knitr, 
+  rmarkdown
+VignetteBuilder: knitr
+License: MIT
+LazyData: true
+URL: https://github.com/Beothuk/bio.spacetime/
+
+
