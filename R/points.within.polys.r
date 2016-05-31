@@ -33,7 +33,7 @@ points.within.polys <- function(inputpointfile="",
 
   #find and load a point dataset
   #rename the fields to lat and lon (unnecessary)
-  pointfile <- read.csv(file.path(find.ecomod.gis(inputpointfile)))
+  pointfile <- read.csv(file.path(find.bio.gis(inputpointfile)))
   pointfile<-rename.df(pointfile, "Lat.Start","lat")
   pointfile<-rename.df(pointfile, "Y","lat")
   pointfile<-rename.df(pointfile, "Long.Start","lon")
@@ -49,7 +49,7 @@ points.within.polys <- function(inputpointfile="",
   pointfile <- pointfile[!is.na(pointfile$lat) & !is.na(pointfile$lon),]
 
   #find and load a polygon dataset
-  polygonfile <- readShapePoly(file.path(find.ecomod.gis(inputpolyfile)), proj4string=CRS("+proj=longlat"))
+  polygonfile <- readShapePoly(file.path(find.bio.gis(inputpolyfile)), proj4string=CRS("+proj=longlat"))
 
 
   level1<-U(polygonfile[,level1Field][[1]])

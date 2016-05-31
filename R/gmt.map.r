@@ -74,7 +74,7 @@
         if ( length(P$overlay)>0) {
           for (o in P$overlay) {
             if ( o == "" ) next()
-            cmd( "psxy", find.ecomod.gis(o), P$region, P$gmtproj, P$polygon.options, ps.append, outfile ) # polygons
+            cmd( "psxy", find.bio.gis(o), P$region, P$gmtproj, P$polygon.options, ps.append, outfile ) # polygons
       }}}
       
         

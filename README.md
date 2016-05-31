@@ -1,6 +1,6 @@
 # bio.spacetime
 
-Package to help develop and/or use ecomod tools in order to assist with modelling and interpolations in space and time
+Package to help develop and/or use bio tools in order to assist with modelling and interpolations in space and time
 
 Installation:
 

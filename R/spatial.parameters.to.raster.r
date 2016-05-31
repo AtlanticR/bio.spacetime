@@ -2,7 +2,7 @@
 spatial.parameters.to.raster = function( params, edge.reference=TRUE ) {
   #\\ Take a spatial parameter list wirh corners and resolution and CRS
   #\\ and convert to a raster template
-  #\\ ecomod uses left edge as coordinates, raster uses center
+  #\\ bio uses left edge as coordinates, raster uses center
   require( raster)
   if (edge.reference) {
     params$corners$plon = params$corners$plon + c(-0.5, 0.5)*params$pres
@@ -73,13 +73,13 @@ spatial.parameters.to.raster = function( params, edge.reference=TRUE ) {
       v = unique( params$plats-vv )
 
       if( u!=0) {
-        print(" This has been tested with known projections in ecomod, this is a new one? and raster library is not happy? You might need to add a new condition to spatial.parameters.toraster.. " )
+        print(" This has been tested with known projections in bio, this is a new one? and raster library is not happy? You might need to add a new condition to spatial.parameters.toraster.. " )
         print(u)
         stop(" plons offsets are not unique/correct")
       }
 
       if( v!=0) {
-        print(" This has been tested with known projections in ecomod, this is a new one? and raster library is not happy? You might need to add a new condition to spatial.parameters.toraster.." )
+        print(" This has been tested with known projections in bio, this is a new one? and raster library is not happy? You might need to add a new condition to spatial.parameters.toraster.." )
         print(v)
         stop(" plats offsets are not unique/correct? ")
       }
