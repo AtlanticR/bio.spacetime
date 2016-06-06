@@ -1,8 +1,8 @@
 
 
   model.habitat.kriging = function( model.type="gam.full", p=NULL, hvar="R0.mass", plotdata=T, 
-    dat= snowcrab.db( DS="set.logbook"),
-    outdir = file.path( project.datadirectory("snowcrab"), "R", "habitat", "models" )
+    dat= bio.snowcrab.db( DS="set.logbook"),
+    outdir = file.path( project.datadirectory("bio.snowcrab"), "R", "habitat", "models" )
     ) {
 
     dir.create(path=outdir, recursive=T, showWarnings=F)

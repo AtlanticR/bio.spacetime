@@ -4,7 +4,7 @@
     
     if (DS %in% c("annual", "annual.redo" ) ) {
 
-      fn = file.path( project.datadirectory("snowcrab"), "R", "PS.habitat.ts.rdata" )    
+      fn = file.path( project.datadirectory("bio.snowcrab"), "R", "PS.habitat.ts.rdata" )    
       
       if (DS=="annual") {
         load(fn)
@@ -21,7 +21,7 @@
         PS = habitat.db ( DS="complete", year=y, p=p )
         PS = fishing.area.designations( PS, type="planar")
         PS$cfa.factor = NULL
-        pH = snowcrab.habitat.db ( DS="habitat", yrs=y, model.type="gam.full", vclass="R0.mass" )
+        pH = bio.snowcrab.habitat.db ( DS="habitat", yrs=y, model.type="gam.full", vclass="R0.mass" )
         PS$habitat = pH$fit
         PS$habitat.se = pH$se.fit
         rm (pH ) ; gc()

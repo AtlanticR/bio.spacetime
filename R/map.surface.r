@@ -5,14 +5,14 @@
         if (!is.null(init.files)) for( i in init.files ) source (i)
         if (is.null(ip)) ip = 1:length(pyears)
 
-        outdir = file.path( project.datadirectory("snowcrab"), "R", "habitat", "maps" ) 
+        outdir = file.path( project.datadirectory("bio.snowcrab"), "R", "habitat", "maps" ) 
         dir.create(path=outdir, recursive=T, showWarnings=F)
         
         if ( plotvar %in% c("habitat", "habitat.sim") ) {
           dr = c( 0, 1)
         }
         if ( plotvar %in% c("abundance", "abundance.sim") ) {
-          xx = snowcrab.db("set.complete")[, "R0.mass" ] 
+          xx = bio.snowcrab.db("set.complete")[, "R0.mass" ] 
           dr = range( xx, na.rm=T )
           if (log.transf) {
             er = range( xx[ which(xx >0)])

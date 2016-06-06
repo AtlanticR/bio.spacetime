@@ -11,7 +11,7 @@
   # 0. Initialise work space
 
   RLibrary( "mgcv", "chron", "lattice"  )
-	p = snowcrab::initialise.local.environment()
+	p = bio.bio.snowcrab::initialise.local.environment()
 
   # --------------------------
   # 1. Define some additional starting parameters for debugging
@@ -49,7 +49,7 @@
   # 3. KRIGING estimation of abundance and mapping
 
     # First, predict habitat surface locations: takes about 2hr for 15 yrs ..
-    # snowcrab.habitat.db.old ( DS="habitat.redo", model.type=p$model.type, vclass=vclass, pyears=p$yearswithTdata, init.files=init.files, p=p )
+    # bio.snowcrab.habitat.db.old ( DS="habitat.redo", model.type=p$model.type, vclass=vclass, pyears=p$yearswithTdata, init.files=init.files, p=p )
     # or
 
       p$habitat.threshold.quantile = 0.05  # quantile at which to consider zero-valued abundance
@@ -59,15 +59,15 @@
       model.habitat( model.type="gam.full.redo", p=p, plotdata=F ) # only a single habitat type is used with this method
 
       p = make.list( list( yrs=p$yearswithTdata ), Y=p )
-      parallel.run( snowcrab.habitat.db.old, DS="habitat.redo", model.type=p$model.type, vclass=vclass, pyears=p$yearswithTdata, init.files=init.files, p=p )
+      parallel.run( bio.snowcrab.habitat.db.old, DS="habitat.redo", model.type=p$model.type, vclass=vclass, pyears=p$yearswithTdata, init.files=init.files, p=p )
 
 
       # V prepare prediction surface data sets for kriging analysis and GAM
-      # snowcrab.habitat.db.old( DS="PS.redo", p=p, yrs=p$years.to.model,  model.type=p$model.type, vclass=vclass)
+      # bio.snowcrab.habitat.db.old( DS="PS.redo", p=p, yrs=p$years.to.model,  model.type=p$model.type, vclass=vclass)
       # or
 
       p = make.list( list( yrs=p$years.to.model ), Y=p )
-      parallel.run( snowcrab.habitat.db.old, DS="PS.redo", p=p, yrs=p$years.to.model, model.type=p$model.type, vclass=vclass, init.files=init.files)
+      parallel.run( bio.snowcrab.habitat.db.old, DS="PS.redo", p=p, yrs=p$years.to.model, model.type=p$model.type, vclass=vclass, init.files=init.files)
 
 
 			# determine potential habitat stats in historical data ( 1950 to present ) for timeseries plots
@@ -76,7 +76,7 @@
 
 
       # debug
-      # x = snowcrab.habitat.db.old(DS="habitat", model.type=p$model.type, vclass=vclass, pyears=yr )
+      # x = bio.snowcrab.habitat.db.old(DS="habitat", model.type=p$model.type, vclass=vclass, pyears=yr )
       # x11(); levelplot( x$fit ~ plon+plat, habitat.db( DS="baseline", p=p), aspect="iso" )
 
       if ( point.kriging) {
@@ -161,7 +161,7 @@
 
         if ( exists( "compare.density.with.biomass" ) ) {
 
-          s = snowcrab.db( DS ="set.complete" )
+          s = bio.snowcrab.db( DS ="set.complete" )
           s1 = as.data.frame.table ( tapply( s$R0.mass, list(cfa=s$cfa, yr=s$yr ), mean, na.rm=T ) )
           names(s1) = c("cfa", "yr", "R0.mass.mean.density" )
           K = kriging.db( DS="UK.conditional.simulation.K", p=p  )
@@ -203,16 +203,16 @@
 
     }
 
-    outdir = file.path( project.datadirectory("snowcrab"), "R", "kriging" )
+    outdir = file.path( project.datadirectory("bio.snowcrab"), "R", "kriging" )
     dir.create(path=outdir, recursive=T, showWarnings=F)
 
 
     if ( DS %in% c( "UK.redo", "UK.point.PS", "UK.conditional.simulation.PS", "UK.conditional.simulation.K", "UK.conditional.simulation.K.complete" ) ) {
 
 
-      loc.Pnt = file.path( project.datadirectory("snowcrab"), "R", "kriging", "point" )
-      loc.sol = file.path( project.datadirectory("snowcrab"), "R", "kriging", "predictions" )
-      loc.res = file.path( project.datadirectory("snowcrab"), "R", "kriging", "results" )
+      loc.Pnt = file.path( project.datadirectory("bio.snowcrab"), "R", "kriging", "point" )
+      loc.sol = file.path( project.datadirectory("bio.snowcrab"), "R", "kriging", "predictions" )
+      loc.res = file.path( project.datadirectory("bio.snowcrab"), "R", "kriging", "results" )
 
       if (p$transgaussian.kriging) {
         loc.Pnt = file.path( loc.Pnt, "trans.gaussian" )
@@ -308,11 +308,11 @@
           }
         }
 
-        S  = snowcrab.db( DS="set.logbook")
+        S  = bio.snowcrab.db( DS="set.logbook")
 
         if (p$transgaussian.kriging) {
           # S = S[ which( S[,v] > 0) ,]
-          S[,v] = variable.recode( S[,v], v, direction="forward", db="snowcrab" )
+          S[,v] = variable.recode( S[,v], v, direction="forward", db="bio.snowcrab" )
         }
 
         S = rename.df(S, v, "kv")
@@ -335,7 +335,7 @@
 
         # 1. get data for the year in question
         Sy = S[ which(S$yr==y) ,]
-        PS = snowcrab.habitat.db( DS="PS", yrs=y, p=p )
+        PS = bio.snowcrab.habitat.db( DS="PS", yrs=y, p=p )
 
 
         # 2. habitat area for snow crab
@@ -457,11 +457,11 @@
             if ( "try-error" %in% class(z) ) next()
 
           if (p$transgaussian.kriging)  {
-            z[,3] = variable.recode( z[,3], v, direction="backward", db="snowcrab" )
-            z[,4] = variable.recode( sqrt( z[,3]), v, direction="backward", db="snowcrab" )
+            z[,3] = variable.recode( z[,3], v, direction="backward", db="bio.snowcrab" )
+            z[,4] = variable.recode( sqrt( z[,3]), v, direction="backward", db="bio.snowcrab" )
             z[,4] = z[,4] ^ 2
           }
-          er = empirical.ranges( db="snowcrab", v )
+          er = empirical.ranges( db="bio.snowcrab", v )
           z[ which(z[,3]< er[1]) , 3 ] = er[1]  # assume too small to detect .. 0
           z[ which(z[,3]> er[2]) , 3 ] = er[2]  # upper bound
           save (z, file=fn.Pnt, compress=T)
@@ -483,7 +483,7 @@
           z = try( predict(object=g,  newdata=centroid, block=PS[iPS,c("plon", "plat")], debug=-1), silent=T)
           if ( "try-error" %in% class(z) )  next()
           datacols = c(3:ncol(z))
-          if (p$transgaussian.kriging)  z[,datacols] = variable.recode( z[,datacols], v, direction="backward", db="snowcrab" )
+          if (p$transgaussian.kriging)  z[,datacols] = variable.recode( z[,datacols], v, direction="backward", db="bio.snowcrab" )
           z.sum = z[,3] * surfacearea
           z.sum.sd = sd( z.sum )
           z.sum.mean = mean ( z.sum )
@@ -526,8 +526,8 @@
           # zcd = apply( z,1,mean,na.rm=T ) / apply( z, 1, sd, na.rm=T )
           # ibad = which( zcd > 1 ) # large coefficients of variation are excluded
 
-          if (p$transgaussian.kriging) z = variable.recode( z, v, direction="backward", db="snowcrab" )
-          er = empirical.ranges( db="snowcrab", v )
+          if (p$transgaussian.kriging) z = variable.recode( z, v, direction="backward", db="bio.snowcrab" )
+          er = empirical.ranges( db="bio.snowcrab", v )
 
           # z[ ibad,] = 0 # drop them from further consideration
 

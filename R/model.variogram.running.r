@@ -1,6 +1,6 @@
 
   model.variogram.running = function( S, v, y, p, empirical.vgm.only=F,
-    loc = file.path(  project.datadirectory("snowcrab"), "R", "variograms" ) ) {
+    loc = file.path(  project.datadirectory("bio.snowcrab"), "R", "variograms" ) ) {
 
     # construct empirical (residual) variogram and model
     yrs =  y + c(-3:3 )

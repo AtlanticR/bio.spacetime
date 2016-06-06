@@ -36,7 +36,7 @@ krige.map.core = function( ip=NULL, p=NULL, init.files=NULL  ) {
     if (!file.exists(p$basemap) )  gmt.basemap(p)
 
 # map means
-    p$outdir = file.path( project.datadirectory("snowcrab"), "R", "predictions", "kriged.estimates")
+    p$outdir = file.path( project.datadirectory("bio.snowcrab"), "R", "predictions", "kriged.estimates")
     dir.create (path=p$outdir, recursive=T, showWarnings=F)
     p$outfile.basename = file.path(p$outdir, paste(v, y, sep="."))
     p = gmt.define.colours (p, v)
@@ -44,7 +44,7 @@ krige.map.core = function( ip=NULL, p=NULL, init.files=NULL  ) {
     gmt.map( p, mdata[, c("lon", "lat", k.pname)], y, v , conversions="ps2png" )
 
 # map variances
-    p$outdir = file.path( project.datadirectory("snowcrab"), "R", "predictions", "kriged.variances")
+    p$outdir = file.path( project.datadirectory("bio.snowcrab"), "R", "predictions", "kriged.variances")
     dir.create (path=p$outdir, recursive=T, showWarnings=F)
     p$outfile.basename = file.path(p$outdir, paste(v, y, sep="."))
     p = gmt.define.colours (p, v)
