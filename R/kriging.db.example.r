@@ -161,7 +161,7 @@
 
         if ( exists( "compare.density.with.biomass" ) ) {
 
-          s = bio.snowcrab.db( DS ="set.complete" )
+          s = snowcrab.db( DS ="set.complete" )
           s1 = as.data.frame.table ( tapply( s$R0.mass, list(cfa=s$cfa, yr=s$yr ), mean, na.rm=T ) )
           names(s1) = c("cfa", "yr", "R0.mass.mean.density" )
           K = kriging.db( DS="UK.conditional.simulation.K", p=p  )
@@ -308,7 +308,7 @@
           }
         }
 
-        S  = bio.snowcrab.db( DS="set.logbook")
+        S  = snowcrab.db( DS="set.logbook")
 
         if (p$transgaussian.kriging) {
           # S = S[ which( S[,v] > 0) ,]

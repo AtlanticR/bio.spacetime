@@ -1,7 +1,7 @@
 
 
   model.habitat.kriging = function( model.type="gam.full", p=NULL, hvar="R0.mass", plotdata=T, 
-    dat= bio.snowcrab.db( DS="set.logbook"),
+    dat= snowcrab.db( DS="set.logbook"),
     outdir = file.path( project.datadirectory("bio.snowcrab"), "R", "habitat", "models" )
     ) {
 
