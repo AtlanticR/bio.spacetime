@@ -299,8 +299,8 @@
           if ( overwrite.threshold > 0 ) {  # any value <= 0 will force an overwrite
             if ( file.exists( fn.test ) ) {
               load( fn.test)
-              current.time = as.chron(Sys.time(), out.format=c(dates="year-m-d", times="h:m:s") )
-              file.time = string2chron( K$datestamp )
+              current.time = Sys.time()
+              file.time = as.POSICct( K$datestamp )
               if (( current.time - file.time ) < overwrite.threshold ) next()
             }
           } else {  # less than 0 -- only overwrite if no results found

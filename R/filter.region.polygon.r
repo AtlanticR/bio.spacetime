@@ -1,7 +1,5 @@
 
   filter.region.polygon = function( x, region, planar=F, proj.type="utm20" ) {
-    library(gstat)
-		bioLibrary( "bio.polygons" )
 
     region = recode.areas( region )
     out = NULL
