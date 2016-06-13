@@ -104,7 +104,7 @@
         # parallel.run( map.krige.lattice, M=p, init.files=init.files )
 
         # test plot
-        # PS = kriging.db( DS="UK.point.PS", p=list(v="R0.mass", y=p$current.assessment.year, r="cfanorth")  )
+        # PS = kriging.db( DS="UK.point.PS", p=list(v="R0.mass", y=p$year.assessment, r="cfanorth")  )
         # levelplot( R0.mass.pred ~ plon+plat, PS, aspect="iso")
         #
         # plot with GMT
@@ -128,7 +128,7 @@
         debug.4X = F
         if (debug.4X) {
           problem.years = c(2006, 2009 )
-          p$years.to.model = setdiff( c(2004:p$current.assessment.year), problem.years)   # highly problematic years
+          p$years.to.model = setdiff( c(2004:p$year.assessment), problem.years)   # highly problematic years
           p$years.to.model = c(2006, 2008, 2009)  # highly problematic years
           p$regions = "cfa4x"
           p$n.conditional.sims = 150

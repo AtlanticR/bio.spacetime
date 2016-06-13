@@ -14,7 +14,7 @@
       out = NULL
       
       # yrs =  p$yearswithTdata --- no longer possible as biological data also enter into prediction surface
-      yrs = 1970:p$current.assessment.year
+      yrs = 1970:p$year.assessment
 
       for( y in yrs ){
         print(y)
