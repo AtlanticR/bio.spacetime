@@ -11,7 +11,7 @@
   # 0. Initialise work space
 
   RLibrary( "mgcv", "chron", "lattice"  )
-	p = snowcrab::initialise.local.environment()
+	p = snowcrab::load.environment()
 
   # --------------------------
   # 1. Define some additional starting parameters for debugging
