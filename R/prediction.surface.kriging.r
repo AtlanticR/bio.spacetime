@@ -18,7 +18,7 @@
 
       for( y in yrs ){
         print(y)
-        PS = habitat.db ( DS="complete", year=y, p=p )
+        PS = indicators.db ( DS="complete", year=y, p=p )
         PS = fishing.area.designations( PS, type="planar")
         PS$cfa.factor = NULL
         pH = snowcrab.habitat.db ( DS="habitat", yrs=y, model.type="gam.full", vclass="R0.mass" )
