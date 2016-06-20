@@ -1,7 +1,7 @@
 
   # this is not operating .. it is an exmple only of the rough logic of kriging
 
-  kriging.db.example = function( ip=NULL, DS, p=NULL, yrs, overwrite.threshold=NULL,  init.files=NULL ) {
+  kriging.db.example = function( ip=NULL, DS, p=NULL, yrs, overwrite.threshold=NULL) {
 
 
     if (DS=="example") {
@@ -49,7 +49,7 @@
   # 3. KRIGING estimation of abundance and mapping
 
     # First, predict habitat surface locations: takes about 2hr for 15 yrs ..
-    # snowcrab.habitat.db.old ( DS="habitat.redo", model.type=p$model.type, vclass=vclass, pyears=p$yearswithTdata, init.files=init.files, p=p )
+    # snowcrab.habitat.db.old ( DS="habitat.redo", model.type=p$model.type, vclass=vclass, pyears=p$yearswithTdata, p=p )
     # or
 
       p$habitat.threshold.quantile = 0.05  # quantile at which to consider zero-valued abundance
@@ -59,7 +59,7 @@
       model.habitat( model.type="gam.full.redo", p=p, plotdata=F ) # only a single habitat type is used with this method
 
       p = make.list( list( yrs=p$yearswithTdata ), Y=p )
-      parallel.run( snowcrab.habitat.db.old, DS="habitat.redo", model.type=p$model.type, vclass=vclass, pyears=p$yearswithTdata, init.files=init.files, p=p )
+      parallel.run( snowcrab.habitat.db.old, DS="habitat.redo", model.type=p$model.type, vclass=vclass, pyears=p$yearswithTdata, p=p )
 
 
       # V prepare prediction surface data sets for kriging analysis and GAM
@@ -67,7 +67,7 @@
       # or
 
       p = make.list( list( yrs=p$years.to.model ), Y=p )
-      parallel.run( snowcrab.habitat.db.old, DS="PS.redo", p=p, yrs=p$years.to.model, model.type=p$model.type, vclass=vclass, init.files=init.files)
+      parallel.run( snowcrab.habitat.db.old, DS="PS.redo", p=p, yrs=p$years.to.model, model.type=p$model.type, vclass=vclass )
 
 
 			# determine potential habitat stats in historical data ( 1950 to present ) for timeseries plots
@@ -95,20 +95,20 @@
         # define compact list of variable year combinations for parallel processing
         p = make.list( list(y=p$years.to.model, r="cfaall", v=p$vars.to.model ), Y=p )
 
-        # kriging.db( DS="UK.redo", p=p, init.files=init.files  )
+        # kriging.db( DS="UK.redo", p=p)
         # or
-        parallel.run( kriging.db, DS="UK.redo", p=p, init.files=init.files  )
+        parallel.run( kriging.db, DS="UK.redo", p=p)
 
         # the following is completed within the kriging.db but can be re-run this way:
-        # map.krige.lattice( M=p, init.files=init.files )
-        # parallel.run( map.krige.lattice, M=p, init.files=init.files )
+        # map.krige.lattice( M=p)
+        # parallel.run( map.krige.lattice, M=p)
 
         # test plot
         # PS = kriging.db( DS="UK.point.PS", p=list(v="R0.mass", y=p$year.assessment, r="cfanorth")  )
         # levelplot( R0.mass.pred ~ plon+plat, PS, aspect="iso")
         #
         # plot with GMT
-        # krige.map ( p, init.files=init.files  )  # ~ 1 day?
+        # krige.map ( p)  # ~ 1 day?
         # gmt.cleanup() # clean up any stragglers
 
       }
@@ -148,8 +148,8 @@
         # kriging.db( DS="UK.redo", p=p, overwrite.threshold=NULL ) # overwrite all data files
         # kriging.db( DS="UK.redo", p=p, overwrite.threshold=-1 ) # complete only if no data files exist
         # kriging.db( DS="UK.redo", p=p, overwrite.threshold=100 ) # overwrite if over a certain number of days
-        parallel.run( kriging.db, DS="UK.redo", p=p, init.files=init.files, overwrite.threshold=NULL  )
-        # parallel.run( kriging.db, DS="UK.redo", p=p, init.files=init.files, overwrite.threshold=200  )  # ~ 0.4 GB / process (GSTAT)
+        parallel.run( kriging.db, DS="UK.redo", p=p, overwrite.threshold=NULL  )
+        # parallel.run( kriging.db, DS="UK.redo", p=p, overwrite.threshold=200  )  # ~ 0.4 GB / process (GSTAT)
         # ~ 0.4 GB / process (GSTAT);;
         # overwrite.threshold is # days required to trigger an over-write
         # overwrite.threshold=NULL  is overwrite all
@@ -193,7 +193,7 @@
         # plot( total ~ yr, K, subset=which(region=="cfanorth" & vars=="R0.mass" ), type="b" )
         y=list(y=1998, r="cfanorth", v="R0.mass", transgaussian.kriging=T, nruns=1)  # order is important
         # GLS simulation predictions
-        PS = kriging.db( DS="UK.conditional.simulation.PS", p=y, init.files=init.files  )
+        PS = kriging.db( DS="UK.conditional.simulation.PS", p=y)
         levelplot( pred.mean~ plon+plat, PS, aspect="iso")
 
      }
@@ -245,7 +245,8 @@
           return( K )
       }
 
-      if (!is.null(init.files)) for( i in init.files ) source (i)
+      if (exists( "libs", p)) RLibrary( p$libs )
+
       if (is.null(ip)) ip = 1:p$nruns
 
       if (DS %in% c("UK.conditional.simulation.K")  ) {

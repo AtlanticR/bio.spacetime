@@ -2,7 +2,6 @@
 spacetime.covariance.spatial = function( ip=NULL, p ) {
   #\\ mostly copied over from spacetime.interpolate.inla.local in terms of mechanism to inter-operate with bigmemory
 
-  if (exists( "init.files", p)) LoadFiles( p$init.files )
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
   p = spacetime.db( p=p, DS="bigmemory.filenames" )

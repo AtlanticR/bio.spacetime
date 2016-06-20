@@ -5,7 +5,6 @@
     #\\ note this can run in parallel and serial mode
 
     # ip is the first parameter passed in the parallel mode
-    if (exists( "init.files", p)) LoadFiles( p$init.files )
     if (exists( "libs", p)) RLibrary( p$libs )
     if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
 

@@ -1,7 +1,9 @@
-krige.map.core = function( ip=NULL, p=NULL, init.files=NULL  ) {
-   
-  for (i in init.files) source( i )
-  if ( is.null(id)) ip = c(1: p$nruns ) 
+krige.map.core = function( ip=NULL, p=NULL) {
+
+
+  if (exists( "libs", p)) RLibrary( p$libs )
+
+  if ( is.null(id)) ip = c(1: p$nruns )
 
   for (iip in ip) {
         y = p$runs[iip,"y"]
@@ -21,7 +23,7 @@ krige.map.core = function( ip=NULL, p=NULL, init.files=NULL  ) {
     S = get.PS.S.gridded (p, y, v)$S
     mest = variable.recode( S[,"kv"], v, direction="forward" )  # used for generating a colour scale that matches the whole time span
     rm (S); gc()
-    
+
     bk0 = krigng.db( DS="UK.point.PS", p=list(v=v, y=y, r=r) )
 
     if (is.na(bk0) ) next ()
@@ -50,7 +52,7 @@ krige.map.core = function( ip=NULL, p=NULL, init.files=NULL  ) {
     p = gmt.define.colours (p, v)
     p = gmt.colourscale(p, mdata[, k.vname], v, NSTD=3 ) # no need to force uniform scale as this is a diagnostic plot
     gmt.map( p, mdata[, c("lon", "lat", k.vname)], y, v, conversions="ps2png" )
-   
+
   }
   return("Complete map")
 }
