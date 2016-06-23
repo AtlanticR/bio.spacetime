@@ -13,7 +13,7 @@
           dr = c( 0, 1)
         }
         if ( plotvar %in% c("abundance", "abundance.sim") ) {
-          xx = snowcrab.db("set.complete")[, "R0.mass" ]
+          xx = snowcrab.db("set.biologicals")[, "R0.mass" ]
           dr = range( xx, na.rm=T )
           if (log.transf) {
             er = range( xx[ which(xx >0)])
