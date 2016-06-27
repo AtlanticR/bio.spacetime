@@ -1,15 +1,14 @@
 
   gmt.map.variables.core = function( id=NULL, U, params, variables, plottimes, basedir, conversions, delta, db ) {
 
-    if (exists( "libs", p)) RLibrary( p$libs )
     varnames = colnames(U)
     # the first index is a list that is passed from the calling prog: in this case "ssplt" (if parallel)
     if (params$do.parallel) {
       id = as.numeric(id)
+      if (exists( "libs", p)) RLibrary( p$libs )
     } else {
       id = c(1:length(variables) )
     }
-
 
     for (i in id) {
       plotvar = variables[i]

@@ -7,7 +7,7 @@
   #     "Gawk" is used in some instances ..  this can eventually be implemented directly in R
 
   gmt.map.variables = function( U, params, variables, plottimes, basedir, conversions="ps2png", delta=1, db="snowcrab", cltype="SOCK") {
-    require(parallel)
+    # require(parallel)
     nid = length( variables )
     if (!params$do.parallel) {
       gmt.map.variables.core(U=U, params=params, variables=variables, plottimes=plottimes, basedir=basedir, conversions=conversions, delta=delta, db=db)
