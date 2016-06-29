@@ -45,6 +45,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   # ------------------------
 
   if ("gstat" %in% methods){
+    # 1.0 - (pow(2.0, -(kappa - 1.0))/gammafn(kappa)) *  pow(hr, kappa) * bessel_k(hr, kappa, 1.0);
     require(gstat)
     require(sp)
     vrange = maxdist/2 + 1
@@ -56,6 +57,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       vEm = try( variogram( z~1, locations=~plon+plat, data=xy, cutoff=maxdist, width=maxdist/nbreaks ) ) # empirical variogram
       if  ("try-error" %in% vEm) return(NULL)
       vMod0 = vgm(psill=0.5, model="Mat", range=maxdist, nugget=0.5, kappa=10 ) # starting model parameters
+      #vMod0 = vgm("Mat")
       vFitgs =  try( fit.variogram( vEm, vMod0, fit.kappa =TRUE, fit.sills=TRUE, fit.ranges=TRUE ) ) ## gstat's kappa is the Bessel function's "nu" smoothness parameter
       if  ("try-error" %in% vFitgs) return(NULL)
       vMod = vgm(psill=vFitgs$psill[2], model="Mat", range=maxdist, nugget=vFitgs$psill[1], kappa=vFitgs$kappa[2] )
@@ -96,6 +98,13 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   if ("geoR" %in% methods) {
     # weighted least squares
+    #  he Matern model (correlation function, rho) is defined as:
+    #  rho(u;phi,kappa) =(2^(kappa-1) Gamma(kappa))^(-1) (u/phi)^kappa K_kappa(u/phi)
+
+     where phi and kappa are parameters and K_kappa(...) denotes the
+     modified Bessel function of the third kind of order kappa.  The
+     family is valid for phi > 0 and kappa > 0.
+
     require( geoR )
     vrange = maxdist/2 + 1
     maxdist = maxdist/2 ## back it up a bit to enter smoothly into the loop
@@ -107,6 +116,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       if  ("try-error" %in% vEm) return(NULL)
       vMod = try( variofit( vEm, nugget=0.5, kappa=1, cov.model=cov.model, ini.cov.pars=c(0.5, maxdist/4) ,
         fix.kappa=FALSE, fix.nugget=FALSE, max.dist=maxdist, weights="cressie" ) )
+        # kappa is the smoothness parameter , also called "nu" by others incl. RF
       if  ("try-error" %in% vMod) return(NULL)
       # maximum likelihood method does not work well with Matern
       ML = FALSE
@@ -147,16 +157,23 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
         RFparams=list(vdim=1, n=1)
     )
    # uses all data
+   # where nu > 0 and K_nu is the modified Bessel function of second kind and distance r >= 0 between two pointsd
+   # The Matern covariance model is given by
+   #  Cov(r) = 2^{1- nu} Gamma(nu)^{-1} (sqrt{2nu} r)^nu K_nu(sqrt{2nu} r)
+
     model = ~ 1 + RMmatern( var=NA, nu=NA, scale=NA) + RMnugget(var=NA)
     o = RFfit(model, data=rfdata )
     oo=summary(o)
 
-    # NOT clear from documentation the parameterization... TODO
     out$RandomFields = list ( fit=o, vgm=o[2], model=oo, range=NA,
-              varSpatial=oo$param["value", "matern.var"], varObs=oo$param["value", "nugget.var"],
-              phi=NA, kappa=oo$param["value", "matern.nu"], error=NA )
-    out$RandomFields$phi = oo$param["value", "matern.s"]
+              varSpatial=oo$param["value", "matern.var"],
+              varObs=oo$param["value", "nugget.var"],
+              phi=oo$param["value", "matern.s"],  # RF::".s = scale" == geoR::phi
+              kappa=oo$param["value", "matern.nu"], # RF::nu == geoR:: kappa (bessel smoothness param)
+              error=NA )
+
     out$RandomFields$range = geoR::practicalRange("matern", phi=out$RandomFields$phi, kappa=out$RandomFields$kappa  )
+
     if (out$RandomFields$range > maxdist) {
       maxdist2 = maxdist*1.5
       out = spacetime.variogram( xy, z, methods="RandomFields", maxdist=maxdist2 )
