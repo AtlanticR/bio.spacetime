@@ -100,10 +100,9 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     # weighted least squares
     #  he Matern model (correlation function, rho) is defined as:
     #  rho(u;phi,kappa) =(2^(kappa-1) Gamma(kappa))^(-1) (u/phi)^kappa K_kappa(u/phi)
-
-     where phi and kappa are parameters and K_kappa(...) denotes the
-     modified Bessel function of the third kind of order kappa.  The
-     family is valid for phi > 0 and kappa > 0.
+     # where phi and kappa are parameters and K_kappa(...) denotes the
+     # modified Bessel function of the third kind of order kappa.  The
+     # family is valid for phi > 0 and kappa > 0.
 
     require( geoR )
     vrange = maxdist/2 + 1
