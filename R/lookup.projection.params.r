@@ -1,7 +1,9 @@
-  lookup.projection.params = function(x) {
+ #' @export 
+lookup.projection.params = function(x) {
     # for examples, see: 
     # http://www.progonos.com/furuti/MapProj/Normal/TOC/cartTOC.html
     out  = switch( x,
+      utm19		= "+proj=utm +ellps=WGS84 +zone=19 +units=km ",
       utm20             = "+proj=utm +ellps=WGS84 +zone=20 +units=km ", 
       utm20.substrate   = "+proj=utm +datum=NAD83 +zone=20 +units=km",
       lambert.conic.equidist    = "+proj=eqdc +ellps=WGS84 +lon_0=63W +lat_0=45N +lat_1=43N +lat_2=47N +units=km ",
