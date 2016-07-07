@@ -441,50 +441,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
 
   if(0) { paste0("
-      This is a comment: copied from the appendix of: http://pbrown.ca/geostatsp/document-rev.pdf
-
-There are several parametrisations of the Mat´ern correlation function, and the range parameter
-in lgm and glgm corresponds to ϕ in
-ρ(h; ϕ, κ) = 1
-Γ(κ)2κ−1
-(√
-8κ||h||
-ϕ
-)κ
-Kκ
-(√
-8κ||h||/ϕ)
-.
-Γ(·) is a Gamma function and Kκ is a modified Bessel function of the second kind of order κ.
-Figure 12 shows plots of the Mat´ern for various values of κ and all with ϕ = 1. Notice that,
-with the possible exception of κ = 0.1, the correlations intersect (more or less) at ||h|| = 1.
-A not inaccurate interpretation of the range parameter ϕ in this parametrization is it is the
-distance beyond which correlation is both fairly small (< 0.14), and decaying fairly slowly
-regardless of the shape parameter κ.
-The geostatsp package has a matern function which implements the parametrization above,
-though it may be helpful to consider the function below. Figure 12 is produced with this
-code.
-R> mymatern = function(u, phi, kappa) {
-+ uscale = sqrt(8 * kappa) * u/phi
-+ res = (1/(gamma(kappa) * 2^(kappa - 1))) * uscale^kappa *
-+ besselK(uscale, kappa)
-+ res[u == 0] = 1
-+ res
-+}
-Wikipedia (Wikipedia 2013) and the ‘matern’ model in the RandomFields package define the
-range parameter as ϕ1 = ϕ/2. Diggle and Ribeiro (2006), the geoR package, and the whittle
-model in RandomFields have a range parameter ϕ2 = ϕ/√
-8κ. It is also common to define the
-Mat´ern with a scale parameter in place of the range, with the scale parameter being α = 1/ϕ2.
-Lindgren et al. (2011) use either the scale α or the range ϕ. The Range parameter produced
-by inla is ϕδ, with δ being the length of the sides of the grid cells, as confirmed below.
-R> c(loaFit$inla$summary.hyperpar["Range for space", "mode"] *
-+ xres(loaFit$raster), loaFit$par$summary["range", "mode"])
-
-and from wikipedia: https://en.wikipedia.org/wiki/Matérn_covariance_function
-
-
-       ") }
+      see comment from the appendix of: http://pbrown.ca/geostatsp/document-rev.pdf
+  ") }
 
   return(out)
 }
