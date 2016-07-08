@@ -1,10 +1,12 @@
 
-spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("geoR"), cov.model="matern", maxdist=NA, nbreaks = 15 ) {
+spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("geoR"), maxdist=NA, nbreaks = 15 ) {
 
   #\\ estimate empirical variograms (actually correlation functions) and then model them using a number of different approaches
   #\\ returns empirical variogram and parameter estimates, and the models themselves
   #\\ expect xy = c(p/lon, p/lat), z= variable
   #\\ varZ is the total variance which needs to be mulitplied to the curve if you want the "true" semivariance
+  #\\ parameterization is as in spBayes and gstat
+  #\\ covariogram (||x||) = tau^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
   nc_max = 5  # max number of iterations
 
   out = list()
@@ -45,7 +47,10 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   # ------------------------
 
   if ("gstat" %in% methods){
-    # 1.0 - (pow(2.0, -(kappa - 1.0))/gammafn(kappa)) *  pow(hr, kappa) * bessel_k(hr, kappa, 1.0);
+    #\\ covariogram (||x||) = tau^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
+    #\\ gstat::kappa == spBayes::nu
+    #\\ gstat::range == spBayes::phi {aka, "scale parameter"}
+
     require(gstat)
     require(sp)
     vrange = maxdist/2 + 1
@@ -62,8 +67,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       if  ("try-error" %in% vFitgs) return(NULL)
       vMod = vgm(psill=vFitgs$psill[2], model="Mat", range=maxdist, nugget=vFitgs$psill[1], kappa=vFitgs$kappa[2] )
       out$gstat = list( fit=vFitgs, vgm=vEm, model=vMod, range=NA, varSpatial=vFitgs$psill[2], varObs=vFitgs$psill[1],
-      kappa=vFitgs$kappa[2], phi=vFitgs$range[2]  )
-      out$gstat$range =  geoR::practicalRange("matern", phi=out$gstat$phi, kappa=out$gstat$kappa  )
+      nu=vFitgs$kappa[2], phi=vFitgs$range[2]  )
+      out$gstat$range =  geoR::practicalRange("matern", phi=out$gstat$phi, kappa=out$gstat$nu  )
       vrange = out$gstat$range
       if (nc > nc_max ) break()
     }
@@ -77,7 +82,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       abline( v=out$gstat$range )
 
       x = seq( 0, maxdist, length.out=100 )
-      acor = geoR::matern( x, phi=out$gstat$phi, kappa=out$gstat$kappa  )
+      acor = geoR::matern( x, phi=out$gstat$phi, kappa=out$gstat$nu  )
       acov = out$gstat$varObs + out$gstat$varSpatial * (1- acor)
       lines( acov~x , col="red" )
 
@@ -103,6 +108,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
      # where phi and kappa are parameters and K_kappa(...) denotes the
      # modified Bessel function of the third kind of order kappa.  The
      # family is valid for phi > 0 and kappa > 0.
+     #\\ default covariogram (||x||) = tau^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
+      #\\ geoR:: rho(h) = (1/(2^(kappa-1) * Gamma(kappa))) * ((h/phi)^kappa) * K_{kappa}(h/phi)
 
     require( geoR )
     vrange = maxdist/2 + 1
@@ -113,21 +120,21 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       maxdist = maxdist * 1.25
       vEm = try( variog( coords=xy, data=z, uvec=nbreaks, max.dist=maxdist ) )
       if  ("try-error" %in% vEm) return(NULL)
-      vMod = try( variofit( vEm, nugget=0.5, kappa=1, cov.model=cov.model, ini.cov.pars=c(0.5, maxdist/4) ,
+      vMod = try( variofit( vEm, nugget=0.5, kappa=1, cov.model="matern", ini.cov.pars=c(0.5, maxdist/4) ,
         fix.kappa=FALSE, fix.nugget=FALSE, max.dist=maxdist, weights="cressie" ) )
         # kappa is the smoothness parameter , also called "nu" by others incl. RF
       if  ("try-error" %in% vMod) return(NULL)
       # maximum likelihood method does not work well with Matern
       ML = FALSE
       if (ML) {
-        vMod = likfit( coords=xy, data=z, cov.model=cov.model, ini.cov.pars=vMod$cov.pars,
+        vMod = likfit( coords=xy, data=z, cov.model="matern", ini.cov.pars=vMod$cov.pars,
         fix.kappa=FALSE, fix.nugget=FALSE, kappa=vMod$kappa, nugget=vMod$nugget, lik.method = "REML" )
       }
      vrange = vMod$practicalRange
      if (nc > nc_max ) break()
     }
     out$geoR = list( fit=vMod, vgm=vEm, model=vMod, range=vMod$practicalRange,
-              varSpatial= vMod$cov.pars[1], varObs=vMod$nugget, phi=vMod$cov.pars[2] , kappa=vMod$kappa  )
+              varSpatial= vMod$cov.pars[1], varObs=vMod$nugget, nu=vMod$kappa,  phi=vMod$cov.pars[2] )
 
     if (plotdata) {
       x11()
@@ -137,8 +144,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       abline( h=out$geoR$varObs )
       abline( v=out$geoR$range )
       x = seq( 0, max(out$geoR$vgm$u), length.out=100 )
-      acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$kappa  )
-      acov = out$geoR$varObs +  out$geoR$varSpatial * (1- acor)  ## geoR is 1/2 of gstat and RandomFields gamma's
+      acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$nu  )
+      acov = out$geoR$varObs +  out$geoR$varSpatial * (1-acor)  ## geoR is 1/2 of gstat and RandomFields gamma's
       lines( acov ~ x , col="orange" )
     }
   }
@@ -157,21 +164,21 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     )
    # uses all data
    # where nu > 0 and K_nu is the modified Bessel function of second kind and distance r >= 0 between two pointsd
-   # The Matern covariance model is given by
+   # The Matern covariance model is given by: C(h) = v * phi(A*h/s).
    #  Cov(r) = 2^{1- nu} Gamma(nu)^{-1} (sqrt{2nu} r)^nu K_nu(sqrt{2nu} r)
-
-    model = ~ 1 + RMmatern( var=NA, nu=NA, scale=NA) + RMnugget(var=NA)
+   # phi = sqrt{2nu}
+    model = ~  RMmatern( var=NA, nu=NA, scale=NA) + RMnugget(var=NA)
     o = RFfit(model, data=rfdata )
     oo=summary(o)
 
     out$RandomFields = list ( fit=o, vgm=o[2], model=oo, range=NA,
               varSpatial=oo$param["value", "matern.var"],
               varObs=oo$param["value", "nugget.var"],
-              phi=oo$param["value", "matern.s"],  # RF::".s = scale" == geoR::phi
-              kappa=oo$param["value", "matern.nu"], # RF::nu == geoR:: kappa (bessel smoothness param)
+              phi=oo$param["value", "matern.s"],  # sqrt(2*RF::".s = scale") == geoR::phi -- need to confirm this :: confirmed JC Jul 2016
+              nu=oo$param["value", "matern.nu"], # RF::nu == geoR:: kappa (bessel smoothness param)
               error=NA )
 
-    out$RandomFields$range = geoR::practicalRange("matern", phi=out$RandomFields$phi, kappa=out$RandomFields$kappa  )
+    out$RandomFields$range = geoR::practicalRange("matern", phi=out$RandomFields$phi, kappa=out$RandomFields$nu  )
 
     if (out$RandomFields$range > maxdist) {
       maxdist2 = maxdist*1.5
@@ -190,31 +197,29 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       abline( h=out$RandomFields$varObs )
       abline( v=out$RandomFields$range )
 
-      x = seq( 0, maxdist, length.out=100 )
-      acor = geoR::matern( x, phi=out$RandomFields$phi, kappa=out$RandomFields$kappa  )
-      acov = out$RandomFields$varObs  + out$RandomFields$varSpatial * (1- acor)
+      x = seq( 0, max(out$RandomFields$vgm@centers), length.out=100 )
+      acor = geoR::matern( x, phi=out$RandomFields$phi, kappa=out$RandomFields$nu  )
+      acov = out$RandomFields$varObs  +  out$RandomFields$varSpatial*(1- acor)
       lines( acov~x , col="red" )
     }
-
 
   }
 
   # -------------------------
 
-
   if ("spBayes" %in% methods) {
     require(spBayes)
     library(MBA)
     require( geoR )
-    geor = spacetime.variogram( xy, z, methods="geoR" )
-    rbounds = c( median( diff(  geor$geoR$vgm$u) )/2, geor$geoR$range *1.5 )
+    geoR = spacetime.variogram( xy, z, methods="geoR" )
+    rbounds = c( median( diff(  geoR$geoR$vgm$u) )/2, geoR$geoR$range *1.5 )
     phibounds = range( -log(0.05) / rbounds ) ## approximate
-    nubounds = c(1e-3, geor$geoR$kappa * 1.5 )# Finley et al 2007 suggest limiting this to (0,2)
+    nubounds = c(1e-3, geoR$geoR$nu * 1.5 )# Finley et al 2007 suggest limiting this to (0,2)
     # Finley, Banerjee Carlin suggest that kappa_geoR ( =nu_spBayes ) > 2 are indistinguishable .. identifiability problems cause slow solutions
     n.samples = 5000
-    starting = list( phi=median(phibounds), sigma.sq=0.5, tau.sq=0.5, nu=1  ) # generic start
+    starting = list( phi=median(phibounds), sigma.sq=0.51, tau.sq=0.51, nu=1.1  ) # generic start
     #starting = list( phi=1/2, sigma.sq=res.geoR$geoR$varSpatial, tau.sq=res.geoR$geoR$varObs, nu=30  ) # generic start
-    tuning   = list( phi=starting$phi/10, sigma.sq=starting$sigma.sq/10, tau.sq=starting$tau.sq/10, nu=starting$nu/10 ) # MH variance
+    tuning   = list( phi=starting$phi/12, sigma.sq=starting$sigma.sq/12, tau.sq=starting$tau.sq/12, nu=starting$nu/12 ) # MH variance to get acceptance rante bet 30-40%
     priors   = list(
       beta.flat = TRUE,
       phi.unif  = phibounds,
@@ -235,7 +240,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     vrange = geoR::practicalRange("matern", phi=1/u["phi"], kappa=u["nu"]  )
 
     out$spBayes = list( model=model, recover=m.1,
-      range=vrange, varSpatial=u["sigma.sq"], varObs=u["tau.sq"],  phi=1/u["phi"], kappa=u["nu"] )  # output using geoR nomenclature
+      range=vrange, varSpatial=u["sigma.sq"], varObs=u["tau.sq"],  phi=1/u["phi"], nu=u["nu"] )  # output using geoR nomenclature
 
     if (plotdata) {
       x11()
@@ -254,15 +259,15 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       m.1.w.summary <- summary(mcmc(t(m.1$p.w.recover.samples)))$quantiles[,c(3,1,5)]
 
       plot(z, m.1.w.summary[,1], xlab="Observed w", ylab="Fitted w",
-          xlim=range(w), ylim=range(m.1.w.summary), main="Spatial random effects")
-      arrows(z, m.1.w.summary[,1], w, m.1.w.summary[,2], length=0.02, angle=90)
-      arrows(z, m.1.w.summary[,1], w, m.1.w.summary[,3], length=0.02, angle=90)
+          xlim=range(z), ylim=range(m.1.w.summary), main="Spatial random effects")
+      arrows(z, m.1.w.summary[,1], z, m.1.w.summary[,2], length=0.02, angle=90)
+      arrows(z, m.1.w.summary[,1], z, m.1.w.summary[,3], length=0.02, angle=90)
       lines(range(z), range(z))
 
       par(mfrow=c(1,2))
-      obs.surf <-   mba.surf(cbind(coords, z), no.X=100, no.Y=100, extend=T)$xyz.est
+      obs.surf <-   mba.surf(cbind(xy, z), no.X=100, no.Y=100, extend=T)$xyz.est
       image(obs.surf, xaxs = "r", yaxs = "r", main="Observed response")
-      points(coords)
+      points(xy)
       contour(obs.surf, add=T)
     }
 
@@ -292,8 +297,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
 #    kappa0 = sqrt(8) / vRange
 #    tau0 = 1/ ( sqrt(4*pi) * kappa0 * vPsill )
-
-    SPDE = inla.spde2.matern( MESH, alpha=2 )
+    alpha = 2 # -> alpha-1 == nu (inla fixes it at 1,2,or 3)
+    SPDE = inla.spde2.matern( MESH, alpha=alpha )
     spatial.field <- inla.spde.make.index('spatial.field', n.spde=SPDE$n.spde )
 
     # projection matrix A to translate from mesh nodes to data nodes
@@ -347,25 +352,24 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     rownames( inla.summary) = c( "kappa", "tau", "range", "spatial error", "observation error" )
     colnames( inla.summary) = inames
 
-    out$inla = list(mesh=MESH, res=RES, range=inla.summary[["range","mean"]],
-      varSpatial=inla.summary[["spatial error","mean"]], varObs=inla.summary[["observation error","mean"]],
-      phi = 1/inla.summary[["kappa","mean"]] , error=NA )
 
-    out$inla$kappa = 1 # kappa{geoR} = lambda{INLA} == alpha-1 {INLA} and alpha=2 by default in INLA
-    out$inla$range.geoR = geoR::practicalRange("matern", phi=out$inla$phi, kappa=out$inla$kappa  )
+    out$inla = list(mesh=MESH, res=RES, range.inla90=inla.summary[["range","mean"]],
+      varSpatial=inla.summary[["spatial error","mean"]], varObs=inla.summary[["observation error","mean"]],
+      phi = 1/inla.summary[["kappa","mean"]] , nu=alpha-1, error=NA )
+
+    # kappa{geoR} = lambda{INLA} == alpha-1 {INLA} and alpha=2 by default in INLA
+    out$inla$range = geoR::practicalRange("matern", phi=out$inla$phi, kappa=out$inla$nu  )
 
 
     if (plotdata) {
       require( geoR )
       x = seq( 0,  out$inla$range * 1.5, length.out=100 )
-      svar =  out$inla$varObs + out$inla$varSpatial * (1-geoR::matern( x, phi=out$inla$phi, kappa=out$inla$kappa  ))
-
-      lines( svar~x, type="l" )
-
+      svar =  out$inla$varObs + out$inla$varSpatial * (1-geoR::matern( x, phi=out$inla$phi, kappa=out$inla$nu  ))
+      plot( svar~x, type="l" )
       abline( h=out$inla$varObs + out$inla$varSpatial )
       abline( h=out$inla$varObs )
-      abline( v=out$inla$range  )
-      abline( v=out$inla$range.geoR  )
+      abline( v=out$inla$range.inla90  )
+      abline( v=out$inla$range, col="red"  )
     }
 
   }
@@ -377,12 +381,14 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
    require(sp)
    data(meuse)
     xy = meuse[, c("x", "y")]
-    z = meuse$zinc
-    cov.model="matern"
+    z = log( meuse$zinc )
     plotdata=TRUE
     maxdist =800
     edge=c(1/3, 1)
+    nbreaks = 15
+
     methods=c("gstat", "inla", "geoR" )
+
     # out = spacetime.variogram( xy, z, methods="spBayes" )
     out = spacetime.variogram( xy, sqrt(z), methods="spBayes" )
     nd = nrow(out$spBayes$recover$p.theta.samples)
@@ -398,8 +404,6 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     gs = spacetime.variogram( xy, sqrt(z), methods="gstat" )
     grf = spacetime.variogram( xy, sqrt(z), methods="RandomFields" )
     gsp = spacetime.variogram( xy, sqrt(z), methods="spBayes" )
-
-
 
     # tests:
 
@@ -440,9 +444,18 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   }
 
 
-  if(0) { paste0("
+  if(0) {
+    paste0("
       see comment from the appendix of: http://pbrown.ca/geostatsp/document-rev.pdf
-  ") }
+      Wikipedia (Wikipedia 2013) and the ‘matern’ model in the RandomFields package define the
+range parameter as ϕ1 = ϕ/2. Diggle and Ribeiro (2006), the geoR package, and the whittle
+model in RandomFields have a range parameter ϕ2 = ϕ/√(8κ). It is also common to define the
+Mat´ern with a scale parameter in place of the range,
+with the scale parameter being α = 1/ϕ2.
+Lindgren et al. (2011) use either the scale α or the range ϕ. The Range parameter produced
+by inla is ϕδ, with δ being the length of the sides of the grid cells, as confirmed below.
+    ")
+  }
 
   return(out)
 }
