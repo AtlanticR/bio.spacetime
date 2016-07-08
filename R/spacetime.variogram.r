@@ -59,15 +59,14 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     while ( (maxdist-vrange) < vrange/2  ) {
       nc = nc  + 1
       maxdist = maxdist * 1.5
-      vEm = try( variogram( z~1, locations=~plon+plat, data=xy, cutoff=maxdist, width=maxdist/nbreaks ) ) # empirical variogram
+      vEm = try( variogram( z~1, locations=~plon+plat, data=xy, cutoff=maxdist, width=maxdist/nbreaks, cressie=TRUE ) ) # empirical variogram
       if  ("try-error" %in% vEm) return(NULL)
-      vMod0 = vgm(psill=0.5, model="Mat", range=maxdist, nugget=0.5, kappa=10 ) # starting model parameters
+      vMod0 = vgm(psill=0.75, model="Mat", range=maxdist, nugget=0.25, kappa=1 ) # starting model parameters
       #vMod0 = vgm("Mat")
       vFitgs =  try( fit.variogram( vEm, vMod0, fit.kappa =TRUE, fit.sills=TRUE, fit.ranges=TRUE ) ) ## gstat's kappa is the Bessel function's "nu" smoothness parameter
       if  ("try-error" %in% vFitgs) return(NULL)
-      vMod = vgm(psill=vFitgs$psill[2], model="Mat", range=maxdist, nugget=vFitgs$psill[1], kappa=vFitgs$kappa[2] )
-      out$gstat = list( fit=vFitgs, vgm=vEm, model=vMod, range=NA, varSpatial=vFitgs$psill[2], varObs=vFitgs$psill[1],
-      nu=vFitgs$kappa[2], phi=vFitgs$range[2]  )
+      out$gstat = list( fit=vFitgs, vgm=vEm, range=NA, nu=vFitgs$kappa[2], phi=vFitgs$range[2],
+          varSpatial=vFitgs$psill[2], varObs=vFitgs$psill[1]  )  # gstat::"range" == range parameter == phi
       out$gstat$range =  geoR::practicalRange("matern", phi=out$gstat$phi, kappa=out$gstat$nu  )
       vrange = out$gstat$range
       if (nc > nc_max ) break()
@@ -75,12 +74,12 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
     if (plotdata) {
       x11()
-      plot( gamma ~ dist, data=out$gstat$vgm, ylim=c(0,max(out$gstat$vgm$gamma)*1.1) )
-
+      plot(vEm, model=vFitgs, add=T)
+      x11()
+      plot( gamma ~ dist, data=out$gstat$vgm, ylim=c(0,max(out$gstat$vgm$gamma)*1.1), col="blue", pch=20 )
       abline( h=out$gstat$varSpatial + out$gstat$varObs  )
       abline( h=out$gstat$varObs )
       abline( v=out$gstat$range )
-
       x = seq( 0, maxdist, length.out=100 )
       acor = geoR::matern( x, phi=out$gstat$phi, kappa=out$gstat$nu  )
       acov = out$gstat$varObs + out$gstat$varSpatial * (1- acor)
@@ -138,6 +137,9 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
     if (plotdata) {
       x11()
+      plot(vEm)
+      lines(vMod)
+      x11()
       plot( out$geoR$vgm )
       points( out$geoR$vgm$v ~ out$geoR$vgm$u, pch=20 )
       abline( h=out$geoR$varSpatial + out$geoR$varObs  )
@@ -180,17 +182,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
     out$RandomFields$range = geoR::practicalRange("matern", phi=out$RandomFields$phi, kappa=out$RandomFields$nu  )
 
-    if (out$RandomFields$range > maxdist) {
-      maxdist2 = maxdist*1.5
-      out = spacetime.variogram( xy, z, methods="RandomFields", maxdist=maxdist2 )
-      if (out$RandomFields$range > maxdist2) {
-        out$RandomFields$error = "Range larger than data permits?"
-      } else {
-        out$RandomFields = out$RandomFields
-      }
-    }
-
-   if (plotdata) {
+    if (plotdata) {
       x11()
       plot(  out$RandomFields$vgm@emp.vario ~ out$RandomFields$vgm@centers, pch=20, ylim=c(0,var(z)*1.25) )
       abline( h=out$RandomFields$varSpatial + out$RandomFields$varObs  )
@@ -201,6 +193,10 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       acor = geoR::matern( x, phi=out$RandomFields$phi, kappa=out$RandomFields$nu  )
       acov = out$RandomFields$varObs  +  out$RandomFields$varSpatial*(1- acor)
       lines( acov~x , col="red" )
+
+      # compare with:
+      x11()
+      plot(o)
     }
 
   }
@@ -254,21 +250,23 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       abline( v=0 )
       abline( v=vrange )
 
-      round(summary(m.1$p.theta.recover.samples)$quantiles,2)
-      round(summary(m.1$p.beta.recover.samples)$quantiles,2)
-      m.1.w.summary <- summary(mcmc(t(m.1$p.w.recover.samples)))$quantiles[,c(3,1,5)]
+      if(0) {
+        round(summary(m.1$p.theta.recover.samples)$quantiles,2)
+        round(summary(m.1$p.beta.recover.samples)$quantiles,2)
+        m.1.w.summary <- summary(mcmc(t(m.1$p.w.recover.samples)))$quantiles[,c(3,1,5)]
 
-      plot(z, m.1.w.summary[,1], xlab="Observed w", ylab="Fitted w",
-          xlim=range(z), ylim=range(m.1.w.summary), main="Spatial random effects")
-      arrows(z, m.1.w.summary[,1], z, m.1.w.summary[,2], length=0.02, angle=90)
-      arrows(z, m.1.w.summary[,1], z, m.1.w.summary[,3], length=0.02, angle=90)
-      lines(range(z), range(z))
+        plot(z, m.1.w.summary[,1], xlab="Observed w", ylab="Fitted w",
+            xlim=range(z), ylim=range(m.1.w.summary), main="Spatial random effects")
+        arrows(z, m.1.w.summary[,1], z, m.1.w.summary[,2], length=0.02, angle=90)
+        arrows(z, m.1.w.summary[,1], z, m.1.w.summary[,3], length=0.02, angle=90)
+        lines(range(z), range(z))
 
-      par(mfrow=c(1,2))
-      obs.surf <-   mba.surf(cbind(xy, z), no.X=100, no.Y=100, extend=T)$xyz.est
-      image(obs.surf, xaxs = "r", yaxs = "r", main="Observed response")
-      points(xy)
-      contour(obs.surf, add=T)
+        par(mfrow=c(1,2))
+        obs.surf <-   mba.surf(cbind(xy, z), no.X=100, no.Y=100, extend=T)$xyz.est
+        image(obs.surf, xaxs = "r", yaxs = "r", main="Observed response")
+        points(xy)
+        contour(obs.surf, add=T)
+      }
     }
 
   }
@@ -352,7 +350,6 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     rownames( inla.summary) = c( "kappa", "tau", "range", "spatial error", "observation error" )
     colnames( inla.summary) = inames
 
-
     out$inla = list(mesh=MESH, res=RES, range.inla90=inla.summary[["range","mean"]],
       varSpatial=inla.summary[["spatial error","mean"]], varObs=inla.summary[["observation error","mean"]],
       phi = 1/inla.summary[["kappa","mean"]] , nu=alpha-1, error=NA )
@@ -390,7 +387,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     methods=c("gstat", "inla", "geoR" )
 
     # out = spacetime.variogram( xy, z, methods="spBayes" )
-    out = spacetime.variogram( xy, sqrt(z), methods="spBayes" )
+    out = spacetime.variogram( xy, z, methods="spBayes" )
     nd = nrow(out$spBayes$recover$p.theta.samples)
     rr = rep(NA, nd )
     for (i in 1:nd) rr[i] = geoR::practicalRange("matern", phi=1/out$spBayes$recover$p.theta.samples[i,3], kappa=out$spBayes$recover$p.theta.samples[i,4] )
@@ -400,10 +397,10 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     hist( out$spBayes$recover$p.theta.samples[,3] ) # phi
     hist( out$spBayes$recover$p.theta.samples[,4] ) # nu
 
-    gr = spacetime.variogram( xy, sqrt(z), methods="geoR" )
-    gs = spacetime.variogram( xy, sqrt(z), methods="gstat" )
-    grf = spacetime.variogram( xy, sqrt(z), methods="RandomFields" )
-    gsp = spacetime.variogram( xy, sqrt(z), methods="spBayes" )
+    gr = spacetime.variogram( xy, z, methods="geoR" )
+    gs = spacetime.variogram( xy, z, methods="gstat" )
+    grf = spacetime.variogram( xy, z, methods="RandomFields" )
+    gsp = spacetime.variogram( xy, z, methods="spBayes" )
 
     # tests:
 
@@ -441,20 +438,6 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$kappa  )
       acov = out$geoR$varObs +  out$geoR$varSpatial * (1- acor)
       lines( out$varZ * acov ~ x , col="blue", lwd=2 )
-  }
-
-
-  if(0) {
-    paste0("
-      see comment from the appendix of: http://pbrown.ca/geostatsp/document-rev.pdf
-      Wikipedia (Wikipedia 2013) and the ‘matern’ model in the RandomFields package define the
-range parameter as ϕ1 = ϕ/2. Diggle and Ribeiro (2006), the geoR package, and the whittle
-model in RandomFields have a range parameter ϕ2 = ϕ/√(8κ). It is also common to define the
-Mat´ern with a scale parameter in place of the range,
-with the scale parameter being α = 1/ϕ2.
-Lindgren et al. (2011) use either the scale α or the range ϕ. The Range parameter produced
-by inla is ϕδ, with δ being the length of the sides of the grid cells, as confirmed below.
-    ")
   }
 
   return(out)
