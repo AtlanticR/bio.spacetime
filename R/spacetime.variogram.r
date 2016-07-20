@@ -1,12 +1,83 @@
 
 spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("geoR"), maxdist=NA, nbreaks = 15 ) {
 
-  #\\ estimate empirical variograms (actually correlation functions) and then model them using a number of different approaches
+  #\\ estimate empirical variograms (actually correlation functions) and then model them using a number of different approaches .. mostly using Matern as basis
   #\\ returns empirical variogram and parameter estimates, and the models themselves
   #\\ expect xy = c(p/lon, p/lat), z= variable
   #\\ varZ is the total variance which needs to be mulitplied to the curve if you want the "true" semivariance
   #\\ parameterization is as in spBayes and gstat
   #\\ covariogram (||x||) = tau^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
+  # -------------------------
+
+
+  if ( 0 ) {
+   # just for debugging / testing ... and example of access method:
+   bioLibrary("bio.utilities", "bio.spacetime")
+   require(sp)
+   data(meuse)
+    xy = meuse[, c("x", "y")]
+    z = log( meuse$zinc )
+    plotdata=TRUE
+    maxdist =800
+    edge=c(1/3, 1)
+    nbreaks = 15
+
+    methods=c("gstat", "inla", "geoR" )
+
+    # out = spacetime.variogram( xy, z, methods="spBayes" )
+    out = spacetime.variogram( xy, z, methods="spBayes" )
+    nd = nrow(out$spBayes$recover$p.theta.samples)
+    rr = rep(NA, nd )
+    for (i in 1:nd) rr[i] = geoR::practicalRange("matern", phi=1/out$spBayes$recover$p.theta.samples[i,3], kappa=out$spBayes$recover$p.theta.samples[i,4] )
+    hist(rr)  # range estimate
+    hist( out$spBayes$recover$p.theta.samples[,1] ) #"sigma.sq"
+    hist( out$spBayes$recover$p.theta.samples[,2] ) # "tau.sq"
+    hist( out$spBayes$recover$p.theta.samples[,3] ) # phi
+    hist( out$spBayes$recover$p.theta.samples[,4] ) # nu
+
+    gr = spacetime.variogram( xy, z, methods="geoR" )
+    gs = spacetime.variogram( xy, z, methods="gstat" )
+    grf = spacetime.variogram( xy, z, methods="RandomFields" )
+    gsp = spacetime.variogram( xy, z, methods="spBayes" )
+
+    # tests:
+
+    out = spacetime.variogram( xy, z )
+    (out$geoR$range)
+    out = spacetime.variogram( xy, z, nbreaks=30 )
+    (out$geoR$range)
+
+    out = spacetime.variogram( xy, log(z), nbreaks=30 )
+    (out$geoR$range)
+    out = spacetime.variogram( xy, log(z) )
+    (out$geoR$range)
+    require(mgcv)
+    og = gam( log(z) ~ s( x) + s(y) + s(x,y), data=xy )
+    zr = residuals(og)
+    out = spacetime.variogram( xy, zr )  # remove spatial trend results in no variogram, as would be expected
+    (out$geoR$range)
+    og = gam( log(z) ~ s( elev ) , data=meuse )
+    zr = residuals(og)
+    out = spacetime.variogram( xy, zr )  # remove spatial trend results in no variogram, as would be expected
+    (out$geoR$range)
+
+    require(geoR)
+    # plot( out$geoR$vgm )
+    # lines( out$geoR$fit, lwd=2, col="slateblue" )
+    xRange = c( 0, max(out$geoR$range*2.1 ) )
+    yRange = c( 0, max(out$geoR$vgm$v*out$varZ )*1.05 )
+    plot ( out$varZ * out$geoR$vgm$v ~ out$geoR$vgm$u, pch=20, xlim=xRange, ylim=yRange, ylab="Semivariance", xlab="Distance" )
+      abline( h=0,  col="gray", lwd=2 )
+      abline( h= out$varZ *(out$geoR$varSpatial + out$geoR$varObs), lty="dashed", col="slategray"  )
+      abline( h= out$varZ * out$geoR$varObs , lty="dashed", col="slategray")
+      abline( v=out$geoR$range, lty="dotted", col="slateblue" )
+      abline( v=0,  col="gray", lwd=2 )
+      x = seq( 0, 2*out$geoR$range, length.out=100 )
+      acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$kappa  )
+      acov = out$geoR$varObs +  out$geoR$varSpatial * (1- acor)
+      lines( out$varZ * acov ~ x , col="blue", lwd=2 )
+  }
+
   nc_max = 5  # max number of iterations
 
   out = list()
@@ -32,6 +103,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   difx = diff( xrange)
   dify = diff( yrange)
+
+  dd = max( difx, dify )
 
   nn = 400
   nxout = trunc(nn * difx / dify)
@@ -169,7 +242,19 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
    # The Matern covariance model is given by: C(h) = v * phi(A*h/s).
    #  Cov(r) = 2^{1- nu} Gamma(nu)^{-1} (sqrt{2nu} r)^nu K_nu(sqrt{2nu} r)
    # phi = sqrt{2nu}
-    model = ~  RMmatern( var=NA, nu=NA, scale=NA) + RMnugget(var=NA)
+   
+   # RFoptions(
+   #   allowdistanceZero=TRUE,
+    #  modus_operandi="precise", #‘"careless"’,‘"sloppy"’, ‘"easygoing"’, ‘"normal"’, ‘"precise"’,        ‘"pedantic"’, ‘"neurotic"’
+   #   bin_dist_factor=maxdist/2,
+      #bins=nbreaks,
+      #critical=TRUE, 
+   #   approx_zero=0.05, #  Value below which a correlation is considered to be essentially zero.
+   #   spConform=TRUE # FALSE is faster
+    #)
+
+    model = ~ RMspheric( var=NA, scale=NA) + RMnugget(var=NA) + RMtrend(NA)
+    
     o = RFfit(model, data=rfdata )
     oo=summary(o)
 
@@ -372,73 +457,98 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   }
 
 
-  if ( 0 ) {
-   # just for debugging / testing ... and example of access method:
-   bioLibrary("bio.utilities", "bio.spacetime")
-   require(sp)
-   data(meuse)
-    xy = meuse[, c("x", "y")]
-    z = log( meuse$zinc )
-    plotdata=TRUE
-    maxdist =800
-    edge=c(1/3, 1)
-    nbreaks = 15
+  # -------------------------
 
-    methods=c("gstat", "inla", "geoR" )
+  if ("LaplacesDemon" %in% methods){
+    
+    stop("This is too slow to use. It is just to document the approach. dmvn is the culprit .. try sparse matrix methods ...")
 
-    # out = spacetime.variogram( xy, z, methods="spBayes" )
-    out = spacetime.variogram( xy, z, methods="spBayes" )
-    nd = nrow(out$spBayes$recover$p.theta.samples)
-    rr = rep(NA, nd )
-    for (i in 1:nd) rr[i] = geoR::practicalRange("matern", phi=1/out$spBayes$recover$p.theta.samples[i,3], kappa=out$spBayes$recover$p.theta.samples[i,4] )
-    hist(rr)  # range estimate
-    hist( out$spBayes$recover$p.theta.samples[,1] ) #"sigma.sq"
-    hist( out$spBayes$recover$p.theta.samples[,2] ) # "tau.sq"
-    hist( out$spBayes$recover$p.theta.samples[,3] ) # phi
-    hist( out$spBayes$recover$p.theta.samples[,4] ) # nu
+    require(LaplacesDemon)
+    require(LaplacesDemonCpp)
+    
+    coords = data.frame( plon=(xy$plon-yrange[1] )/dd,  plat=(xy$plat-xrange[1])/dd )
+    
+    Data = list(
+      N = length(z),
+      X = as.matrix(data.frame( intercept=rep(1, length(z)) ) ),
+      y = z,  
+      D.N = as.matrix(dist( coords, diag=TRUE, upper=TRUE)) #  distance matrix
+    )
 
-    gr = spacetime.variogram( xy, z, methods="geoR" )
-    gs = spacetime.variogram( xy, z, methods="gstat" )
-    grf = spacetime.variogram( xy, z, methods="RandomFields" )
-    gsp = spacetime.variogram( xy, z, methods="spBayes" )
+    Data$parm.names = as.parm.names( list(
+      beta=1, 
+      sigma=rep(0,2),
+      phi=0,
+      kappa=1,
+      zeta=rep(0,Data$N)
+    ) )
 
-    # tests:
+    Data$mon.names = c("LP" )
+    
+    Data$PGF = function(Data) {
+      beta = rnorm(1)
+      sigma = runif(2,0.1,10)
+      phi = runif(1,1,5)
+      kappa = 1
+      zeta = mvtnorm::rmvnorm(1, rep(0,Data$N), sigma[2]*sigma[2]*exp(-phi*Data$D.N)^kappa, method="chol")
+      return(c(zeta, beta, sigma, phi))
+    }
 
-    out = spacetime.variogram( xy, z )
-    (out$geoR$range)
-    out = spacetime.variogram( xy, z, nbreaks=30 )
-    (out$geoR$range)
+    Data$pos = list(
+      beta = grep("\\<beta\\>", Data$parm.names),
+      sigma = grep("\\<sigma\\>", Data$parm.names),
+      phi = grep("\\<phi\\>", Data$parm.names),
+      kappa = grep("\\<kappa\\>", Data$parm.names),
+      zeta = grep("\\<zeta\\>", Data$parm.names)
+    )
+    
+    Data$Model = function(parm, Data){
+      
+      ### Parameters
+      loglik = c()
+      loglik[Data$parm.names] = 0
 
-    out = spacetime.variogram( xy, log(z), nbreaks=30 )
-    (out$geoR$range)
-    out = spacetime.variogram( xy, log(z) )
-    (out$geoR$range)
-    require(mgcv)
-    og = gam( log(z) ~ s( x) + s(y) + s(x,y), data=xy )
-    zr = residuals(og)
-    out = spacetime.variogram( xy, zr )  # remove spatial trend results in no variogram, as would be expected
-    (out$geoR$range)
-    og = gam( log(z) ~ s( elev ) , data=meuse )
-    zr = residuals(og)
-    out = spacetime.variogram( xy, zr )  # remove spatial trend results in no variogram, as would be expected
-    (out$geoR$range)
+      parm[Data$pos$sigma] = sigma = interval(parm[Data$pos$sigma], 1, Inf)
+      parm[Data$pos$phi] = phi = interval(parm[Data$pos$phi], 1, 5)
+      Sigma = sigma[2]*sigma[2] * exp(-phi * Data$D.N)^parm[Data$pos$kappa]
+      
+      ### Log-Prior
+      loglik[Data$pos$beta] = sum(dnormv(parm[Data$pos$beta], 0, 1000, log=TRUE))
+      loglik[Data$pos$zeta] = mvtnorm::dmvnorm(parm[Data$pos$zeta], rep(0, Data$N), Sigma, log=TRUE)
+      loglik[Data$pos$sigma] = sum(dhalfcauchy(sigma - 1, 25, log=TRUE))
+      loglik[Data$pos$phi] = dunif(phi, 1, 5, log=TRUE)
+      
+      ### Log-Likelihood
+      mu = tcrossprod(Data$X, t(parm[Data$pos$beta]) ) + parm[Data$pos$zeta]
 
-    require(geoR)
-    # plot( out$geoR$vgm )
-    # lines( out$geoR$fit, lwd=2, col="slateblue" )
-    xRange = c( 0, max(out$geoR$range*2.1 ) )
-    yRange = c( 0, max(out$geoR$vgm$v*out$varZ )*1.05 )
-    plot ( out$varZ * out$geoR$vgm$v ~ out$geoR$vgm$u, pch=20, xlim=xRange, ylim=yRange, ylab="Semivariance", xlab="Distance" )
-      abline( h=0,  col="gray", lwd=2 )
-      abline( h= out$varZ *(out$geoR$varSpatial + out$geoR$varObs), lty="dashed", col="slategray"  )
-      abline( h= out$varZ * out$geoR$varObs , lty="dashed", col="slategray")
-      abline( v=out$geoR$range, lty="dotted", col="slateblue" )
-      abline( v=0,  col="gray", lwd=2 )
-      x = seq( 0, 2*out$geoR$range, length.out=100 )
-      acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$kappa  )
-      acov = out$geoR$varObs +  out$geoR$varSpatial * (1- acor)
-      lines( out$varZ * acov ~ x , col="blue", lwd=2 )
+      LL = sum(dnorm(Data$y, mu, sigma[1], log=TRUE))
+      
+      ### Log-Posterior
+      LP = LL + sum(loglik)
+      Modelout = list(LP=LP, Dev=-2*LL, Monitor=c(LP), yhat=rnorm(length(mu), mu, sigma[1]), parm=parm)
+      return(Modelout)
+    }
+
+    Model = compiler::cmpfun(Data$Model) 
+
+    # first mcmc .. faster start-up and convergence to global equil 
+    f = LaplacesDemon(Model, Data=Data, Initial.Values=Data$PGF(Data), Iterations=500, Status=1, Thinning=1 )
+    
+    # now use the currest parm est and try a laplace:
+    f = LaplaceApproximation(Model, Data=Data, parm=as.initial.values(f), Iterations=50, Method="LBFGS", CPUs=6 ) # refine it
+    
+    # f = VariationalBayes(Model, Data=Data, parm=as.initial.values(f), Iterations=500, Samples=20, CPUs=5, Covar=f$Covar ) # refine it again
+    # f = LaplacesDemon(Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=100, Thinning=1, Covar=f$Covar )
+    # f = VariationalBayes(Model, Data=Data, parm=as.initial.values(f), Iterations=100, Samples=10, CPUs=5, Covar=f$Covar )
+    # f = IterativeQuadrature(Model, Data=Data, parm=as.initial.values(f), Iterations=10, Algorithm="AGH",
+    #  Specs=list(N=5, Nmax=7, Packages=NULL, Dyn.libs=NULL), Covar=f$Covar )
+    
+    if (plotdata) {
+      Consort(f)
+      plot(f)
+    }
   }
+
 
   return(out)
 }
