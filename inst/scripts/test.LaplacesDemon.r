@@ -81,35 +81,39 @@ require(LaplacesDemonCpp)
 
 Data = LaplacesDemon.spacetime.setup( DS="spatial.test", Data ) # spatial + intercept
 
-# test to see if return values are sensible
-Data$Model( parm=Data$PGF(Data), Data ) 
 
 # maximum likelihood solution
 f.ml = optim( par=Data$PGF(Data), fn=Data$Model.ML, Data=Data, control=list(maxit=5000, trace=1), method="BFGS"  )
 names(f.ml$par ) = Data$parm.names
-f.ml$par
 
 # penalized maximum likelihood .. better but still a little unstable depending on algorithm
-f.pml = optim( par=Data$PGF(Data), fn=Data$Model.PML, Data=Data,  control=list(maxit=5000, trace=1), method="CG"  )
+f.pml = optim( par=Data$PGF(Data), fn=Data$Model.PML, Data=Data,  control=list(maxit=5000, trace=1), method="BFGS" , hessian=TRUE )
 names(f.pml$par ) = Data$parm.names
-f.pml$par
+#print(sqrt( diag( solve(f.pml$hessian) )) ) # assymptotic standard errors
 
 
-f = LaplaceApproximation(Data$Model, Data=Data, parm=Data$PGF(Data), Iterations=100, Method="SPG", CPUs=8 ) # fast inital solution
-f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=10, Thinning=10 )
+f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=Data$PGF(Data), Iterations=100, Status=10, Thinning=1 )
+f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=100, Status=10, Thinning=1 )
+
+f <- LaplacesDemon(Model, Data=Data, Initial.Values=as.initial.values(f), Covar=NULL, Iterations=5000, Status=100, Thinning=25,
+     Algorithm="CHARM", Specs=list(alpha.star=0.44))
+
+
+f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Iterations=1000, Method="SPG", CPUs=8 ) # fast inital solution
+f = LaplacesDemon.hpc(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=10, Thinning=10 )
 
 
 f = LaplacesDemon.hpc(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=10, Status=1, Thinning=1, Algorithm="NUTS", Covar=f$Covar, Specs=list(A=10, delta=0.6, epsilon=NULL, Lmax=Inf))  # A=burnin, delta=target acceptance rate
 
 
-f = LaplaceApproximation(Data$Model, Data=Data, parm=Data$PGF(Data), Method="Roptim", method="BFGS", Stop.Tolerance=1e-9, Iterations = 50  )
+f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Method="Roptim", method="BFGS", Stop.Tolerance=1e-9, Iterations = 50  )
 
 
 f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Iterations=10, Method="LBFGS" ) # refine it
 f = VariationalBayes(Data$Model, Data=Data, parm=as.initial.values(f), Iterations=10, Samples=20, CPUs=5, Covar=f$Covar ) # refine it again
 
 
-f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=Data$PGF(Data), Iterations=100, Status=1, Thinning=1 )
+f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=100, Thinning=10 )
 Initial.Values <- as.initial.values(f)
 f <- LaplacesDemon(Data$Model, Data=Data, Initial.Values,
      Covar=f$Covar, Iterations=2000, Status=142, Thinning=20,

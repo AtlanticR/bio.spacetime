@@ -7,6 +7,7 @@ LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
 
     require(sp)
     data(meuse)
+    meuse =meuse[ sample.int(nrow(meuse), 50),]
     nKs = nrow( meuse  )  # knots 
     xrange = range (c(meuse$x))
     yrange = range (c(meuse$y))
@@ -27,34 +28,35 @@ LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
     )
 
     Data$mon.names = c( "LP" )
-    Data$parm.names = as.parm.names(list(muKs=rep(0,Data$nKs), sigma=rep(0,2), phi=0, kappa=1))
+    Data$parm.names = as.parm.names(list(muKs=rep(0,Data$nKs), sigma=rep(0,2), phi=0 ))
     Data$pos = list(
       muKs = grep("muKs", Data$parm.names),
       sigma = grep("sigma", Data$parm.names),
-      phi = grep("phi", Data$parm.names),
-      kappa =  grep("kappa", Data$parm.names)
+      phi = grep("phi", Data$parm.names)
     )
     Data$PGF = function(Data) {
       sigma = runif(2,0.1,10)
       phi = runif(1,1,5)
-      kappa = 1
-      muKs = mvnfast::rmvn(1, rep(0,Data$nKs), sigma[2]*sigma[2]*exp(-phi*Data$dKK)^kappa )
-      return(c(muKs, sigma, phi, kappa))
+      muKs = mvnfast::rmvn(1, rep(0,Data$nKs), sigma[2]*sigma[2]*exp(-phi*Data$dKK ) )
+      return(c(muKs, sigma, phi))
     }
     Data$PGF  = compiler::cmpfun(Data$PGF)
 
     Data$Model = function(parm, Data){
       muKs = parm[Data$pos$muKs]
-      kappa = parm[Data$pos$kappa]
+      # parm[Data$pos$kappa] = kappa = interval(parm[Data$pos$kappa], 1e-9, Inf)
+      # parm[Data$pos$kappa] = kappa = 1
       parm[Data$pos$sigma] = sigma = interval(parm[Data$pos$sigma], 1e-9, Inf)
       parm[Data$pos$phi] = phi = interval(parm[Data$pos$phi], 1, 5)
-      rhoKs = exp(-phi * Data$dKK)^kappa   ## spatial correlation
-
-      covKs = sigma[2]*sigma[2] * rhoKs
-      muKs.prior =  mvnfast::dmvn( muKs, rep(0, Data$nKs), sigma=covKs, log=TRUE  )
-      sigma.prior = sum(dhalfcauchy(sigma, 25, log=TRUE))
-      phi.prior = dunif(phi, 1, 5, log=TRUE)
+      # rhoKs = exp(-phi * Data$dKK)^kappa   ## spatial correlation
+      rhoKs = exp(-phi * Data$dKK  )  ## spatial correlation
       
+      covKs = sigma[2]*sigma[2] * rhoKs
+      muKs.prior =  try(mvnfast::dmvn( muKs, rep(0, Data$nKs), sigma=covKs, log=TRUE  ))
+      sigma.prior = sum(dgamma(sigma, 1, 100, log=TRUE))
+      phi.prior = dunif(phi, 1, 5, log=TRUE)
+      # kappa.prior = dgamma(kappa, 1, 100 log=TRUE)
+
       ### Interpolation
       errorSpatialK = rowSums(rhoKs / rowSums(rhoKs) * matrix(muKs, Data$nKs, Data$nKs, byrow=TRUE) ) # cov/cov --> sigmasq cancels leaving rho
       
@@ -63,7 +65,7 @@ LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
       LL = sum(dnorm(Data$y, muK, sigma[1], log=TRUE))
       
       ### Log-Posterior
-      LP = LL + muKs.prior + sigma.prior + phi.prior
+      LP = LL + muKs.prior + sigma.prior + phi.prior # + kappa.prior
       Modelout = list(LP=LP, Dev=-2*LL, Monitor=c(LP), yhat=yK, parm=parm)
       return(Modelout)
     }
@@ -71,6 +73,8 @@ LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
     Data$Model.ML  = compiler::cmpfun( function(...) (Data$Model(...)$Dev / 2) )  # i.e. - log likelihood
     Data$Model.PML = compiler::cmpfun( function(...) (- Data$Model(...)$LP) ) #i.e., - log posterior 
     Data$Model = compiler::cmpfun(Data$Model) #  byte-compiling for more speed .. use RCPP if you want more speed
+
+    print (Data$Model( parm=Data$PGF(Data), Data ) ) # test to see if return values are sensible
 
     return(Data)
   }
