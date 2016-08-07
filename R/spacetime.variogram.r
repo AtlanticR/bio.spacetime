@@ -468,60 +468,60 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     
     coords = data.frame( plon=(xy$plon-yrange[1] )/dd,  plat=(xy$plat-xrange[1])/dd )
     
-    Data = list(
+    LD = list(
       N = length(z),
       X = as.matrix(data.frame( intercept=rep(1, length(z)) ) ),
       y = z,  
       D.N = as.matrix(dist( coords, diag=TRUE, upper=TRUE)) #  distance matrix
     )
 
-    Data$parm.names = as.parm.names( list(
+    LD$parm.names = as.parm.names( list(
       beta=1, 
       sigma=rep(0,2),
       phi=0,
       kappa=1,
-      zeta=rep(0,Data$N)
+      zeta=rep(0,LD$N)
     ) )
 
-    Data$mon.names = c("LP" )
+    LD$mon.names = c("LP" )
     
-    Data$PGF = function(Data) {
+    LD$PGF = function(LD) {
       beta = rnorm(1)
       sigma = runif(2,0.1,10)
       phi = runif(1,1,5)
       kappa = 1
-      zeta = mvtnorm::rmvnorm(1, rep(0,Data$N), sigma[2]*sigma[2]*exp(-phi*Data$D.N)^kappa, method="chol")
+      zeta = mvtnorm::rmvnorm(1, rep(0,LD$N), sigma[2]*sigma[2]*exp(-phi*LD$D.N)^kappa, method="chol")
       return(c(zeta, beta, sigma, phi))
     }
 
-    Data$pos = list(
-      beta = grep("\\<beta\\>", Data$parm.names),
-      sigma = grep("\\<sigma\\>", Data$parm.names),
-      phi = grep("\\<phi\\>", Data$parm.names),
-      kappa = grep("\\<kappa\\>", Data$parm.names),
-      zeta = grep("\\<zeta\\>", Data$parm.names)
+    LD$i = list(
+      beta = grep("\\<beta\\>", LD$parm.names),
+      sigma = grep("\\<sigma\\>", LD$parm.names),
+      phi = grep("\\<phi\\>", LD$parm.names),
+      kappa = grep("\\<kappa\\>", LD$parm.names),
+      zeta = grep("\\<zeta\\>", LD$parm.names)
     )
     
-    Data$Model = function(parm, Data){
+    LD$Model = function(parm, LD){
       
       ### Parameters
       loglik = c()
-      loglik[Data$parm.names] = 0
+      loglik[LD$parm.names] = 0
 
-      parm[Data$pos$sigma] = sigma = interval(parm[Data$pos$sigma], 1, Inf)
-      parm[Data$pos$phi] = phi = interval(parm[Data$pos$phi], 1, 5)
-      Sigma = sigma[2]*sigma[2] * exp(-phi * Data$D.N)^parm[Data$pos$kappa]
+      parm[LD$i$sigma] = sigma = interval(parm[LD$i$sigma], 1, Inf)
+      parm[LD$i$phi] = phi = interval(parm[LD$i$phi], 1, 5)
+      Sigma = sigma[2]*sigma[2] * exp(-phi * LD$D.N)^parm[LD$i$kappa]
       
       ### Log-Prior
-      loglik[Data$pos$beta] = sum(dnormv(parm[Data$pos$beta], 0, 1000, log=TRUE))
-      loglik[Data$pos$zeta] = mvtnorm::dmvnorm(parm[Data$pos$zeta], rep(0, Data$N), Sigma, log=TRUE)
-      loglik[Data$pos$sigma] = sum(dhalfcauchy(sigma - 1, 25, log=TRUE))
-      loglik[Data$pos$phi] = dunif(phi, 1, 5, log=TRUE)
+      loglik[LD$i$beta] = sum(dnormv(parm[LD$i$beta], 0, 1000, log=TRUE))
+      loglik[LD$i$zeta] = mvtnorm::dmvnorm(parm[LD$i$zeta], rep(0, LD$N), Sigma, log=TRUE)
+      loglik[LD$i$sigma] = sum(dhalfcauchy(sigma - 1, 25, log=TRUE))
+      loglik[LD$i$phi] = dunif(phi, 1, 5, log=TRUE)
       
       ### Log-Likelihood
-      mu = tcrossprod(Data$X, t(parm[Data$pos$beta]) ) + parm[Data$pos$zeta]
+      mu = tcrossprod(LD$X, t(parm[LD$i$beta]) ) + parm[LD$i$zeta]
 
-      LL = sum(dnorm(Data$y, mu, sigma[1], log=TRUE))
+      LL = sum(dnorm(LD$y, mu, sigma[1], log=TRUE))
       
       ### Log-Posterior
       LP = LL + sum(loglik)
@@ -529,18 +529,18 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       return(Modelout)
     }
 
-    Model = compiler::cmpfun(Data$Model) 
+    Model = compiler::cmpfun(LD$Model) 
 
     # first mcmc .. faster start-up and convergence to global equil 
-    f = LaplacesDemon(Model, Data=Data, Initial.Values=Data$PGF(Data), Iterations=500, Status=1, Thinning=1 )
+    f = LaplacesDemon(Model, Data=LD, Initial.Values=LD$PGF(LD), Iterations=500, Status=1, Thinning=1 )
     
     # now use the currest parm est and try a laplace:
-    f = LaplaceApproximation(Model, Data=Data, parm=as.initial.values(f), Iterations=50, Method="LBFGS", CPUs=6 ) # refine it
+    f = LaplaceApproximation(Model, Data=LD, parm=as.initial.values(f), Iterations=50, Method="LBFGS", CPUs=6 ) # refine it
     
-    # f = VariationalBayes(Model, Data=Data, parm=as.initial.values(f), Iterations=500, Samples=20, CPUs=5, Covar=f$Covar ) # refine it again
-    # f = LaplacesDemon(Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=100, Thinning=1, Covar=f$Covar )
-    # f = VariationalBayes(Model, Data=Data, parm=as.initial.values(f), Iterations=100, Samples=10, CPUs=5, Covar=f$Covar )
-    # f = IterativeQuadrature(Model, Data=Data, parm=as.initial.values(f), Iterations=10, Algorithm="AGH",
+    # f = VariationalBayes(Model, Data=LD, parm=as.initial.values(f), Iterations=500, Samples=20, CPUs=5, Covar=f$Covar ) # refine it again
+    # f = LaplacesDemon(Model, Data=LD, Initial.Values=as.initial.values(f), Iterations=1000, Status=100, Thinning=1, Covar=f$Covar )
+    # f = VariationalBayes(Model, Data=LD, parm=as.initial.values(f), Iterations=100, Samples=10, CPUs=5, Covar=f$Covar )
+    # f = IterativeQuadrature(Model, Data=LD, parm=as.initial.values(f), Iterations=10, Algorithm="AGH",
     #  Specs=list(N=5, Nmax=7, Packages=NULL, Dyn.libs=NULL), Covar=f$Covar )
     
     if (plotdata) {
@@ -549,7 +549,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     }
   }
 
-
+ 
   return(out)
 }
 
