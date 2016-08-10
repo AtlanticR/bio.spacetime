@@ -95,15 +95,16 @@ names(f.pml$par ) = Data$parm.names
 f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=Data$PGF(Data), Iterations=100, Status=10, Thinning=1 )
 f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=100, Status=10, Thinning=1 )
 
-f <- LaplacesDemon(Model, Data=Data, Initial.Values=as.initial.values(f), Covar=NULL, Iterations=5000, Status=100, Thinning=25,
+f <- LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Covar=NULL, Iterations=5000, Status=100, Thinning=25,
      Algorithm="CHARM", Specs=list(alpha.star=0.44))
+
+f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=100, Status=1, Thinning=1, Algorithm="NUTS", Covar=f$Covar, Specs=list(A=10, delta=0.6, epsilon=NULL, Lmax=Inf))  # A=burnin, delta=target acceptance rate
 
 
 f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Iterations=1000, Method="SPG", CPUs=8 ) # fast inital solution
 f = LaplacesDemon.hpc(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=10, Thinning=10 )
 
 
-f = LaplacesDemon.hpc(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=10, Status=1, Thinning=1, Algorithm="NUTS", Covar=f$Covar, Specs=list(A=10, delta=0.6, epsilon=NULL, Lmax=Inf))  # A=burnin, delta=target acceptance rate
 
 
 f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Method="Roptim", method="BFGS", Stop.Tolerance=1e-9, Iterations = 50  )

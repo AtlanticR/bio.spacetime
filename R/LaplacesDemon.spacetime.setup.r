@@ -1,7 +1,5 @@
 
-
 LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
-
 
   if (DS=="spatial.test") {  
 
@@ -15,15 +13,12 @@ LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
     dy = diff(yrange)
     dd = max( dx, dy )
     coordsK = data.frame( plon=(meuse$y-yrange[1])/dd, plat=(meuse$x-xrange[1])/dd) 
-    # design matrix
-    XK = as.matrix( data.frame( intercept=rep(1, nKs), dist=meuse$dist )) 
     y = log(meuse$zinc)  # LD likes to have a "y" as dep variable
     dKK = as.matrix(dist( coordsK, diag=TRUE, upper=TRUE)) # distance matrix between knots
     Data = list(
       n = nKs,  # required for LaplacesDemon
       nKs=nKs,
       dKK=dKK,
-      XK=XK,
       y=y  
     )
 
@@ -44,12 +39,12 @@ LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
 
     Data$Model = function(parm, Data){
       muKs = parm[Data$pos$muKs]
-      # parm[Data$pos$kappa] = kappa = interval(parm[Data$pos$kappa], 1e-9, Inf)
+      # parm[Data$pos$kappa] = kappa = LaplacesDemonCpp::interval(parm[Data$pos$kappa], 1e-9, Inf)
       # parm[Data$pos$kappa] = kappa = 1
-      parm[Data$pos$sigma] = sigma = interval(parm[Data$pos$sigma], 1e-9, Inf)
-      parm[Data$pos$phi] = phi = interval(parm[Data$pos$phi], 1, 5)
+      parm[Data$pos$sigma] = sigma = LaplacesDemonCpp::interval(parm[Data$pos$sigma], 1e-9, Inf)
+      parm[Data$pos$phi] = phi = LaplacesDemonCpp::interval(parm[Data$pos$phi], 1, 5)
       # rhoKs = exp(-phi * Data$dKK)^kappa   ## spatial correlation
-      rhoKs = exp(-phi * Data$dKK  )  ## spatial correlation
+      rhoKs = exp(-phi * Data$dKK )  ## spatial correlation
       
       covKs = sigma[2]*sigma[2] * rhoKs
       muKs.prior =  try(mvnfast::dmvn( muKs, rep(0, Data$nKs), sigma=covKs, log=TRUE  ))
@@ -78,6 +73,7 @@ LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
 
     return(Data)
   }
+
 
   # ----------------------------------------------
   
@@ -138,8 +134,8 @@ LaplacesDemon.spacetime.setup = function(DS="example.data", Data=NULL) {
       beta = parm[Data$pos$beta]
       muKs = parm[Data$pos$muKs]
       kappa = 1
-      parm[Data$pos$sigma] = sigma = interval(parm[Data$pos$sigma], 1, Inf)
-      parm[Data$pos$phi] = phi = interval(parm[Data$pos$phi], 1, 5)
+      parm[Data$pos$sigma] = sigma = LaplacesDemonCpp::interval(parm[Data$pos$sigma], 1, Inf)
+      parm[Data$pos$phi] = phi = LaplacesDemonCpp::interval(parm[Data$pos$phi], 1, 5)
       
       # predictive process:
       rhoKs = exp(-phi * Data$dKK)^kappa   ## spatial correlation

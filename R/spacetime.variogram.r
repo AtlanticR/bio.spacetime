@@ -1,12 +1,14 @@
 
-spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("geoR"), maxdist=NA, nbreaks = 15 ) {
+spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("geoR"), maxdist=NA, nbreaks = 15, functionalform="matern" ) {
 
   #\\ estimate empirical variograms (actually correlation functions) and then model them using a number of different approaches .. mostly using Matern as basis
   #\\ returns empirical variogram and parameter estimates, and the models themselves
   #\\ expect xy = c(p/lon, p/lat), z= variable
-  #\\ varZ is the total variance which needs to be mulitplied to the curve if you want the "true" semivariance
-  #\\ parameterization is as in spBayes and gstat
-  #\\ covariogram (||x||) = tau^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
+  #\\ ---> removed--> varZ is the total variance which needs to be mulitplied to the curve if you want the "true" semivariance
+  #\\ NOTE:: the default parameterization is as in spBayes and gstat which is:
+
+  #\\ matern covariogram (||x||) = sigma^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
+  #\\   where K_{nu} is the Bessel function with smooth nu and phi is the range parameter  
   # -------------------------
 
 
@@ -16,7 +18,10 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
    require(sp)
    data(meuse)
     xy = meuse[, c("x", "y")]
-    z = log( meuse$zinc )
+    mz = log( meuse$zinc )
+    mm = lm( mz ~ sqrt( meuse$dist ) )
+    z = residuals( mm)
+   
     plotdata=TRUE
     maxdist =800
     edge=c(1/3, 1)
@@ -30,15 +35,17 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     rr = rep(NA, nd )
     for (i in 1:nd) rr[i] = geoR::practicalRange("matern", phi=1/out$spBayes$recover$p.theta.samples[i,3], kappa=out$spBayes$recover$p.theta.samples[i,4] )
     hist(rr)  # range estimate
+
     hist( out$spBayes$recover$p.theta.samples[,1] ) #"sigma.sq"
     hist( out$spBayes$recover$p.theta.samples[,2] ) # "tau.sq"
-    hist( out$spBayes$recover$p.theta.samples[,3] ) # phi
+    hist( out$spBayes$recover$p.theta.samples[,3] ) # 1/phi
     hist( out$spBayes$recover$p.theta.samples[,4] ) # nu
 
     gr = spacetime.variogram( xy, z, methods="geoR" )
     gs = spacetime.variogram( xy, z, methods="gstat" )
     grf = spacetime.variogram( xy, z, methods="RandomFields" )
     gsp = spacetime.variogram( xy, z, methods="spBayes" )
+    ginla = spacetime.variogram( xy, z, methods="inla" )
 
     # tests:
 
@@ -82,11 +89,17 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   out = list()
   out$varZ = var( z, na.rm=TRUE )  # this is the scaling factor for semivariance .. diving by sd, below reduces numerical floating point issues
+  out$meanZ = mean(z, na.rm=TRUE)
+  out$meanX = mean( xy[,1], na.rm=TRUE )
+  out$meanY = mean( xy[,2], na.rm=TRUE )
 
-  names(xy) =  c("plon", "plat" )
+  z = (z - out$meanZ )/ sqrt( out$varZ ) # (centered and scaled by sd to avoid floating point issues)
+  zrange = range( z, na.rm=TRUE )
 
-  drange = sqrt((diff(range(xy$plon)))^2 + (diff(range(xy$plat)))^2)
-  drange = min( diff(range(xy$plon)), diff(range(xy$plat)), drange )
+  names(xy) =  c("plon", "plat" ) # arbitrary
+  xr = range( xy$plon, na.rm=TRUE )
+  yr = range( xy$plat, na.rm=TRUE )
+  drange = min( diff( xr), diff( yr)  )
 
   # if max dist not given, make a sensible choice
   if ( is.na(maxdist)) {
@@ -95,16 +108,14 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     maxdist = drange
   }
 
+  xy$plon = ( xy$plon - out$meanX ) / drange
+  xy$plat = ( xy$plat - out$meanY ) / drange
+
   xrange = range( xy$plon, na.rm=TRUE )
   yrange = range( xy$plat, na.rm=TRUE )
 
-  z = z / sd( z, na.rm=TRUE)
-  zrange = range( z, na.rm=TRUE )
-
   difx = diff( xrange)
   dify = diff( yrange)
-
-  dd = max( difx, dify )
 
   nn = 400
   nxout = trunc(nn * difx / dify)
@@ -253,7 +264,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
    #   spConform=TRUE # FALSE is faster
     #)
 
-    model = ~ RMspheric( var=NA, scale=NA) + RMnugget(var=NA) + RMtrend(NA)
+    model = ~ RMmatern( nu=NA, var=NA, scale=NA) + RMnugget(var=NA)
     
     o = RFfit(model, data=rfdata )
     oo=summary(o)
@@ -289,6 +300,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   # -------------------------
 
   if ("spBayes" %in% methods) {
+    # note spBayes::phi = 1/ gstat::phi  
     require(spBayes)
     library(MBA)
     require( geoR )
@@ -418,7 +430,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     im = oo$marginals.variance.nominal[[1]]
     iVar =  c( mode=inla.mmarginal( im ), inla.zmarginal( im, silent=TRUE ), as.data.frame(inla.hpdmarginal( 0.95, im )) )
 
-    # kappa  == 1/phi.geoR
+    # kappa.inla  == 1/phi.geoR
     im = oo$marginals.kappa[[1]]
     iKappa =  c( mode=inla.mmarginal( im ), inla.zmarginal( im, silent=TRUE ), as.data.frame(inla.hpdmarginal( 0.95, im ) ) )
 
@@ -459,97 +471,219 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   # -------------------------
 
+  if ("BayesX" %in% methods){
+    library("R2BayesX")
+    # fixes nu=1.5
+    # phi = max(distance) / const, such that Corr(distance=const) = 0.001; i.e. range at distance where covar ~0.999
+    # not sure how to recover the correct phi/range from this ...
+
+    fm1 <- bayesx( z ~ sx(plon, plat, bs="kr" ), family="gaussian", method="REML", data =xy )
+    #out$BayesX = list( fit=vMod, vgm=vEm, model=vMod, range=vMod$practicalRange,
+    #          varSpatial= vMod$cov.pars[1], varObs=vMod$nugget, nu=1.5,  phi=vMod$cov.pars[2] )
+    summary( fm1)
+        # Call:
+        # bayesx(formula = z ~ sx(plon, plat, bs = "kr"), data = xy, family = "gaussian", 
+        #     method = "REML")
+         
+        # Fixed effects estimation results:
+
+        # Parametric coefficients:
+        #             Estimate Std. Error t value  Pr(>|t|)    
+        # (Intercept)   8.1534     0.4787  17.033 < 2.2e-16 ***
+        # ---
+        # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+        # Smooth terms:
+        #               Variance Smooth Par.     df Stopped
+        # sx(plon,plat)   1.5145      0.4342 8.4592       0
+         
+        # Scale estimate: 0.6577 
+         
+        # N = 155  df = 9.45917  AIC = 99.5061  BIC = 128.294  
+        # GCV = 0.700414  logLik = -40.2939  method = REML  family = gaussian  
+      return(fm1)
+  }
+
+
+  # -------------------------
+
+  if ("jags" %in% methods){
+    require(rjags)
+    require(jagsUI)
+    # assume nu = 1 (due to identifiability issues)
+
+    print( "Slow ... 10 min for meuse test data")
+
+    jagsmodel = paste0("
+    model{
+      for(i in 1:N){
+        y[i] ~ dnorm(mu[i], prec)
+        mu[i] = beta0 + errorSpatial[i]
+        muSpatial[i] = 0
+      }
+      prec = 1.0/ (tausq + sigmasq )
+      invCOVAR = inverse(COVAR)
+      errorSpatial ~ dmnorm( muSpatial, invCOVAR)
+      for(i in 1:N) {
+        COVAR[i,i] = sigmasq
+        for(j in 1:(i-1)) {
+          COVAR[i,j] = sigmasq * exp(-( DIST[i,j]/phi))
+          COVAR[j,i] = COVAR[i,j]
+        } 
+      }
+      tausq = 1/tausq.inv
+      tausq.inv ~ dgamma(0.1,0.1)
+      sigmasq = 1/sigmasq.inv
+      sigmasq.inv ~ dgamma(2,1)
+      phi ~ dgamma(1,0.1)
+      beta0 ~ dnorm(0,0.0001)
+    } ")
+
+  fn = tempfile()
+  cat( jagsmodel, file=fn )
+  distances = as.matrix(dist( xy, diag=TRUE, upper=TRUE))
+  Data = list( N=length(z), DIST=distances, y=z )
+  fit = jagsUI::jags(data=Data, 
+       parameters.to.save=c("phi", "sigmasq", "tausq"),
+       model.file=fn,
+       n.iter=2000,
+       n.chains=3,
+       n.burnin=200,
+       n.thin=10,
+       parallel=TRUE,
+       DIC=FALSE)
+   summary(fit)
+   plot(fit)
+   gelman.plot(fit$samples)
+  # geweke.plot(fit$samples)
+  #update(fit, n.iter=2000, n.thin=20 )
+    acf( fit$sims.list$phi)
+    acf( fit$sims.list$sigmasq)
+    acf( fit$sims.list$tausq)
+
+   #  apply( fit$phi, 1, quantile, probs=c(0.025, 0.5, 0.975) )
+   return(fit$summary)
+  }
+
+
+  # -------------------------
+
+  if ("TMB" %in% methods){
+   
+  }
+
+  # -------------------------
+
   if ("LaplacesDemon" %in% methods){
     
     stop("This is too slow to use. It is just to document the approach. dmvn is the culprit .. try sparse matrix methods ...")
+    # uses the gstat::matern parameterization
+    # nu is "scale" (hard to identify due to exp(phi*x)^nu == exp(phi*nu*x)) .. maybe just do phi*nu ?
 
-    require(LaplacesDemon)
     require(LaplacesDemonCpp)
-    
-    coords = data.frame( plon=(xy$plon-yrange[1] )/dd,  plat=(xy$plat-xrange[1])/dd )
-    
-    LD = list(
-      N = length(z),
-      X = as.matrix(data.frame( intercept=rep(1, length(z)) ) ),
-      y = z,  
-      D.N = as.matrix(dist( coords, diag=TRUE, upper=TRUE)) #  distance matrix
+    Data = list(
+      eps = 1e-9,
+      N = length(z),  # required for LaplacesDemon
+      DIST=as.matrix(dist( xy, diag=TRUE, upper=TRUE)), # distance matrix between knots
+      y=z  
     )
-
-    LD$parm.names = as.parm.names( list(
-      beta=1, 
-      sigma=rep(0,2),
-      phi=0,
-      kappa=1,
-      zeta=rep(0,LD$N)
-    ) )
-
-    LD$mon.names = c("LP" )
-    
-    LD$PGF = function(LD) {
-      beta = rnorm(1)
-      sigma = runif(2,0.1,10)
-      phi = runif(1,1,5)
-      kappa = 1
-      zeta = mvtnorm::rmvnorm(1, rep(0,LD$N), sigma[2]*sigma[2]*exp(-phi*LD$D.N)^kappa, method="chol")
-      return(c(zeta, beta, sigma, phi))
+    Data$mon.names = c( "LP", paste0("mu",1:Data$N ) )
+    Data$parm.names = as.parm.names(list(tau=0, sigma=0, phi=0, nu=0, muSpatial=rep(0,Data$N) ))
+    Data$pos = list(
+      tau = grep("tau", Data$parm.names),
+      sigma = grep("sigma", Data$parm.names),
+      phi = grep("phi", Data$parm.names),
+      nu = grep("nu", Data$parm.names),
+      muSpatial = grep("muSpatial", Data$parm.names)
+    )
+    Data$PGF = function(Data) {
+      tau = rhalfcauchy( 1, 25 )
+      sigma = rhalfcauchy( 1, 25 )
+      phi = rhalfcauchy( 1, 25 )
+      nu = 1
+      muSpatial = mvnfast::rmvn(1, rep(0,Data$N), sigma*sigma*exp(-phi*Data$DIST )^nu )
+      return(c(muSpatial, tau, sigma, phi, nu))
     }
-
-    LD$i = list(
-      beta = grep("\\<beta\\>", LD$parm.names),
-      sigma = grep("\\<sigma\\>", LD$parm.names),
-      phi = grep("\\<phi\\>", LD$parm.names),
-      kappa = grep("\\<kappa\\>", LD$parm.names),
-      zeta = grep("\\<zeta\\>", LD$parm.names)
-    )
-    
-    LD$Model = function(parm, LD){
-      
-      ### Parameters
-      loglik = c()
-      loglik[LD$parm.names] = 0
-
-      parm[LD$i$sigma] = sigma = interval(parm[LD$i$sigma], 1, Inf)
-      parm[LD$i$phi] = phi = interval(parm[LD$i$phi], 1, 5)
-      Sigma = sigma[2]*sigma[2] * exp(-phi * LD$D.N)^parm[LD$i$kappa]
-      
-      ### Log-Prior
-      loglik[LD$i$beta] = sum(dnormv(parm[LD$i$beta], 0, 1000, log=TRUE))
-      loglik[LD$i$zeta] = mvtnorm::dmvnorm(parm[LD$i$zeta], rep(0, LD$N), Sigma, log=TRUE)
-      loglik[LD$i$sigma] = sum(dhalfcauchy(sigma - 1, 25, log=TRUE))
-      loglik[LD$i$phi] = dunif(phi, 1, 5, log=TRUE)
-      
-      ### Log-Likelihood
-      mu = tcrossprod(LD$X, t(parm[LD$i$beta]) ) + parm[LD$i$zeta]
-
-      LL = sum(dnorm(LD$y, mu, sigma[1], log=TRUE))
-      
-      ### Log-Posterior
-      LP = LL + sum(loglik)
-      Modelout = list(LP=LP, Dev=-2*LL, Monitor=c(LP), yhat=rnorm(length(mu), mu, sigma[1]), parm=parm)
+    Data$PGF  = compiler::cmpfun(Data$PGF)
+    Data$Model = function(parm, Data){
+      nu = parm[Data$pos$nu] = 1  # in case GIV resets to some other value
+      tau = parm[Data$pos$tau] = LaplacesDemonCpp::interval(parm[Data$pos$tau], Data$eps, Inf)
+      sigma = parm[Data$pos$sigma] = LaplacesDemonCpp::interval(parm[Data$pos$sigma], Data$eps, Inf)
+      phi = parm[Data$pos$phi] = LaplacesDemonCpp::interval(parm[Data$pos$phi], Data$eps, Inf)
+      muSpatial = parm[Data$pos$muSpatial]
+      covSpatial = sigma*sigma * exp(-phi * Data$DIST)^nu   ## spatial correlation
+      muSpatial.prior =  mvnfast::dmvn( muSpatial, rep(0, Data$N), sigma=covSpatial, log=TRUE )
+      tau.prior = dgamma(tau, 1, 0.001, log=TRUE)
+      sigma.prior = dgamma(sigma, 1, 0.001, log=TRUE)
+      phi.prior = dgamma(phi, 1, 0.001, log=TRUE)
+      #nu.prior = dgamma(nu, 1, 0.001 log=TRUE)
+      nu.prior = 0
+      nugget = rnorm(Data$N, 0, tau) 
+      yhat =  nugget + muSpatial # local iid error + spatial error
+      LL = sum(dnorm(Data$y, yhat, sqrt( tau*tau+sigma*sigma), log=TRUE)) ## Log Likelihood
+      LP = LL + muSpatial.prior + sigma.prior + phi.prior + nu.prior ### Log-Posterior
+      Modelout = list(LP=LP, Dev=-2*LL, Monitor=c(LP, mu), yhat=mu, parm=parm)
       return(Modelout)
     }
 
-    Model = compiler::cmpfun(LD$Model) 
+    Data$Model.ML  = compiler::cmpfun( function(...) (Data$Model(...)$Dev / 2) )  # i.e. - log likelihood
+    Data$Model.PML = compiler::cmpfun( function(...) (- Data$Model(...)$LP) ) #i.e., - log posterior 
+    Data$Model = compiler::cmpfun(Data$Model) #  byte-compiling for more speed .. use RCPP if you want more speed
 
+    print (Data$Model( parm=Data$PGF(Data), Data ) ) # test to see if return values are sensible
+
+    parm0 = Data$PGF(Data)
+
+# maximum likelihood solution
+f.ml = optim( par=Data$PGF(Data), fn=Data$Model.ML, Data=Data, control=list(maxit=5000, trace=1), method="BFGS"  )
+names(f.ml$par ) = Data$parm.names
+
+# penalized maximum likelihood .. better but still a little unstable depending on algorithm
+f.pml = optim( par=Data$PGF(Data), fn=Data$Model.PML, Data=Data,  control=list(maxit=5000, trace=1), method="BFGS" , hessian=FALSE )
+names(f.pml$par ) = Data$parm.names
+#print(sqrt( diag( solve(f.pml$hessian) )) ) # assymptotic standard errors
+
+
+    # burn-in
+    f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=parm0, Iterations=100, Status=10, Thinning=10 )
+    plot(f, Data=Data)
+
+    # sampling
+    f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=10, Thinning=1, Covar=f$Covar )
+   
+    f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=10, Thinning=1, Covar=f$Covar, Method="NUTS" )
+   
     # first mcmc .. faster start-up and convergence to global equil 
-    f = LaplacesDemon(Model, Data=LD, Initial.Values=LD$PGF(LD), Iterations=500, Status=1, Thinning=1 )
+    f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=Data$PGF(Data), Iterations=500, Status=1, Thinning=1 )
     
     # now use the currest parm est and try a laplace:
-    f = LaplaceApproximation(Model, Data=LD, parm=as.initial.values(f), Iterations=50, Method="LBFGS", CPUs=6 ) # refine it
+    f = LaplaceApproximation(Data$Model, Data=Data, parm=Data$PGF(Data), Iterations=500, Method="Roptim", CPUs=6, method="BFGS" ) # refine it
+
+    f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Iterations=50, Method="Roptim", CPUs=6, method="BFGS" ) # refine it
     
-    # f = VariationalBayes(Model, Data=LD, parm=as.initial.values(f), Iterations=500, Samples=20, CPUs=5, Covar=f$Covar ) # refine it again
-    # f = LaplacesDemon(Model, Data=LD, Initial.Values=as.initial.values(f), Iterations=1000, Status=100, Thinning=1, Covar=f$Covar )
-    # f = VariationalBayes(Model, Data=LD, parm=as.initial.values(f), Iterations=100, Samples=10, CPUs=5, Covar=f$Covar )
-    # f = IterativeQuadrature(Model, Data=LD, parm=as.initial.values(f), Iterations=10, Algorithm="AGH",
+    # f = VariationalBayes(Data$Model, Data=Data, parm=as.initial.values(f), Iterations=500, Samples=20, CPUs=5, Covar=f$Covar ) # refine it again
+    # f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Iterations=1000, Status=10, Thinning=1, Covar=f$Covar )
+    # f = VariationalBayes(Data$Model, Data=Data, parm=as.initial.values(f), Iterations=100, Samples=10, CPUs=5, Covar=f$Covar )
+    # f = IterativeQuadrature(Data$Model, Data=Data, parm=as.initial.values(f), Iterations=10, Algorithm="AGH",
     #  Specs=list(N=5, Nmax=7, Packages=NULL, Dyn.libs=NULL), Covar=f$Covar )
-    
+        
+   f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Method="TR", Iterations=1000 , CPUs=6 ) 
+    f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Method="BFGS", Iterations=1000, CPUs=6  ) 
+     f = LaplaceApproximation(Data$Model, Data=Data, parm=as.initial.values(f), Method="SPG", Iterations=1000, CPUs=6  ) 
+
     if (plotdata) {
       Consort(f)
       plot(f)
+       m = f$Summary2[grep( "(\\<mu)([0123456789]{1,3})", rownames( f$Summary2 ) ),]
+      # m = f$Summary2[grep( "muSpatial", rownames( f$Summary2 ) ),]
+      plot( Data$y~m[, "Mean"], pch="." )
     }
   }
 
- 
+  out$LaplacesDemon = list( fit=f, vgm=NA, model=NA, range=vMod$practicalRange,
+            varSpatial= vMod$cov.pars[1], varObs=vMod$nugget, nu=1.5,  phi=vMod$cov.pars[2] )
+  out$gstat$range =  geoR::practicalRange("matern", phi=out$gstat$phi, kappa=out$gstat$nu  )
+
   return(out)
 }
 
