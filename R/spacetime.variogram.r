@@ -21,7 +21,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     mz = log( meuse$zinc )
     mm = lm( mz ~ sqrt( meuse$dist ) )
     z = residuals( mm)
-   
+
     plotdata=TRUE
     maxdist =800
     edge=c(1/3, 1)
@@ -179,6 +179,9 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
         plot(lp)
       }
     }
+
+    return(out)
+
   }
 
 
@@ -234,6 +237,9 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       acov = out$geoR$varObs +  out$geoR$varSpatial * (1-acor)  ## geoR is 1/2 of gstat and RandomFields gamma's
       lines( acov ~ x , col="orange" )
     }
+
+    return(out)
+
   }
 
 
@@ -294,6 +300,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       x11()
       plot(o)
     }
+    return(out)
 
   }
 
@@ -365,6 +372,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
         contour(obs.surf, add=T)
       }
     }
+
+    return(out)
 
   }
 
@@ -465,6 +474,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       abline( v=out$inla$range.inla90  )
       abline( v=out$inla$range, col="red"  )
     }
+  
+    return(out)
 
   }
 
@@ -678,13 +689,14 @@ names(f.pml$par ) = Data$parm.names
       # m = f$Summary2[grep( "muSpatial", rownames( f$Summary2 ) ),]
       plot( Data$y~m[, "Mean"], pch="." )
     }
-  }
-
-  out$LaplacesDemon = list( fit=f, vgm=NA, model=NA, range=vMod$practicalRange,
-            varSpatial= vMod$cov.pars[1], varObs=vMod$nugget, nu=1.5,  phi=vMod$cov.pars[2] )
-  out$gstat$range =  geoR::practicalRange("matern", phi=out$gstat$phi, kappa=out$gstat$nu  )
+    out$LaplacesDemon = list( fit=f, vgm=NA, model=NA, range=vMod$practicalRange,
+              varSpatial= vMod$cov.pars[1], varObs=vMod$nugget, nu=1.5,  phi=vMod$cov.pars[2] )
+    out$gstat$range =  geoR::practicalRange("matern", phi=out$gstat$phi, kappa=out$gstat$nu  )
 
   return(out)
+  
+  }
+
 }
 
 
