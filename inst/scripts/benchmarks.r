@@ -22,22 +22,20 @@ dKK = as.matrix(dist( coordsK, diag=TRUE, upper=TRUE)) # distance matrix between
     LaplacesDemonCpp::rnorm(10e6, muKs, muKs2), 
     stats::rnorm(10e6, muKs, muKs2), 
     times=10 )
+                                        expr      min        lq      mean    median        uq      max neval cld
+ LaplacesDemonCpp::rnorm(1e+07, muKs, muKs2)  86.3477  86.44021  94.46323  86.70997  88.10098 161.3076    10  a 
+            stats::rnorm(1e+07, muKs, muKs2) 401.6346 401.80529 413.12531 403.29420 407.89803 492.5047    10   b
 
-                                         expr      min       lq     mean   median       uq      max
- LaplacesDemonCpp::rnorm(1e+07, muKs, muKs2) 103.0105 103.5515 118.6936 105.3423 107.1295 176.2662
-            stats::rnorm(1e+07, muKs, muKs2) 470.3615 476.6918 484.5429 478.1062 484.7872 536.9856
- 
   
  microbenchmark( 
     LaplacesDemonCpp::dnorm_rcpp(muKs2,  muKs, log=TRUE), 
     stats::dnorm(muKs2,  muKs, log=TRUE), 
-    times=10000 )
+    times=5000 )
 
-                                             expr    min      lq     mean  median     uq    max
- LaplacesDemonCpp::dnorm_rcpp(muKs2, muKs, log = TRUE) 20.308 21.8925 23.29244 22.6335 23.697 57.334
-            stats::dnorm(muKs2, muKs, log = TRUE) 15.832 17.8330 18.98043 18.4695 19.237 52.852
+                                                 expr    min      lq     mean median     uq
+ LaplacesDemonCpp::dnorm_rcpp(muKs2, muKs, log = TRUE) 19.931 21.7695 23.96264 22.416 23.330
+                 stats::dnorm(muKs2, muKs, log = TRUE) 14.931 16.9110 18.80110 17.711 18.571
  
-
 
 
  microbenchmark( 
@@ -46,19 +44,20 @@ dKK = as.matrix(dist( coordsK, diag=TRUE, upper=TRUE)) # distance matrix between
     {LaplacesDemonCpp::dmvn(muKK, rep(0, nKs), covKs, log=TRUE)},
     {mvtnorm::dmvnorm(muKK, rep(0, nKs), covKs, log=TRUE)},
     {FastGP::rcpp_log_dmvnorm( covKs, rep(0, nKs), muKK, istoep=FALSE )},
-    times=1000 )
+    times=100 )
 
-                                                                      expr      min       lq      mean    median        uq
-                {     mvnfast::dmvn(muKK, rep(0, nKs), covKs, log = TRUE) }  191.413  247.684  421.1554  278.4690  302.7620
-    {     mvnfast::dmvn(muKK, rep(0, nKs), covKs, log = TRUE, ncores = 8) }  261.157 3134.657 3742.4167 3521.1960 4476.4645
-       {     LaplacesDemonCpp::dmvn(muKK, rep(0, nKs), covKs, log = TRUE) }  605.565  665.580 1146.0235  815.9505  890.2885
-             {     mvtnorm::dmvnorm(muKK, rep(0, nKs), covKs, log = TRUE) }  591.283  654.936 1119.8288  807.5500  873.9075
- {     FastGP::rcpp_log_dmvnorm(covKs, rep(0, nKs), muKK, istoep = FALSE) } 4840.495 4906.764 5515.3274 5471.8495 6097.7230
-        max neval  cld
-   3349.043  1000 a   
-   6747.828  1000   c 
- 115850.571  1000  b  
- 115645.814  1000  b  
+                                                                       expr      min       lq
+                {     mvnfast::dmvn(muKK, rep(0, nKs), covKs, log = TRUE) } 3.309083 4.380223
+    {     mvnfast::dmvn(muKK, rep(0, nKs), covKs, log = TRUE, ncores = 8) } 4.594609 4.861577
+       {     LaplacesDemonCpp::dmvn(muKK, rep(0, nKs), covKs, log = TRUE) } 3.659659 4.712023
+             {     mvtnorm::dmvnorm(muKK, rep(0, nKs), covKs, log = TRUE) } 1.125608 1.527980
+ {     FastGP::rcpp_log_dmvnorm(covKs, rep(0, nKs), muKK, istoep = FALSE) } 3.369025 4.592944
+     mean   median       uq       max neval  cld
+ 4.251953 4.447984 4.477536  7.765641  1000  b  
+ 5.513903 4.907827 6.181261 17.140637  1000    d
+ 4.890866 4.881906 4.988855 81.152338  1000   c 
+ 1.720808 1.595274 1.647026 86.716230  1000 a   
+ 4.697876 4.983066 5.001937 11.633854  1000   c 
 
 
  nsamp = 1
@@ -71,20 +70,21 @@ dKK = as.matrix(dist( coordsK, diag=TRUE, upper=TRUE)) # distance matrix between
     {FastGP::rcpp_rmvnorm_stable(nsamp, sigma[2]*sigma[2]*exp(-phi*dKK)^kappa, rep(0,nKs))},
     times=1000 )
 
-                                                                                                               expr      min
-                     {     mvnfast::rmvn(nsamp, rep(0, nKs), sigma[2] * sigma[2] * exp(-phi *          dKK)^kappa) }  838.675
-               {     LaplacesDemon::rmvn(nsamp, rep(0, nKs), sigma[2] * sigma[2] *          exp(-phi * dKK)^kappa) } 6021.432
-            {     LaplacesDemonCpp::rmvn(nsamp, rep(0, nKs), sigma[2] * sigma[2] *          exp(-phi * dKK)^kappa) } 2309.990
- {     mvtnorm::rmvnorm(nsamp, rep(0, nKs), sigma[2] * sigma[2] *          exp(-phi * dKK)^kappa, method = "chol") } 1482.535
-              {     FastGP::rcpp_rmvnorm(nsamp, sigma[2] * sigma[2] * exp(-phi *          dKK)^kappa, rep(0, nKs)) }  992.656
-       {     FastGP::rcpp_rmvnorm_stable(nsamp, sigma[2] * sigma[2] *          exp(-phi * dKK)^kappa, rep(0, nKs)) } 1536.675
-       lq     mean   median       uq        max neval  cld
-  886.297 1206.807  911.488 1337.527 119179.601  1000 a   
- 6193.278 7306.778 6873.217 7745.664 126097.590  1000    d
- 2488.021 2768.283 2554.061 3158.878   5174.162  1000   c 
- 1564.434 2106.521 1622.486 2291.230 118491.844  1000  b  
- 1014.429 1256.690 1036.209 1564.081   3984.498  1000 a   
- 1642.857 1991.933 1680.161 2426.348   4620.555  1000  b  
+
+                                                                                                               expr      min       lq
+                     {     mvnfast::rmvn(nsamp, rep(0, nKs), sigma[2] * sigma[2] * exp(-phi *          dKK)^kappa) }  818.457  838.933
+               {     LaplacesDemon::rmvn(nsamp, rep(0, nKs), sigma[2] * sigma[2] *          exp(-phi * dKK)^kappa) } 4865.806 4887.672
+            {     LaplacesDemonCpp::rmvn(nsamp, rep(0, nKs), sigma[2] * sigma[2] *          exp(-phi * dKK)^kappa) } 2236.022 2257.005
+ {     mvtnorm::rmvnorm(nsamp, rep(0, nKs), sigma[2] * sigma[2] *          exp(-phi * dKK)^kappa, method = "chol") } 1437.710 1464.744
+              {     FastGP::rcpp_rmvnorm(nsamp, sigma[2] * sigma[2] * exp(-phi *          dKK)^kappa, rep(0, nKs)) } 1026.571 1041.773
+       {     FastGP::rcpp_rmvnorm_stable(nsamp, sigma[2] * sigma[2] *          exp(-phi * dKK)^kappa, rep(0, nKs)) } 1689.792 1709.479
+      mean   median        uq       max neval    cld
+  861.9695  848.285  858.7925  1694.562  1000 a     
+ 5074.1735 4911.876 4935.2620 81460.801  1000      f
+ 2311.4176 2270.596 2291.4995  3252.717  1000     e 
+ 1548.2172 1491.574 1519.7615  2880.406  1000   c   
+ 1141.9567 1048.901 1058.7975 79364.708  1000  b    
+ 1762.8241 1720.117 1737.7110  2941.062  1000    d  
 > 
 
 Note:: LaplacesDemonCpp::rmvn is now a copy of mvnfast::rmvn
