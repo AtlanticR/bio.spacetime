@@ -1,5 +1,4 @@
 
-  # spTimer test
 
 if (0) {
   devtools::install_github("kaskr/adcomp/TMB")
@@ -17,6 +16,12 @@ if (using.meuse) {
   Data = meuse
   Data.pred = meuse.grid
   ## var names : y=zinc, x = dist
+ nugget = 0.2 # tau^2
+  psill = 0.8 # sigma^2
+  nu = 0.5  # Bessel param
+  phi = 100 # range parameter
+  # range = geoR::practicalRange("matern", phi=100, kappa=0.5)  # 300 km
+
 }
 
 if (using.random) {
@@ -42,10 +47,8 @@ if (using.random) {
   modG <- gstat::gstat(formula = z~1, locations = ~x+y, data=Data.pred, dummy=TRUE, beta = 0,
       model = gstat::vgm(psill=psill, nugget=nugget, model="Mat", range=1/phi, kappa=nu), nmax = 20)
   rfG <- predict(modG, newdata=Data.pred, nsim = 1)
-  names( rfG ) = "zinc"
-  rfG$dist = rfG$zinc + rnorm(rfG$zinc, sd=3)
-  Data = rfG
-
+  names( rfG ) = c("x", "y", "z" )
+  
   # -------------------
   # using geoR
   require(geoR)
@@ -55,12 +58,11 @@ if (using.random) {
   plot(variog(rfGeoR, max.dist=100))
   lines.variomodel(rfGeoR)
   image(rfGeoR)
-  z = rfG[si,3]
-
+  
   # re-estimate params
   ss = data.frame( rfG[ si, ] )
   xy = ss[,c("x","y")]
-  z =  ss[,"zinc"]
+  z =  ss[,"z"]
 
   vgs = bio.spacetime::spacetime.variogram( xy, z, methods="gstat" )
   vgr = bio.spacetime::spacetime.variogram( xy, z, methods="geoR" )
