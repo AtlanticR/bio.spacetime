@@ -635,8 +635,8 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       phi = parm[Data$pos$phi]= LaplacesDemonCpp::interval_random(parm[Data$pos$phi], Data$eps, Inf, 0.01 )
       nu = parm[Data$pos$nu] = LaplacesDemonCpp::interval_random(parm[Data$pos$nu], 0.1, 4.0, 0.01 )
       # corSpatial = exp(-Data$DIST/phi)^nu   ## spatial correlation .. exponential
-      corSpatial = geoR::matern( Data$DIST, phi=phi, kappa=nu )   ## spatial correlation .. matern
-      corSpatial = zapsmall(corSpatial)
+      corSpatial = geoR::matern( Data$DIST, phi=1/phi, kappa=nu )   ## spatial correlation .. matern
+      # corSpatial = zapsmall(corSpatial)
       #uphi <- Data$DIST/phi
       #corSpatial = (((2^(-(nu-1)))/gamma(nu)) * (uphi^nu) * besselK(x=phi, nu=nu))
       #diag(corSpatial) = 1
