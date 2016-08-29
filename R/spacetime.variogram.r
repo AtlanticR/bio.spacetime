@@ -143,7 +143,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     vEm$dist = vEm$dist * out$maxdist
     vEm$gamma = vEm$gamma * out$varZ
     vFitgs$psill = vFitgs$psill * out$varZ
-    vFitgs$range[2] = vFitgs$range[2] * out$maxdist
+    vFitgs$range[2] = out$maxdist* vFitgs$range[2]
 
     out$gstat = list( fit=vFitgs, vgm=vEm, range=NA, nu=vFitgs$kappa[2], phi=vFitgs$range[2],
         varSpatial=vFitgs$psill[2], varObs=vFitgs$psill[1]  )  # gstat::"range" == range parameter == phi
@@ -154,19 +154,17 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       x11()
       plot(vEm, model=vFitgs, add=T)
       x11()
-      plot( gamma ~ dist, data=out$gstat$vgm, ylim=c(0,max(out$gstat$vgm$gamma)*1.1), col="blue", pch=20 )
-      abline( h=out$gstat$varSpatial + out$gstat$varObs  )
+      plot( gamma ~ dist, data=out$gstat$vgm, xlim=c(0,maxdist), 
+           ylim=c(0,max(out$gstat$vgm$gamma)*1.1), col="blue", pch=20 )
+      abline( h=out$gstat$varSpatial + out$gstat$varObs ) 
       abline( h=out$gstat$varObs )
       abline( v=out$gstat$range )
       x = seq( 0, maxdist, length.out=100 )
       acor = geoR::matern( x, phi=out$gstat$phi, kappa=out$gstat$nu  )
       acov = out$gstat$varObs + out$gstat$varSpatial * (1- acor)
       lines( acov~x , col="red" )
-
     }
-
     return(out)
-
   }
 
 
@@ -217,11 +215,12 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       x11()
       plot( out$geoR$vgm )
       x11()
-      plot( out$geoR$vgm$v*out$varZ ~ out$geoR$vgm$u, pch=20 )
-      abline( h=*out$varZ *(out$geoR$varSpatial + out$geoR$varObs)  )
+      plot( out$geoR$vgm$v*out$varZ ~ c(out$geoR$vgm$u*out$maxdist), pch=20 , 
+           xlim=c(0,maxdist), ylim=c(0, out$varZ*1.25) )
+      abline( h=out$geoR$varSpatial + out$geoR$varObs)  
       abline( h=out$geoR$varObs )
       abline( v=out$geoR$range )
-      x = seq( 0, max(out$geoR$vgm$u), length.out=100 )
+      x = seq( 0, max(out$geoR$vgm$u*out$maxdist), length.out=100 )
       acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$nu  )
       acov = out$geoR$varObs +  out$geoR$varSpatial * (1-acor)  ## geoR is 1/2 of gstat and RandomFields gamma's
       lines( acov ~ x , col="orange" )
@@ -490,7 +489,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     # i.e. range at distance where covar ~0.999 .. but not sure how to recover the correct phi/range from this ...
 
     fm1 <- bayesx( z ~ sx(plon, plat, bs="kr" ), family="gaussian", method="REML", data =xy )
-    out$BayesX = list( fit=fm1, range=NA,
+    out$BayesX = list( fit=fm1, range=NA, jagsmodel=fm1, 
         varSpatial=fm1$smooth.hyp[,"Variance"]*out$varZ, 
         varObs=fm1$variance*out$varZ, 
         nu=1.5, phi=NA )
@@ -583,7 +582,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     print (summary(fit))
 
     out$jags = list(
-      fit = fit,
+      fit = fit, model=jagsmodel,
       phi = out$maxdist / fit$summary["phi", "mean"],
       sigmasq = fit$summary["sigmasq", "mean"]*out$varZ,
       tausq = fit$summary["tausq", "mean"]*out$varZ
@@ -615,61 +614,67 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       y=z  
     )
     Data$mon.names = c( "LP", paste0("yhat[",1:Data$N,"]" ) )
-    Data$parm.names = as.parm.names(list(tausq=0, sigmasq=0, phi=0, nu=0, eSp=rep(0,Data$N), eObs=rep(0,Data$N) ))
+    Data$parm.names = as.parm.names(list(tausq=0, sigmasq=0, phi=0, nu=0 ))
     Data$pos = list(
       tausq = grep("tausq", Data$parm.names),
       sigmasq = grep("sigmasq", Data$parm.names),
       phi = grep("phi", Data$parm.names),
-      nu = grep("nu", Data$parm.names),
-      eSp = grep("eSp", Data$parm.names),
-      eObs = grep("eObs", Data$parm.names)
+      nu = grep("nu", Data$parm.names)
     )
     Data$PGF = function(Data) {
       #initial values .. get them near the center of mass
       tausq = rgamma (1, 1, 5) # 0 to 1.5 range
       sigmasq = rgamma (1, 1, 5)
       phi = rgamma (1, 1, 1)  # 0 to 500 range
-      nu = runif(1, 0.9, 1.1)
-      eSp = rmvn( 1, rep(0, Data$N), sigmasq * exp(-Data$DIST/phi)^nu )
-      eObs = rnorm( Data$N, 0, sqrt(tausq) )
-      return( c( tausq, sigmasq, phi, nu, eSp, eObs))
+      nu = runif(1, 0.5, 4)
+      return( c( tausq, sigmasq, phi, nu ))
     }
     Data$PGF  = compiler::cmpfun(Data$PGF)
-    Data$Model = function(parm, Data){
-
+    Data$Model = function(parm, Data) {
       tausq = parm[Data$pos$tausq] = LaplacesDemonCpp::interval_random(parm[Data$pos$tausq], Data$eps, 1, 0.01 )
       sigmasq = parm[Data$pos$sigmasq]= LaplacesDemonCpp::interval_random(parm[Data$pos$sigmasq], Data$eps, 1, 0.01 )
-      phi = parm[Data$pos$phi]= LaplacesDemonCpp::interval_random(parm[Data$pos$phi], Data$eps, Inf, 1 )
-      nu = parm[Data$pos$nu] = LaplacesDemonCpp::interval_random(parm[Data$pos$nu], 0.9, 1.1, 0.01 )
-      eSp = parm[Data$pos$eSp]  # spatial error (psill)
-      eObs = parm[Data$pos$eObs]  # nugget error
-
-      covSpatial = sigmasq * exp(-Data$DIST/phi)^nu   ## spatial correlation
-      eSp.prior =  dmvn( eSp, rep(0, Data$N), covSpatial, log=TRUE )
-      eObs.prior =  dnorm( eObs, 0, sqrt(tausq), log=TRUE )
+      phi = parm[Data$pos$phi]= LaplacesDemonCpp::interval_random(parm[Data$pos$phi], Data$eps, Inf, 0.01 )
+      nu = parm[Data$pos$nu] = LaplacesDemonCpp::interval_random(parm[Data$pos$nu], 0.1, 4.0, 0.01 )
+      # corSpatial = exp(-Data$DIST/phi)^nu   ## spatial correlation .. exponential
+      corSpatial = geoR::matern( Data$DIST, phi=phi, kappa=nu )   ## spatial correlation .. matern
+      corSpatial = zapsmall(corSpatial)
+      #uphi <- Data$DIST/phi
+      #corSpatial = (((2^(-(nu-1)))/gamma(nu)) * (uphi^nu) * besselK(x=phi, nu=nu))
+      #diag(corSpatial) = 1
+      #if (any(!is.finite(corSpatial))) browser()
+      # browser()
+      eSp = rmvn( 1, rep(0, Data$N), sigmasq*corSpatial )# psill
+      eObs = rnorm( Data$N, 0, sqrt(tausq) ) # nugget error
       tausq.prior = dgamma(tausq, 1, 1, log=TRUE) # 0-1.55 range
       sigmasq.prior = dgamma(sigmasq, 1, 1, log=TRUE)
       phi.prior = dgamma(phi, 1, 1, log=TRUE)
       nu.prior = dnorm(nu, 1, 0.01, log=TRUE)
-
       yhat = eObs + eSp # local iid error + spatial error
       LL = sum(dnorm(Data$y, yhat, sqrt(sigmasq+tausq), log=TRUE)) ## Log Likelihood
-      LP = sum(LL, eSp.prior, eObs.prior, sigmasq.prior, tausq.prior, phi.prior, nu.prior) ### Log-Posterior
+      LP = sum(LL, sigmasq.prior, tausq.prior, phi.prior, nu.prior) ### Log-Posterior
       Modelout = list(LP=LP, Dev=-2*LL, Monitor=c(LP, yhat), yhat=yhat, parm=parm)
       return(Modelout)
     }
-
-    Data$Model.ML  = compiler::cmpfun( function(...) (Data$Model(...)$Dev / 2) )  # i.e. - log likelihood
-    Data$Model.PML = compiler::cmpfun( function(...) (- Data$Model(...)$LP) ) #i.e., - log posterior 
     Data$Model = compiler::cmpfun(Data$Model) #  byte-compiling for more speed .. use RCPP if you want more speed
     
-    ( parm0=Data$PGF(Data) )
+    parm0=Data$PGF(Data)
   
-    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="HAR", Iterations=5000, CovEst="Identity", sir=TRUE )
+    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="HAR", Iterations=10000, CovEst="Hessian", sir=TRUE, Interval=1e-8, Samples=5000, Stop.Tolerance=1e-8 )
 
-    parm0 = as.initial.values(f)
+    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="BFGS", Iterations=10000, CovEst="Hessian", sir=TRUE, Interval=1e-6, Samples=5000, Stop.Tolerance=1e-6 )
 
-    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="SPG", Iterations=200, CovEst="Identity", sir=TRUE )
+    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="CG", Iterations=5000, CovEst="Hessian", sir=TRUE, Interval=1e-9 ) 
+
+    mu = f$Summary1[,1]
+    f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), 
+      Iterations=10000, Thinning=10, Status=1000, Algorithm="IM", Specs=list(mu=mu), 
+      Covar=f$Covar, CPUs=8 )
+
+
+    mu = apply(f0$Posterior1, 2, mean)
+    f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), 
+      Iterations=10000, Thinning=10, Status=1000, Algorithm="IM", Specs=list(mu=mu), 
+      Covar=f$Covar, CPUs=8 )
 
     if (plotdata) {
       
@@ -683,34 +688,32 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
        m = f$Summary2[grep( "\\<yhat\\>", rownames( f$Summary2 ) ),]
       # m = f$Summary2[grep( "muSpatial", rownames( f$Summary2 ) ),]
       plot( Data$y ~ m[, "Mean"]  )
-            
-        # $range
-        # [1] 1236.894
 
-        # $varSpatial
-        # [1] 0.1025882
-
-        # $varObs
-        # [1] 0.0008582601
-
-        # $nu
-        # [1] 1.000192
-
-        # $phi
-        # [1] 309.313
-
+      Consort(f0)
+      plot(f0, Data=Data)
     }
-    out$LaplacesDemon = list( fit=f, vgm=NA, model=NA, range=NA,
+
+    out$LaplacesDemon = list( fit=f, vgm=NA, model=Data$Model, range=NA,
       varSpatial=f$Summary2["sigmasq", "Mean"] *out$varZ, 
       varObs=f$Summary2["tausq", "Mean"]*out$varZ, 
       nu=f$Summary2["nu", "Mean"],  
       phi=out$maxdist/f$Summary2["phi", "Mean"] 
     )
     out$LaplacesDemon$range = geoR::practicalRange("matern", phi=out$LaplacesDemon$phi, kappa=out$LaplacesDemon$nu)
+ 
+    out$LaplacesDemon
 
+    if (plotdata) {
+      x11()
+      x = seq( 0,  out$LaplacesDemon$range * 1.25, length.out=100 )
+      svar =  out$LaplacesDemon$varObs + out$LaplacesDemon$varSpatial * (1-geoR::matern( x, phi=out$LaplacesDemon$phi, kappa=out$LaplacesDemon$nu  ))
+      plot( svar~x, type="l", ylim=c(0, max(svar)) )
+      abline( h=out$LaplacesDemon$varObs + out$LaplacesDemon$varSpatial )
+      abline( h=out$LaplacesDemon$varObs )
+      abline( v=out$LaplacesDemon$range, col="red"  )
+    }
+  
   return(out)
-
-
   
   }
 
