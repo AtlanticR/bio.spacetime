@@ -247,7 +247,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
    # where nu > 0 and K_nu is the modified Bessel function of second kind and distance r >= 0 between two pointsd
    # The Matern covariance model is given by: C(h) = v * phi(A*h/s).
    #  Cov(r) = 2^{1- nu} Gamma(nu)^{-1} (sqrt{2nu} r)^nu K_nu(sqrt{2nu} r)
-   # "phi" = sqrt{2nu} ?? NOt clear ...
+   # "phi" = sqrt{2nu}/?? NOt clear ...
    
    # RFoptions(
    #   allowdistanceZero=TRUE,
@@ -267,8 +267,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     out$RandomFields = list ( fit=o, vgm=o[2], model=oo, range=NA,
               varSpatial=oo$param["value", "matern.var"]*out$varZ,
               varObs=oo$param["value", "nugget.var"]*out$varZ,
-              phi=sqrt(oo$param["value", "matern.nu"]*2)oo$param["value", "matern.s"]*out$maxdist,
-              #phi=oo$param["value", "matern.s"]*out$maxdist,  # sqrt(2*RF::".s = scale") == geoR::phi -- need to confirm this :: confirmed JC Jul 2016
+              phi=(out$maxdist* oo$param["value", "matern.s"] )/(sqrt(oo$param["value", "matern.nu"]*2) ), 
               nu=oo$param["value", "matern.nu"], # RF::nu == geoR:: kappa (bessel smoothness param)
               error=NA )
 
