@@ -601,9 +601,12 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   if ("LaplacesDemon" %in% methods){
     
-    stop("This is too slow to use. It is just to document the approach. dmvn is the culprit .. try sparse matrix methods ...")
-    # uses the gstat::matern parameterization
-    # nu is "scale" (hard to identify due to exp(phi*x)^nu == exp(phi*nu*x)) .. maybe just do phi*nu ?
+    cat("TODO:: modify to RCPP some of the 
+        1) matrix methods and \n 
+        2) optimizers for more speed and even \n 
+        3) LA.bio for streamlining and \n 
+        4) dmvn sparse form? \n")
+
     require(LaplacesDemonCpp)
     
     Data = list(
@@ -633,21 +636,29 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       tausq = parm[Data$pos$tausq] = LaplacesDemonCpp::interval_random(parm[Data$pos$tausq], Data$eps, 1, 0.01 )
       sigmasq = parm[Data$pos$sigmasq]= LaplacesDemonCpp::interval_random(parm[Data$pos$sigmasq], Data$eps, 1, 0.01 )
       phi = parm[Data$pos$phi]= LaplacesDemonCpp::interval_random(parm[Data$pos$phi], Data$eps, Inf, 0.01 )
-      nu = parm[Data$pos$nu] = LaplacesDemonCpp::interval_random(parm[Data$pos$nu], 0.1, 4.0, 0.01 )
-      # corSpatial = exp(-Data$DIST/phi)^nu   ## spatial correlation .. exponential
-      corSpatial = geoR::matern( Data$DIST, phi=1/phi, kappa=nu )   ## spatial correlation .. matern
+      nu = parm[Data$pos$nu] = LaplacesDemonCpp::interval_random(parm[Data$pos$nu], 0.1, 15.0, 0.01 )
+      # corSpatial = exp(-Data$DIST/phi)^nu   ## spatial correlation .. simple exponential model
+      # corSpatial = geoR::matern( Data$DIST, phi=1/phi, kappa=nu )   ## spatial correlation .. matern from geoR
+      # wikipedia Matern parameterization: 
+      # C_{\nu }(d) = \sigma ^{2}{\frac {2^{1-\nu }}{\Gamma (\nu )}} 
+      #  {\Bigg (}{\sqrt {2\nu }}{\frac {d}{\rho }}{\Bigg )}^{\nu } K_{\nu }
+      #  {\Bigg (}{\sqrt {2\nu }}{\frac {d}{\rho }}{\Bigg )}
+      e <- sqrt(2*nu) * Data$DIST / phi
+      corSpatial = {2^{1-nu}}/gamma(nu) * (e^nu) * besselK(x=e, nu=nu) 
+      diag(corSpatial) = 1
       # corSpatial = zapsmall(corSpatial)
-      #uphi <- Data$DIST/phi
-      #corSpatial = (((2^(-(nu-1)))/gamma(nu)) * (uphi^nu) * besselK(x=phi, nu=nu))
-      #diag(corSpatial) = 1
-      #if (any(!is.finite(corSpatial))) browser()
+      if ( !is.positive.definite(corSpatial)) {
+        cat("correlation matrix is not positive definite, adding a bit of noise ...\n")
+        corSpatial = as.positive.definite(corSpatial) 
       # browser()
+      }
+
       eSp = rmvn( 1, rep(0, Data$N), sigmasq*corSpatial )# psill
       eObs = rnorm( Data$N, 0, sqrt(tausq) ) # nugget error
       tausq.prior = dgamma(tausq, 1, 1, log=TRUE) # 0-1.55 range
       sigmasq.prior = dgamma(sigmasq, 1, 1, log=TRUE)
       phi.prior = dgamma(phi, 1, 1, log=TRUE)
-      nu.prior = dnorm(nu, 1, 0.01, log=TRUE)
+      nu.prior = dnorm(nu, 10, 0.1, log=TRUE)
       yhat = eObs + eSp # local iid error + spatial error
       LL = sum(dnorm(Data$y, yhat, sqrt(sigmasq+tausq), log=TRUE)) ## Log Likelihood
       LP = sum(LL, sigmasq.prior, tausq.prior, phi.prior, nu.prior) ### Log-Posterior
@@ -658,49 +669,45 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     
     parm0=Data$PGF(Data)
   
-    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="HAR", Iterations=10000, CovEst="Hessian", sir=TRUE, Interval=1e-8, Samples=5000, Stop.Tolerance=1e-8 )
+    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="BFGS", Iterations=1000, CPUs=4, Stop.Tolerance=1.0E-9 )
 
-    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="BFGS", Iterations=10000, CovEst="Hessian", sir=TRUE, Interval=1e-6, Samples=5000, Stop.Tolerance=1e-6 )
-
-    f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="CG", Iterations=5000, CovEst="Hessian", sir=TRUE, Interval=1e-9 ) 
-
-    mu = f$Summary1[,1]
-    f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), 
-      Iterations=10000, Thinning=10, Status=1000, Algorithm="IM", Specs=list(mu=mu), 
-      Covar=f$Covar, CPUs=8 )
-
-
-    mu = apply(f0$Posterior1, 2, mean)
-    f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), 
-      Iterations=10000, Thinning=10, Status=1000, Algorithm="IM", Specs=list(mu=mu), 
-      Covar=f$Covar, CPUs=8 )
 
     if (plotdata) {
-      
-    parm0 = as.initial.values(f)
 
-      f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=parm0, CPUs=8)
-      f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="SPG", Iterations=500, CovEst="Hessian", sir=FALSE )    
+      f = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Fit.LA=f,
+        Iterations=10000, Thinning=100, Status=1000, Covar=f$Covar, CPUs=8 )
 
-      Consort(f)
-      plot(f, Data=Data)
-       m = f$Summary2[grep( "\\<yhat\\>", rownames( f$Summary2 ) ),]
-      # m = f$Summary2[grep( "muSpatial", rownames( f$Summary2 ) ),]
-      plot( Data$y ~ m[, "Mean"]  )
+      parm0 = as.initial.values(f)
+      f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=parm0, CPUs=8 )
+      mu = f$Summary1[,1]
+      f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Fit.LA=f,
+        Iterations=5000, Thinning=1, Status=1000, Algorithm="IM", Specs=list(mu=mu), 
+        Covar=f$Covar, CPUs=8 )
+
+      f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Fit.LA=f,
+        Iterations=10000, Thinning=100, Status=1000, Covar=f$Covar, CPUs=8 )
 
       Consort(f0)
       plot(f0, Data=Data)
+      m = f0$Summary2[grep( "\\<yhat\\>", rownames( f0$Summary2 ) ),]
+      m = f$Summary2[grep( "\\<yhat\\>", rownames( f$Summary2 ) ),]
+      # m = f$Summary2[grep( "muSpatial", rownames( f$Summary2 ) ),]
+      plot( Data$y ~ m[, "Mean"]  )
+
+
     }
 
     out$LaplacesDemon = list( fit=f, vgm=NA, model=Data$Model, range=NA,
       varSpatial=f$Summary2["sigmasq", "Mean"] *out$varZ, 
       varObs=f$Summary2["tausq", "Mean"]*out$varZ, 
       nu=f$Summary2["nu", "Mean"],  
-      phi=out$maxdist/f$Summary2["phi", "Mean"] 
-    )
+      phi = out$maxdist * ( f$Summary2["phi", "Mean"]  / sqrt(2*f$Summary2["nu", "Mean"] ) ) 
+    )   ## need to check parameterization...
+ 
     out$LaplacesDemon$range = geoR::practicalRange("matern", phi=out$LaplacesDemon$phi, kappa=out$LaplacesDemon$nu)
  
-    out$LaplacesDemon
+   # print( out$LaplacesDemon )
+
 
     if (plotdata) {
       x11()
