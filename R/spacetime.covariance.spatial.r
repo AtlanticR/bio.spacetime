@@ -1,6 +1,6 @@
 
 spacetime.covariance.spatial = function( ip=NULL, p ) {
-  #\\ mostly copied over from spacetime.interpolate.inla.local in terms of mechanism to inter-operate with bigmemory
+  #\\ estimate spatially localized spatial covariance parameters
 
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
