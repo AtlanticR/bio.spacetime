@@ -5,6 +5,7 @@ spacetime.predictions.spatial.r = function( ip, p ) {
 
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
+   # load bigmemory data objects pointers
   p = spacetime.db( p=p, DS="bigmemory.filenames" )
 
   #---------------------
@@ -37,8 +38,6 @@ spacetime.predictions.spatial.r = function( ip, p ) {
   # prediction locations and covariates
   # --- not used right now, but kept in case spBayes will be used for predictions
   # --- ... could possibly be faster than INLA
-  predicting = FALSE
-  if (predicting) {
     Ploc = attach.big.matrix(p$descriptorfile.Ploc , path=p$tmp.datadir )  # prediction locations
     phasdata = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
@@ -57,7 +56,6 @@ spacetime.predictions.spatial.r = function( ip, p ) {
     rcP$rc = paste( rcP$Prow, rcP$Pcol, sep="~")
     rcP$Prow = rcP$Pcol = NULL
     gc()
-  }
 
   #-----------------
   # row, col indices

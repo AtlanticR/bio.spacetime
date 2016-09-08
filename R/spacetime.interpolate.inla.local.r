@@ -7,13 +7,13 @@
     # ip is the first parameter passed in the parallel mode
     if (exists( "libs", p)) RLibrary( p$libs )
     if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
+    # load bigmemory data objects pointers
+    p = spacetime.db( p=p, DS="bigmemory.filenames" )
 
     # priors
     # kappa0 = sqrt(8)/p$expected.range
     # tau0 = 1/(sqrt(4*pi)*kappa0* p$expected.sigma)
 
-    # load bigmemory data objects pointers
-    p = spacetime.db( p=p, DS="bigmemory.filenames" )
 
     #---------------------
     # data for modelling
@@ -47,7 +47,6 @@
     phasdata = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
     if (length(pbad)> 0 ) phasdata[ pbad ] = NA
-
     if ( exists( "X", p$variables) ) {
       Pcov = attach.big.matrix(p$descriptorfile.Pcov , path=p$tmp.datadir )  # covariates at prediction locations
       if ( length( p$variables$X ) == 1 ) {
