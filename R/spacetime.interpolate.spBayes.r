@@ -3,6 +3,7 @@
 spacetime.interpolate.spBayes = function( x, y, z, locsout, n.samples=5000, burn.in=0.5, method="gstat" ) {
   #// interpolate via spBayes ~ random field approx via matern
   #// method determines starting parameter est method to seed spBayes
+  #// NOTE:: TOO SLOW TO USE FOR OPERATIONAL WORK
   require(spBayes)
   library(MBA)
   require( geoR )

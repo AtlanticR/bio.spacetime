@@ -21,6 +21,7 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
   bad = which( !is.finite( rowSums(LOCS[])))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
+
   hasdata = na.omit(hasdata)
   LOCS_good = LOCS[hasdata,]
 
