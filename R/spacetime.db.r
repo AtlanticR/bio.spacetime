@@ -5,14 +5,11 @@
     #// B is the xyz  or xytz data to work upon
 
     if (DS %in% "bigmemory.filenames" ) {
-
-      # create file backed bigmemory objects
-
+      # input data stored as a bigmatrix to permit operations with min memory usage
+      # split into separate components to minimize filelocking conflicts
       p$tmp.datadir = file.path( p$project.root, "tmp" )
       if( !file.exists(p$tmp.datadir)) dir.create( p$tmp.datadir, recursive=TRUE, showWarnings=FALSE )
 
-      # input data stored as a bigmatrix to permit operations with min memory usage
-      # split into separate components to minimize filelocking conflicts
       p$backingfile.Y = "input.Y.bigmatrix.tmp"
       p$descriptorfile.Y = "input.Y.bigmatrix.desc"
 
@@ -47,9 +44,7 @@
     }
 
     # --------------------------
-
     if (DS %in% "bigmemory.filelist" ) {
-      # load bigmemory data objects pointers
       p = spacetime.db( p=p, DS="bigmemory.filenames" )
       fl = file.path( p$tmp.datadir,
         c( p$backingfile.P, p$descriptorfile.P,
@@ -67,20 +62,15 @@
     }
 
     # --------------------------
-
     if (DS %in% "bigmemory.cleanup" ) {
       todelete = spacetime.db(p=p, DS="bigmemory.filelist")
       for (fn in todelete ) if (file.exists(fn)) file.remove(fn)
       return( todelete )
     }
 
-
-
     # ------------------
-    # create file backed bigmemory objects
-
     if (DS == "bigmemory.dependent" ) {
-      p = spacetime.db( p=p, DS="bigmemory.filenames" )  # load bigmemory data objects pointers
+      p = spacetime.db( p=p, DS="bigmemory.filenames" ) 
       # dependent variable
       fn.Y = file.path(p$tmp.datadir, p$backingfile.Y )
       if ( file.exists( fn.Y) ) file.remove( fn.Y)
@@ -96,9 +86,8 @@
     }
 
     # ------------------
-
     if (DS == "bigmemory.covariates" ) {
-      p = spacetime.db( p=p, DS="bigmemory.filenames" )  # load bigmemory data objects pointers
+      p = spacetime.db( p=p, DS="bigmemory.filenames" ) 
       # independent variables/ covariates
       if ( exists( "X", p$variables) ) {
         fn.X = file.path(p$tmp.datadir, p$backingfile.X )
@@ -115,10 +104,9 @@
     }
 
     # ------------------
-
     if (DS == "bigmemory.coordinates" ) {
-      p = spacetime.db( p=p, DS="bigmemory.filenames" )  # load bigmemory data objects pointers
-      # coordinates
+      p = spacetime.db( p=p, DS="bigmemory.filenames" ) 
+      # data coordinates
       fn.LOC = file.path(p$tmp.datadir, p$backingfile.LOC )
       if ( file.exists( fn.LOC) ) file.remove( fn.LOC)
       LOCS = filebacked.big.matrix( nrow=nrow(B), ncol=2, type="double", dimnames=NULL, separated=FALSE,
@@ -134,7 +122,7 @@
     # ------------------
 
     if (DS == "bigmemory.prediction.coordinates" ) {
-      p = spacetime.db( p=p, DS="bigmemory.filenames" )  # load bigmemory data objects pointers
+      p = spacetime.db( p=p, DS="bigmemory.filenames" ) 
       # prediction coordinates
       fn.Ploc = file.path(p$tmp.datadir, p$backingfile.Ploc )
       if ( file.exists( fn.Ploc) ) file.remove( fn.Ploc )
@@ -151,7 +139,7 @@
     # ------------------
 
     if (DS == "bigmemory.prediction.covariates" ) {
-      p = spacetime.db( p=p, DS="bigmemory.filenames" )  # load bigmemory data objects pointers
+      p = spacetime.db( p=p, DS="bigmemory.filenames" ) 
       # prediction covariates i.e., independent variables/ covariates
       if ( exists( "X", p$variables) ) {
         fn.Pcov = file.path(p$tmp.datadir, p$backingfile.Pcov )
@@ -170,7 +158,7 @@
     # ------------------
 
     if (DS == "bigmemory.statistics.coordinates" ) {
-      p = spacetime.db( p=p, DS="bigmemory.filenames" )  # load bigmemory data objects pointers
+      p = spacetime.db( p=p, DS="bigmemory.filenames" ) 
       # statistics coordinates
       fn.Sloc = file.path(p$tmp.datadir, p$backingfile.Sloc )
       if ( file.exists( fn.Sloc) ) file.remove( fn.Sloc )
@@ -184,7 +172,7 @@
     # ------------------
 
     if (DS == "bigmemory.statistics.results" ) {
-      p = spacetime.db( p=p, DS="bigmemory.filenames" )  # load bigmemory data objects pointers
+      p = spacetime.db( p=p, DS="bigmemory.filenames" ) 
       # statistics results output file .. initialize
       coords = expand.grid( p$sbbox$plons, p$sbbox$plats )
       fn.S = file.path(p$tmp.datadir, p$backingfile.S )
@@ -197,7 +185,6 @@
     # ----------------
 
     if (DS == "bigmemory.predictions"  ) {
-      # load bigmemory data objects pointers for predictions
       p = spacetime.db( p=p, DS="bigmemory.filenames" )
       rootdir = file.path( p$project.root, "interpolated" )
       dir.create( rootdir, showWarnings=FALSE, recursive =TRUE)
@@ -209,6 +196,40 @@
       P = filebacked.big.matrix( nrow=p$nplon * p$nplat, ncol=3, type="double", init=NA, dimnames=NULL, separated=FALSE,
         backingpath=p$tmp.datadir, backingfile=p$backingfile.P, descriptorfile=p$descriptorfile.P )
       return( fn.P )
+    }
+
+    # ----------------
+
+    if (DS == "bigmemory.predictions_st"  ) {
+      p = spacetime.db( p=p, DS="bigmemory.filenames" )
+      rootdir = file.path( p$project.root, "interpolated" )
+      dir.create( rootdir, showWarnings=FALSE, recursive =TRUE)
+      # fn.P =  file.path( rootdir, paste( "spacetime", "predictions", p$spatial.domain, "rdata", sep=".") )
+      # predictions storage matrix (discretized)
+      fn.P = file.path(p$tmp.datadir, p$backingfile.P_st )
+      if ( file.exists( fn.P_st) ) file.remove( fn.P_st)
+      # contains c(count, pred.mean, pred.sd)
+      P_st = filebacked.big.matrix( nrow=p$nplon * p$nplat * p$nyrs * p$ndyrs, ncol=3, type="double", init=NA, dimnames=NULL, separated=FALSE,
+        backingpath=p$tmp.datadir, backingfile=p$backingfile.P_st, descriptorfile=p$descriptorfile.P_st )
+      return( fn.P_st )
+    }
+
+
+    if (DS == "bigmemory.prediction.covariates_st" ) {
+      p = spacetime.db( p=p, DS="bigmemory.filenames" ) 
+      # prediction covariates i.e., independent variables/ covariates
+      if ( exists( "X", p$variables) ) {
+        fn.Pcov_st = file.path(p$tmp.datadir, p$backingfile.Pcov_st )
+        if ( file.exists( fn.Pcov_st) ) file.remove( fn.Pcov_st)
+        Pcov_st = filebacked.big.matrix( nrow=nrow(B), ncol=length( p$variables$X ), type="double", dimnames=NULL, separated=FALSE,
+          backingpath=p$tmp.datadir, backingfile=p$backingfile.Pcov_st, descriptorfile=p$descriptorfile.Pcov_st )
+        if ( "data.frame" %in% class(B) ) {
+          Pcov_st[] = as.matrix( B[ , p$variables$X ] )
+        } else if ( "SpatialGridDataFrame" %in% class(B) ) {
+          Pcov_st[] = as.matrix( slot(B, "data")[, p$variables$X ]  )
+        }
+      }
+      return( fn.Pcov )
     }
 
 
@@ -224,17 +245,13 @@
     # -----------------
 
     if (DS %in% c( "boundary.redo", "boundary" ) )  {
-
       p = spacetime.db( p=p, DS="bigmemory.filenames" )
       fn =  file.path(p$tmp.datadir, "boundary.rdata" )
-
       if (DS=="boundary") {
         boundary = NULL
         if( file.exists(fn)) load( fn)
         return( boundary )
       }
-
-      # load bigmemory data objects pointers
 
       # data:
       Y = bigmemory::attach.big.matrix(p$descriptorfile.Y, path=p$tmp.datadir )
@@ -262,32 +279,21 @@
       resolution = 125
       if (exists( "mesh.boundary.resolution", p) ) resolution=p$mesh.boundary.resolution
       boundary=list( polygon = inla.nonconvex.hull(  LOCS[ii,], convex=convex, resolution=resolution ) )
-
       Sloc = bigmemory::attach.big.matrix(p$descriptorfile.Sloc , path=p$tmp.datadir )  # statistical output locations
       boundary$inside.polygon = point.in.polygon( Sloc[,1], Sloc[,2],
           boundary$polygon$loc[,1], boundary$polygon$loc[,2], mode.checked=TRUE)
-
       save( boundary, file=fn, compress=TRUE )
-
       plot( LOCS[ii,], pch="." ) # data locations
       lines( boundary$polygon$loc , col="green" )
-
-
       return( fn )
     }
 
-
     # -----------------
-
-    if (DS %in% c( "bigmemory.statistics",
-                   "bigmemory.statistics.size" , "bigmemory.statistics.status"  )  ) {
-
-      # load bigmemory data objects pointers
+    if (DS %in% c( "bigmemory.statistics", "bigmemory.statistics.size" , "bigmemory.statistics.status" ) ) {
       p = spacetime.db( p=p, DS="bigmemory.filenames" )
       rootdir = file.path( p$project.root, "interpolated" )
       dir.create( rootdir, showWarnings=FALSE, recursive =TRUE)
       fn.S =  file.path( rootdir, paste( "spacetime", "statistics", p$spatial.domain, "rdata", sep=".") )
-
 
       if ( DS=="bigmemory.statistics" ) {
         # statistics storage matrix ( aggregation window, coords ) .. no inputs required
@@ -297,8 +303,6 @@
       }
 
       if ( DS=="bigmemory.statistics.size" ) {
-        # load bigmemory data objects pointers
-        p = spacetime.db( p=p, DS="bigmemory.filenames" )
         S = bigmemory::attach.big.matrix(p$descriptorfile.S , path=p$tmp.datadir )
         return( nrow(S) )
       }
