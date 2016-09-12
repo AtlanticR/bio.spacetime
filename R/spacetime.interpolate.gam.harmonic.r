@@ -1,5 +1,5 @@
 
-
+if(0) {
   mf = switch( p$tsmethod ,
     annual = ' t ~ s(yr) ',
     seasonal.basic = ' t ~ s(yr) + s(dyear, bs="cc") ', 
@@ -70,6 +70,7 @@
   }
 
 
+}
 
 
 spacetime.interpolate.gam.harmonic = function( ip, p ) {
