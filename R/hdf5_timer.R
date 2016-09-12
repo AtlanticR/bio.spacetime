@@ -1,6 +1,6 @@
 
 hdf5_timer = function( engine="hdf5", nr=2000, nc=2000, 
-  cs=c(8, 16, 24, 32, 40, 48, 64, 78, 100, 128, 184, 256, 512, 1024), n=1, times=3 ) {
+  cs=c(16, 24, 32, 40, 48, 64, 78, 100, 128, 184, 256, 512, 1024), n=1, times=3 ) {
   #\\ find optimal chuncksize for hdf5
   #\\ also compare with bigmemory .. just a bit faster than hdf5 (1 to 2X) but no flexibility with data structures
 
@@ -33,7 +33,7 @@ hdf5_timer = function( engine="hdf5", nr=2000, nc=2000,
       print( paste( cs[i], ":",  round(a$mean,5) , attr(a, "unit")))
       out[i,2]  = as.numeric(a$mean)
     }
-     plot( out[,2] ~ log(out[,1]), xlab="chunksize", ylab="time", pch=20, xaxt="n", type="b" )
+     plot( log(out[,2]) ~ log(out[,1]), xlab="chunksize", ylab="time", pch=20, xaxt="n", type="b" )
      axis(1, log(cs), as.character(cs) )
      if (file.exists(fn)) file.remove(fn)
      return(out)

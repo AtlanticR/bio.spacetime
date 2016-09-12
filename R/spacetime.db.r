@@ -11,22 +11,22 @@
       p$tmp.datadir = file.path( p$project.root, "tmp" )
       if( !file.exists(p$tmp.datadir)) dir.create( p$tmp.datadir, recursive=TRUE, showWarnings=FALSE )
       p$ptr =list()
-      p$ptr$Y =    "input.Y.hdf5"
-      p$ptr$Ycov = "input.Ycov.hdf5"
-      p$ptr$Yloc = "input.Yloc.hdf5"
-      p$ptr$P =    "predictions.hdf5"
-      p$ptr$Pcov = "predictions_cov.hdf5"
-      p$ptr$Ploc = "predictions_loc.hdf5"
-      p$ptr$S =    "statistics.hdf5"
-      p$ptr$Sloc = "statistics_loc.hdf5"
+      p$ptr$Y =    file.path( p$tmp.datadir, "input.Y.hdf5")
+      p$ptr$Ycov = file.path( p$tmp.datadir, "input.Ycov.hdf5" )
+      p$ptr$Yloc = file.path( p$tmp.datadir, "input.Yloc.hdf5")
+      p$ptr$P =    file.path( p$tmp.datadir, "predictions.hdf5")
+      p$ptr$Pcov = file.path( p$tmp.datadir, "predictions_cov.hdf5")
+      p$ptr$Ploc = file.path( p$tmp.datadir, "predictions_loc.hdf5")
+      p$ptr$S =    file.path( p$tmp.datadir, "statistics.hdf5")
+      p$ptr$Sloc = file.path( p$tmp.datadir, "statistics_loc.hdf5")
       return(p)
     }
 
     # --------------------------
     if (DS %in% "filelist" ) {
       p = spacetime.db( p=p, DS="filenames" )
-      fl = file.path( p$tmp.datadir,
-        c( p$ptr$P,
+      fl = c( 
+           p$ptr$P,
            p$ptr$Ploc,
            p$ptr$Pcov,
            p$ptr$S,
@@ -34,7 +34,7 @@
            p$ptr$Y,
            p$ptr$Ycov,
            p$ptr$Yloc
-      ))
+      )
       return( fl )
     }
 
@@ -59,12 +59,12 @@
 
       # dependent variable
       if ( file.exists( p$ptr$Y ) ) file.remove( p$ptr$Y )
+      Y_ = B[, p$variables$Y ] 
+      if ( exists("spacetime.link", p) ) Y_ = p$spacetime.link ( Y_ ) 
       Y = h5file(name =p$ptr$Y, mode = "a")
-      Y["Y", compression=0L, chunksize=p$hdf5.chunksize] = ifelse( 
-          exists("spacetime.link", p), 
-            p$spacetime.link ( as.matrix( B[, p$variables$Y ] )) , 
-            as.matrix( B[, p$variables$Y ] ) )
+      Y["Y", compression=0L, chunksize=p$hdf5.chunksize] = Y_
       h5close(Y)
+      rm(Y_)
 
       # independent variables/ covariate
       if (exists("COV", p$variables)) {

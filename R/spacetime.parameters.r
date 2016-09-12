@@ -1,13 +1,16 @@
 
-  spacetime.parameters = function( stp=list() ) {
+  spacetime.parameters = function( stp=list(), chunksize.redo=FALSE ) {
     
-    if ( !exists("hdf5.chunksize", stp)) {
+    
+    if ( chunksize.redo ) {
         # determine best chunksize 
         cat( "Finding best chunksize for this computer ... ")
         cs = hdf5_timer( times=3 )
         csopt = cs[ which.min(cs[,2]),1]
         stp$hdf5.chunksize = ifelse( is.finite(csopt), csopt, 64 )
         cat( paste( stp$hdf5.chunksize, "\n" ) )
+    } else {
+        stp$hdf5.chunksize = 64      
     }
 
     # the following parameters are for inside and outside ... do not make them exact multiples as this seems to make things hang ..
