@@ -192,9 +192,9 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 
   	fmla = as.formula(p$gam.harmonic.formula)  # covariates  
 
-  	full.model = gam( ). ... -- no random effects
+  	# full.model = gam( ). ... -- no random effects
 
-  	residuals
+  	# residuals
   	
     p = make.list( list( jj=sample( spacetime.db( p, DS="statistics.status" )["incomplete"] ) ), Y=p ) # random order helps 
     parallel.run( spacetime.interpolate.gam.harmonic, p=p ) # no more GMT dependency! :)
