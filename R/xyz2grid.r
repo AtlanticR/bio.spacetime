@@ -30,34 +30,34 @@ xyz2grid = function (xyz, xx, yy, fill=NA, method="R", params=NULL)  {
     col = round((y - ymin)/dy) + 1
     row.col = cbind(row, col)
     out[row.col] = z
-  }
+#   }
 
-  if (method=="gmt") {
+#   if (method=="gmt") {
   
-    tmpdir  = tempdir()
+#     tmpdir  = tempdir()
 
-# not used ... and not complete ... do not use until checked
-    require(ncvar)
-    with(params, {
-    # primarily intended for lon/lat but can be used for planar coords too .. check GMT options
+# # not used ... and not complete ... do not use until checked
+#     require(ncvar)
+#     with(params, {
+#     # primarily intended for lon/lat but can be used for planar coords too .. check GMT options
 
-    tmp.grid = file.path(tmpdir, make.random.string("tmp.grid") )
-    tmp.xyz = file.path(tmpdir, make.random.string("tmp.xyz") )
-    tmpfile =  file.path(tmpdir, make.random.string("tmp.file") )
+#     tmp.grid = file.path(tmpdir, make.random.string("tmp.grid") )
+#     tmp.xyz = file.path(tmpdir, make.random.string("tmp.xyz") )
+#     tmpfile =  file.path(tmpdir, make.random.string("tmp.file") )
 
-#      write.table(xyz, file=tmpfile, quote=F, col.names=F, row.names=F )
-#      cmd( "xyz2grd", tmp.xyz, paste("-G", tmp.grid, sep=""), region, res)
-#      cmd( "grd2xyz", tmpfile, "-ZBa > xyz2.tmp")
+# #      write.table(xyz, file=tmpfile, quote=F, col.names=F, row.names=F )
+# #      cmd( "xyz2grd", tmp.xyz, paste("-G", tmp.grid, sep=""), region, res)
+# #      cmd( "grd2xyz", tmpfile, "-ZBa > xyz2.tmp")
 
-#      dims =  var.get.ncv(path=tmpfile, name="dimension")
-    #z = var.get.ncv(path=tmpfile, name="z")
-#      z = read.table("xyz2.tmp", header=F)
-#      out = matrix( data=z[,1], nrow=dims$data[1], ncol=dims$data[2] )
+# #      dims =  var.get.ncv(path=tmpfile, name="dimension")
+#     #z = var.get.ncv(path=tmpfile, name="z")
+# #      z = read.table("xyz2.tmp", header=F)
+# #      out = matrix( data=z[,1], nrow=dims$data[1], ncol=dims$data[2] )
 
-#      remove.files ( c( tmpfile, tmp.xyz ) )
+# #      remove.files ( c( tmpfile, tmp.xyz ) )
 
-    }) # end with params
-  }
+#     }) # end with params
+#   }
 
 #   if (method=="gmt1") {
 
