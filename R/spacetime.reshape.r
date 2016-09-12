@@ -9,7 +9,7 @@ spacetime.reshape = function(data, locsout, nr, nc, interp.method="kernel.densit
   jj = which( data$z > vq[2] )
   if ( length(jj)>0) data$z[jj] = vq[2]
   # default is base::I = no transform 
-  data$z = transform(data$z))
+  data$z = transform(data$z)
   out = res = NULL
   if (interp.method == "kernel.density") {
     # default :: create a "surface" and reshape to a grid using (gaussian) kernel-based smooth via FFT
