@@ -220,7 +220,7 @@ spacetime.interpolate.gam.harmonic = function( ip, p ) {
         task = p$spacetime.outputs[grep("predictions", p$spacetime.outputs) ][1]  ## only take the first one in case there are many
         preds = NULL
 
-        preds = .... model it here
+      #  preds = .... model it here
          
         if (exists("spacetime.invlink", p)) {
           preds$xmean =  p$spacetime.invlink( preds$xmean )
