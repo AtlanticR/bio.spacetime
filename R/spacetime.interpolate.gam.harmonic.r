@@ -1,4 +1,15 @@
 
+
+spacetime.interpolate.gam.harmonic = function( ip, p ) {
+  #\\ harmonic in time method 
+
+  if (exists( "libs", p)) RLibrary( p$libs )
+  if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
+   # load hdf5 data objects pointers
+  p = spacetime.db( p=p, DS="filenames" )
+
+
+
 if(0) {
   mf = switch( p$tsmethod ,
     annual = ' t ~ s(yr) ',
@@ -72,14 +83,6 @@ if(0) {
 
 }
 
-
-spacetime.interpolate.gam.harmonic = function( ip, p ) {
-  #\\ harmonic in time method 
-
-  if (exists( "libs", p)) RLibrary( p$libs )
-  if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-   # load hdf5 data objects pointers
-  p = spacetime.db( p=p, DS="filenames" )
 
   #---------------------
   # data for modelling
