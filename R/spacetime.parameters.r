@@ -6,7 +6,7 @@
         cat( "Finding best chunksize for this computer ... ")
         cs = hdf5_timer( times=3 )
         csopt = cs[ which.min(cs[,2]),1]
-        stp$hdf5.chunksize = if( is.finite(csopt), csopt, 64 )
+        stp$hdf5.chunksize = ifelse( is.finite(csopt), csopt, 64 )
         cat( paste( stp$hdf5.chunksize, "\n" ) )
     }
 
