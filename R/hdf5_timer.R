@@ -24,11 +24,12 @@ hdf5_timer = function( engine="hdf5", nr=2000, nc=2000,
     #system.time( hdf5(nr,nc,dd, n, cs) )
     out = matrix( NA, ncol=2, nrow=length(cs) )
     out[,1] = cs
+    cat( paste( "chunksize, matrix size is fixed at: ", nr, "x", nc, "\n") )
     for ( i in 1:length(cs) ) {
       mb = microbenchmark::microbenchmark( hdf5( fn=fn, nr=nr, nc=nc, dd=dd, cs=cs[i], n=n), 
           times=times, unit="s" )
       a = summary(mb)
-      #a = system.time( hdf5(fn, nr, nc, dd, n, cs[i]) )[1]
+    
       print( paste( cs[i], ":",  round(a$mean,5) , attr(a, "unit")))
       out[i,2]  = as.numeric(a$mean)
     }
@@ -50,10 +51,11 @@ hdf5_timer = function( engine="hdf5", nr=2000, nc=2000,
       }
       return(NULL)
     }
-    #system.time( bm(nr,nc,dd, n) )
+    
     s0 = c(10, 50, 100, 500, 1000, 2000, 4000)
     out = matrix( NA, ncol=2, nrow=length(s0) )
     out[,1] = s0
+    cat("matrix size: \n")
     for ( i in 1:length(s0) ) {
       mb = microbenchmark::microbenchmark( bm( nr=s0[i], nc=s0[i], dd=dd, n=n),
         times=times, unit="s" )

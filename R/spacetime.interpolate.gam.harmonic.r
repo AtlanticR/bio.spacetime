@@ -59,7 +59,7 @@
         }
 
   tsmodel = NULL 
-  tsmodel = try( gam( mf, data=x, weights=w, optimizer=c("outer","bfgs")  ) ) ,
+  tsmodel = try( gam( mf, data=x, weights=w, optimizer=c("outer","bfgs")  ) ) 
   if ( ! "try-error" %in% class(tsmodel) ) {
     out = try( predict( tsmodel, newdata=zz, type="response", se.fit=T ) ) 
     if ( ! "try-error" %in% class( out ) ) {
