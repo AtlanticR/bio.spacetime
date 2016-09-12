@@ -184,7 +184,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 
   if (  method =="gam.harmonic" ) {
   	# space, time and covars 
-  	if (is.null(ovehdf5| overwrite) {
+  	if (is.null(overwrite) || overwrite) {
         spacetime.db( DS="inputs.data", B=DATA )
         spacetime.db( DS="inputs.prediction", B=OUT) # covas on prediction locations
         spacetime.db( DS="statistics.initialize", B=matrix( NA_real_, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
