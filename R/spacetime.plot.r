@@ -8,14 +8,14 @@
     #\\   idat are indices for random field at data locations ( idat <- inla.stack.index( DATA, 'data')$data )
     #\\   nxout, nyout are the number of cells in x and y direct for interpolated output
 
-    gg =  grep("bigmemory", obj)
+    gg =  grep("hdf5", obj)
     if ( length(gg)>0 ) {
       pp = grep("predictions", obj )
       if ( length(pp) > 0 ) {
-        p = spacetime.db( p=p, DS="bigmemory.filenames" )
+        p = spacetime.db( p=p, DS="filenames" )
 
         pps  =  expand.grid( plons=p$plons, plats=p$plats)
-        P = attach.big.matrix( p$descriptorfile.P , path=p$tmp.datadir )
+        P = h5file(p$ptr$P)["P"]
 
         cl = 2 # default is mean value
         if ( grep("n", obj) ) cl=1

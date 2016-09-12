@@ -1,33 +1,33 @@
 
 spacetime.predictions.spatial.r = function( ip, p ) {
-  #\\ mostly copied over from spacetime.interpolate.inla.local in terms of mechanism to inter-operate with bigmemory
+  #\\ mostly copied over from spacetime.interpolate.inla.local in terms of mechanism to inter-operate with hdf5
   #\\ not finished ...
 
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-   # load bigmemory data objects pointers
-  p = spacetime.db( p=p, DS="bigmemory.filenames" )
+   # load hdf5 data objects pointers
+  p = spacetime.db( p=p, DS="filenames" )
 
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime.db("dependent")
-  Y = attach.big.matrix(p$descriptorfile.Y, path=p$tmp.datadir )
+  Y = h5file( p$ptr$Y)["Y"]
   hasdata = 1:length(Y)
   bad = which( !is.finite( Y[]))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
   # data locations
-  LOCS = attach.big.matrix(p$descriptorfile.LOCS, path=p$tmp.datadir )
+  LOCS = h5file( p$ptr$Yloc)["Yloc"]
   bad = which( !is.finite( rowSums(LOCS[])))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
   # covariates (independent vars)
-  if ( exists( "X", p$variables) ) {
-    X = attach.big.matrix(p$descriptorfile.X, path=p$tmp.datadir )
-    if ( length( p$variables$X ) == 1 ) {
-      bad = which( !is.finite( X[]) )
+  if ( exists( "COV", p$variables) ) {
+    Ycov = h5file( p$ptr$Ycov)["Ycov"]
+    if ( length( p$variables$COV ) == 1 ) {
+      bad = which( !is.finite( Ycov[]) )
     } else {
-      bad = which( !is.finite( rowSums(X[])) )
+      bad = which( !is.finite( rowSums(Ycov[])) )
     }
     if (length(bad)> 0 ) hasdata[bad] = NA
   }
@@ -38,13 +38,13 @@ spacetime.predictions.spatial.r = function( ip, p ) {
   # prediction locations and covariates
   # --- not used right now, but kept in case spBayes will be used for predictions
   # --- ... could possibly be faster than INLA
-    Ploc = attach.big.matrix(p$descriptorfile.Ploc , path=p$tmp.datadir )  # prediction locations
+    Ploc = h5file( p$ptr$Ploc)["Ploc"]  # prediction locations
     phasdata = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
     if (length(pbad)> 0 ) phasdata[ pbad ] = NA
-    if ( exists( "X", p$variables) ) {
-      Pcov = attach.big.matrix(p$descriptorfile.Pcov , path=p$tmp.datadir )  # covariates at prediction locations
-      if ( length( p$variables$X ) == 1 ) {
+    if ( exists( "COV", p$variables) ) {
+      Pcov = h5file( p$ptr$Pcov)["Pcov"]  # covariates at prediction locations
+      if ( length( p$variables$COV ) == 1 ) {
         pbad = which( !is.finite( Pcov[]) )
       } else {
         pbad = which( !is.finite( rowSums(Pcov[])) )
@@ -59,7 +59,7 @@ spacetime.predictions.spatial.r = function( ip, p ) {
 
   #-----------------
   # row, col indices
-  Sloc = attach.big.matrix(p$descriptorfile.Sloc , path=p$tmp.datadir )  # statistical output locations
+  Sloc = h5file( p$ptr$Sloc)["Sloc"]  # statistical output locations
   rcS = data.frame( cbind( Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
 
   # main loop over each output location in S (stats output locations)
@@ -67,7 +67,7 @@ spacetime.predictions.spatial.r = function( ip, p ) {
     dd = p$runs[ iip, "jj" ]
     focal = t(Sloc[dd,])
 
-    S = attach.big.matrix(p$descriptorfile.S , path=p$tmp.datadir )  # statistical outputs
+    S = h5file( p$ptr$S)["S"]  # statistical outputs
 
     if ( is.nan( S[dd,1] ) ) next()
     if ( !is.na( S[dd,1] ) ) next()
@@ -131,13 +131,13 @@ spacetime.predictions.spatial.r = function( ip, p ) {
         pa = pa[ which(is.finite( pa$i)),] # reduce to data locations as stack_index points only to locs with covariates
         preds_locs = as.matrix( pa[, c("plon", "plat")] )
         preds_eff = list()
-        if ( exists( "X", p$variables) ) {
-          if ( length(p$variables$X) == 1 ) {
+        if ( exists( "COV", p$variables) ) {
+          if ( length(p$variables$COV) == 1 ) {
             pcovars = as.data.frame(Pcov[ kP ])
           } else {
             pcovars = as.data.frame(Pcov[ kP,])
           }
-          colnames( pcovars ) = p$variables$X
+          colnames( pcovars ) = p$variables$COV
           preds_eff[["covar"]] = as.list( pcovars )
         }
         preds_ydata = list()
@@ -209,7 +209,7 @@ spacetime.predictions.spatial.r = function( ip, p ) {
         stdevs = 3
         ii = pa$i
 
-        P = attach.big.matrix(p$descriptorfile.P , path=p$tmp.datadir )  # predictions
+        P = h5file( p$ptr$P)["P"]  # predictions
         test = rowSums( P[ii,] )
         u = which( is.finite( test ) )  # these have data already .. update
         if ( length( u ) > 0 ) {

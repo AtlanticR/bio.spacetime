@@ -8,7 +8,7 @@
     if (exists( "libs", p)) RLibrary( p$libs )
     if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
     # load bigmemory data objects pointers
-    p = spacetime.db( p=p, DS="bigmemory.filenames" )
+    p = spacetime.db( p=p, DS="filenames" )
 
     # priors
     # kappa0 = sqrt(8)/p$expected.range
@@ -18,23 +18,23 @@
     #---------------------
     # data for modelling
     # dependent vars # already link-transformed in spacetime.db("dependent")
-    Y = attach.big.matrix(p$descriptorfile.Y, path=p$tmp.datadir )
+    Y = h5file( p$ptr$Y)["Y"]
     hasdata = 1:length(Y)
     bad = which( !is.finite( Y[]))
     if (length(bad)> 0 ) hasdata[bad] = NA
 
    # data locations
-    LOCS = attach.big.matrix(p$descriptorfile.LOCS, path=p$tmp.datadir )
-    bad = which( !is.finite( rowSums(LOCS[])))
+    Yloc = h5file( p$ptr$Yloc)["Yloc"]
+    bad = which( !is.finite( rowSums(Yloc[])))
     if (length(bad)> 0 ) hasdata[bad] = NA
 
     # covariates (independent vars)
-    if ( exists( "X", p$variables) ) {
-      X = attach.big.matrix(p$descriptorfile.X, path=p$tmp.datadir )
-      if ( length( p$variables$X ) == 1 ) {
-        bad = which( !is.finite( X[]) )
+    if ( exists( "COV", p$variables) ) {
+      Ycov = h5file( p$ptr$Ycov)["Ycov"]
+      if ( length( p$variables$COV ) == 1 ) {
+        bad = which( !is.finite( Ycov[]) )
       } else {
-        bad = which( !is.finite( rowSums(X[])) )
+        bad = which( !is.finite( rowSums(Ycov[])) )
       }
       if (length(bad)> 0 ) hasdata[bad] = NA
     }
@@ -43,13 +43,13 @@
 
     #---------------------
     # prediction locations and covariates
-    Ploc = attach.big.matrix(p$descriptorfile.Ploc , path=p$tmp.datadir )  # prediction locations
+    Ploc = h5file( p$ptr$Ploc)["Ploc"]
     phasdata = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
     if (length(pbad)> 0 ) phasdata[ pbad ] = NA
-    if ( exists( "X", p$variables) ) {
-      Pcov = attach.big.matrix(p$descriptorfile.Pcov , path=p$tmp.datadir )  # covariates at prediction locations
-      if ( length( p$variables$X ) == 1 ) {
+    if ( exists( "COV", p$variables) ) {
+      Pcov = h5file( p$ptr$Pcov)["Pcov"]  # covariates at prediction locations
+      if ( length( p$variables$COV ) == 1 ) {
         pbad = which( !is.finite( Pcov[]) )
       } else {
         pbad = which( !is.finite( rowSums(Pcov[])) )
@@ -64,7 +64,7 @@
 
     #-----------------
     # row, col indices
-    Sloc = attach.big.matrix(p$descriptorfile.Sloc , path=p$tmp.datadir )  # statistical output locations
+    Sloc = h5file( p$ptr$Sloc)["Sloc"]  # statistical output locations
     rcS = data.frame( cbind( Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
 
     # main loop over each output location in S (stats output locations)
@@ -75,7 +75,7 @@
       if (debugrun) cat( paste( Sys.time(), deid, "start \n" ), file=p$debug.file, append=TRUE )
       focal = t(Sloc[dd,])
 
-      S = attach.big.matrix(p$descriptorfile.S , path=p$tmp.datadir )  # statistical outputs
+      S = h5file( p$ptr$S)["S"]  # statistical outputs
 
       if ( is.nan( S[dd,1] ) ) next()
       if ( !is.na( S[dd,1] ) ) next()
@@ -85,7 +85,7 @@
       # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
       # slow ... need to find a faster solution
       ppp = NULL
-      ppp = try( point.in.block( focal[1,c(1,2)], LOCS[hasdata,], dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
+      ppp = try( point.in.block( focal[1,c(1,2)], Yloc[hasdata,], dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
         upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) )
       if( is.null(ppp)) next()
       if (class( ppp ) %in% "try-error" ) next()
@@ -99,7 +99,7 @@
       locs_noise = runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise ) # add  noise  to prevent a race condition
 
       # also sending direct distances rather than proportion seems to cause issues..
-      MESH = spacetime.mesh( locs=LOCS[j,]+locs_noise,
+      MESH = spacetime.mesh( locs=Yloc[j,]+locs_noise,
         lengthscale=dist.cur*2,
         max.edge=p$inla.mesh.max.edge * dist.cur*2,
         bnd.offset=p$inla.mesh.offset,
@@ -132,17 +132,17 @@
       obs_index = inla.spde.make.index(name=p$spatial.field.name, SPDE$n.spde)
       obs_eff = list()
       obs_eff[["spde"]] = c( obs_index, list(intercept=1) )
-      if ( exists( "X", p$variables) ) {
-        if ( length(p$variables$X) == 1 ) {
-          covar = as.data.frame( X[j])
+      if ( exists( "COV", p$variables) ) {
+        if ( length(p$variables$COV) == 1 ) {
+          covar = as.data.frame( Ycov[j])
         } else {
-          covar= as.data.frame( X[j,])
+          covar= as.data.frame( Ycov[j,])
         }
-        colnames( covar ) = p$variables$X
+        colnames( covar ) = p$variables$COV
         obs_eff[["covar"]] = as.list(covar)
-        obs_A = list( inla.spde.make.A( mesh=MESH, loc=LOCS[j,] ), 1 )
+        obs_A = list( inla.spde.make.A( mesh=MESH, loc=Yloc[j,] ), 1 )
       } else {
-        obs_A = list( inla.spde.make.A( mesh=MESH, loc=LOCS[j,] ) ) # no effects
+        obs_A = list( inla.spde.make.A( mesh=MESH, loc=Yloc[j,] ) ) # no effects
       }
 
       obs_ydata = list()
@@ -175,8 +175,8 @@
       pa$plat = Ploc[ pa$i, 2]
 
       if (0) {
-        plot( LOCS[ppp$indices,1]~ LOCS[ppp$indices,2], col="red", pch=".")
-        points( LOCS[j,1] ~ LOCS[j,2], col="green" )
+        plot( Yloc[ppp$indices,1]~ Yloc[ppp$indices,2], col="red", pch=".")
+        points( Yloc[j,1] ~ Yloc[j,2], col="green" )
         points( focal[1,1] ~ focal[1,2], col="blue" )
         points( p$plons[rcS[dd,1]] ~ p$plats[rcS[dd,2]] , col="purple", pch=25, cex=2 )
         points( p$plons[pa$Prow] ~ p$plats[ pa$Pcol] , col="cyan", pch=".", cex=0.01 )
@@ -193,13 +193,13 @@
         preds_index = inla.spde.make.index( name=p$spatial.field.name, SPDE$n.spde)
         preds_eff = list()
         preds_eff[["spde"]] = c( preds_index, list(intercept=1) )
-        if ( exists( "X", p$variables) ) {
-          if ( length(p$variables$X) == 1 ) {
+        if ( exists( "COV", p$variables) ) {
+          if ( length(p$variables$COV) == 1 ) {
             pcovars = as.data.frame(Pcov[ kP ])
           } else {
             pcovars = as.data.frame(Pcov[ kP,])
           }
-          colnames( pcovars ) = p$variables$X
+          colnames( pcovars ) = p$variables$COV
           preds_eff[["covar"]] = as.list( pcovars )
           preds_A = list( inla.spde.make.A(MESH, loc=preds_locs ), 1)
         } else {
@@ -304,7 +304,7 @@
         stdevs = 3
         ii = pa$i
 
-        P = attach.big.matrix(p$descriptorfile.P , path=p$tmp.datadir )  # predictions
+        P = h5file( p$ptr$P)["P"]  # predictions
         test = rowSums( P[ii,] )
         u = which( is.finite( test ) )  # these have data already .. update
         if ( length( u ) > 0 ) {

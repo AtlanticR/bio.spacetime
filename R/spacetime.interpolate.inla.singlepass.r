@@ -2,7 +2,7 @@
   spacetime.interpolate.inla.singlepass = function( FM="Y ~ -1 + intercept + f( spatial.field, model=SPDE )",
     Y, locs, plocs, covar=NULL, pcovar=NULL, method="fast", link="identity", nsamples=5000 ) {
     #\\ low-level function -- single pass/fast spatial interpolator using inla
-    #\\   but no bigmemory objects and no stats, etc. .. prediction only, serial mode only
+    #\\   but no hdf5 objects and no stats, etc. .. prediction only, serial mode only
     #\\   method="fast" using an indirect estimate based upon posterior projections of the input
     #\\   method="direct" uses direct (more accurate) estimation but way too slow and resource
     #\\     intensive to be useful for production runs .. used only to check the fast method

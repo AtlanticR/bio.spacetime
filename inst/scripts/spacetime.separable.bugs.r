@@ -60,6 +60,61 @@ model{
 
   # Interpolate spatial PP back on to original sites
   for(i in 1:nPs) {
+    Data = list(
+      eps = 1e-4,
+      N = length(z),  # required for LaplacesDemon
+      DIST=as.matrix(dist( xy, diag=TRUE, upper=TRUE)), # distance matrix between knots
+      y=z  
+    )
+    Data$mon.names = c( "LP", paste0("yhat[",1:Data$N,"]" ) )
+    Data$parm.names = as.parm.names(list(tausq=0, sigmasq=0, phi=0, nu=0, muSpatial=rep(0,Data$N) ))
+    Data$pos = list(
+      tausq = grep("tausq", Data$parm.names),
+      sigmasq = grep("sigmasq", Data$parm.names),
+      phi = grep("phi", Data$parm.names),
+      nu = grep("nu", Data$parm.names),
+      muSpatial = grep("muSpatial", Data$parm.names)
+    )
+    Data$PGF = function(Data) {
+      tausq = rgamma( 1, 1, 5 ) # 0 to 1.5 range
+      sigmasq = rgamma( 1, 1, 5 )
+      phi = rgamma( 1, 1, 0.01 )  # 0 to 500 range
+      nu = 1
+      muSpatial = mvnfast::rmvn(1, rep(0,Data$N), sigmasq*exp(-Data$DIST/phi )^nu )
+      return(c(tausq, sigmasq, phi, nu, muSpatial))
+    }
+    Data$PGF  = compiler::cmpfun(Data$PGF)
+    Data$Model = function(parm, Data){
+      nu = parm[Data$pos$nu] = LaplacesDemonCpp::interval(parm[Data$pos$nu], Data$eps, Inf)  # in case GIV resets to some other value
+      tausq = parm[Data$pos$tausq] = LaplacesDemonCpp::interval(parm[Data$pos$tausq], Data$eps, Inf)
+      sigmasq = parm[Data$pos$sigmasq] = LaplacesDemonCpp::interval(parm[Data$pos$sigmasq], Data$eps, Inf)
+      phi = parm[Data$pos$phi] = LaplacesDemonCpp::interval(parm[Data$pos$phi], Data$eps, Inf)
+      muSpatial = parm[Data$pos$muSpatial]
+
+      covSpatial = sigmasq * exp(-Data$DIST/phi)^nu   ## spatial correlation
+      muSpatial.prior =  mvnfast::dmvn( muSpatial, rep(0, Data$N), sigma=covSpatial, log=TRUE )
+      tausq.prior = dgamma(tausq, 1, 5, log=TRUE) # 0-1.55 range
+      sigmasq.prior = dgamma(sigmasq, 1, 5, log=TRUE)
+      phi.prior = dgamma(phi, 1, 1, log=TRUE)
+      nu.prior = dgamma(nu, 1, 1, log=TRUE)
+      
+      nugget = rnorm(Data$N, 0, sqrt(tausq))  
+      yhat =  nugget + muSpatial # local iid error + spatial error
+      LL = sum(dnorm(Data$y, yhat, sqrt(sigmasq+tausq), log=TRUE)) ## Log Likelihood
+      LP = LL + muSpatial.prior + sigmasq.prior + tausq.prior + phi.prior + nu.prior ### Log-Posterior
+      Modelout = list(LP=LP, Dev=-2*LL, Monitor=c(LP, yhat), yhat=yhat, parm=parm)
+      return(Modelout)
+    }
+
+    Data$Model.ML  = compiler::cmpfun( function(...) (Data$Model(...)$Dev / 2) )  # i.e. - log likelihood
+    Data$Model.PML = compiler::cmpfun( function(...) (- Data$Model(...)$LP) ) #i.e., - log posterior 
+    Data$Model = compiler::cmpfun(Data$Model) #  byte-compiling for more speed .. use RCPP if you want more speed
+
+    print (Data$Model( parm=Data$PGF(Data), Data ) ) # test to see if return values are sensible
+  
+    f = LaplaceApproximation(Data$Model, Data=Data, parm=Data$PGF(Data), Method="BFGS", Iterations=200, CovEst="Hessian", CPUs=8, sir=TRUE )    
+    
+    if (
     for(j in 1:nKs) {
       covPKs[i,j] = sigmasq.s * exp(-(dPK[i,j]/phi.s))
     } 

@@ -1,6 +1,15 @@
 
   spacetime.parameters = function( stp=list() ) {
     
+    if ( !exists("hdf5.chunksize", stp)) {
+        # determine best chunksize 
+        cat( "Finding best chunksize for this computer ... ")
+        cs = hdf5_timer( times=3 )
+        csopt = cs[ which.min(cs[,2]),1]
+        stp$hdf5.chunksize = if( is.finite(csopt), csopt, 64 )
+        cat( paste( stp$hdf5.chunksize, "\n" ) )
+    }
+
     # the following parameters are for inside and outside ... do not make them exact multiples as this seems to make things hang ..
     if ( !exists("inla.mesh.max.edge", stp))  stp$inla.mesh.max.edge = c(  0.025,   0.04 )    # proportion of 2*stp$dist.max or equivalent: c(inside,outside) -- must be positive valued
     if ( !exists("inla.mesh.offset", stp))  stp$inla.mesh.offset   = c( - 0.025,  - 0.05 )   # how much to extend inside and outside of boundary: proportion of dist.max .. neg val = proportion
