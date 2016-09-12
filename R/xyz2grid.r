@@ -1,35 +1,35 @@
 
 xyz2grid = function (xyz, xx, yy, fill=NA, method="R", params=NULL)  {
 
-  if (method == "R") {
+#   if (method == "R") {
 
-    # this function expects evenly distributed x,y locations (data must be blocked already)
-    # this is a direct copy of a function from library fields (?)
-    nr = nrow(xyz )
-    nc = ncol(xyz )
-    x = xyz[, 1]
-    y = xyz[, 2]
-    if ( nc==2 ) {
-      z = rep.int(1, length.out=nr ) #add a dummy value
-    } else {
-      z = xyz[, 3]
-    }
-    rm(xyz); gc()
-    nx = length(xx)
-    ny = length(yy)
-    xmin = min(xx)
-    xmax = max(xx)
-    xrange = xmax - xmin
-    ymin = min(yy)
-    ymax = max(yy)
-    yrange = ymax - ymin
-    dx = mean( diff(xx), na.rm=T)
-    dy = mean( diff(yy), na.rm=T)
-    out = matrix(fill, nrow=nx, ncol=ny)
-    row = round((x - xmin)/dx) + 1
-    col = round((y - ymin)/dy) + 1
-    row.col = cbind(row, col)
-    out[row.col] = z
+#     # this function expects evenly distributed x,y locations (data must be blocked already)
+#     # this is a direct copy of a function from library fields (?)
+#     nr = nrow(xyz )
+#     nc = ncol(xyz )
+#     x = xyz[, 1]
+#     y = xyz[, 2]
+#     if ( nc==2 ) {
+#       z = rep.int(1, length.out=nr ) #add a dummy value
+#     } else {
+#       z = xyz[, 3]
+#     }
+#     rm(xyz); gc()
+#     nx = length(xx)
+#     ny = length(yy)
+#     xmin = min(xx)
+#     xmax = max(xx)
+#     xrange = xmax - xmin
+#     ymin = min(yy)
+#     ymax = max(yy)
+#     yrange = ymax - ymin
+#     dx = mean( diff(xx), na.rm=T)
+#     dy = mean( diff(yy), na.rm=T)
+#     out = matrix(fill, nrow=nx, ncol=ny)
+#     row = round((x - xmin)/dx) + 1
+#     col = round((y - ymin)/dy) + 1
+#     row.col = cbind(row, col)
+#     out[row.col] = z
 #   }
 
 #   if (method=="gmt") {
@@ -81,7 +81,7 @@ xyz2grid = function (xyz, xx, yy, fill=NA, method="R", params=NULL)  {
 #     }) # end with
 #   }
 
-  return (out)
+#   return (out)
 }
 
 
