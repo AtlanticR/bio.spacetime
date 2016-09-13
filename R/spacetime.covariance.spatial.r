@@ -9,13 +9,13 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
   #---------------------
   # data for modelling
   # dependent vars
-  Y = h5file( p$ptr$Y ) 
-  hasdata = 1:length(Y)
+  Y = h5file( p$ptr$Y)["Y"]  
+  hasdata = 1:nrow(Y)
   bad = which( !is.finite( Y[]))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
   # data locations
-  Yloc = h5file( p$ptr$Yloc )
+  Yloc = h5file( p$ptr$Yloc )["Yloc"]  
   bad = which( !is.finite( rowSums(Yloc[])))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
@@ -24,16 +24,16 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
 
   #-----------------
   # row, col indices for statistical outputs
-  Sloc = h5file( p$ptr$Sloc )  # statistical output locations
+  Sloc = h5file( p$ptr$Sloc )["Sloc"]    # statistical output locations
   rcS = data.frame( cbind( 
       Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
       Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
 
   # main loop over each output location in S (stats output locations)
-  S = h5file( p$ptr$S )
+  S = h5file( p$ptr$S )["S"]  
   for ( iip in ip ) {
     dd = p$runs[ iip, "jj" ]
-    focal = t(Sloc[dd,])
+    focal = (Sloc[dd,])
     # print (dd)
 
     if ( is.nan( S[dd,1] ) ) next()
@@ -45,7 +45,7 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
     # slow ... need to find a faster solution
 
     ppp = NULL
-    ppp = try( point.in.block( focal[1,c(1,2)], Yloc_good, dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
+    ppp = try( point.in.block( focal, Yloc_good, dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
       upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) )
 
     if( is.null(ppp)) next()

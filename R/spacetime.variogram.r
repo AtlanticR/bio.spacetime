@@ -26,40 +26,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     maxdist = NA
     edge=c(1/3, 1)
     nbreaks = 15
-
-    nc_max = 5  # max number of iterations
-
-    out = list()
-    out$varZ = var( z, na.rm=TRUE )  # this is the scaling factor for semivariance .. diving by sd, below reduces numerical floating point issues
-    out$meanZ = mean(z, na.rm=TRUE)
-    out$minX = min( xy[,1], na.rm=TRUE )
-    out$minY = min( xy[,2], na.rm=TRUE )
-
-    #scaling xyz helps stabilize and speed up solutions
-    z = (z - out$meanZ )/ sqrt( out$varZ ) # (centered and scaled by sd to avoid floating point issues)
-    zrange = range( z, na.rm=TRUE )   
-
-    names(xy) =  c("plon", "plat" ) # arbitrary
-    xr = range( xy$plon, na.rm=TRUE )
-    yr = range( xy$plat, na.rm=TRUE )
-    drange = min( diff( xr), diff( yr)  )
-
-    # if max dist not given, make a sensible choice
-    if ( is.na(maxdist)) {
-      maxdist = drange * 0.1  # default
-    } else if ( maxdist=="all") {
-      maxdist = drange
-    }
-    out$drange = drange
-    out$maxdist = maxdist
-
-    # positions and distances are scaled to max dist ..
-    xy$plon = ( xy$plon - out$minX ) / maxdist
-    xy$plat = ( xy$plat - out$minY ) / maxdist
-  }
-
-  if (0) {
-    # tests
+        # tests
     gr = spacetime.variogram( xy, z, methods="geoR" )
     gs = spacetime.variogram( xy, z, methods="gstat" )
     grf = spacetime.variogram( xy, z, methods="RandomFields" )
@@ -112,7 +79,40 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$kappa  )
       acov = out$geoR$varObs +  out$geoR$varSpatial * (1- acor)
       lines( out$varZ * acov ~ x , col="blue", lwd=2 )
+
+  } 
+
+
+  nc_max = 5  # max number of iterations
+
+  out = list()
+  out$varZ = var( z, na.rm=TRUE )  # this is the scaling factor for semivariance .. diving by sd, below reduces numerical floating point issues
+  out$meanZ = mean(z, na.rm=TRUE)
+  out$minX = min( xy[,1], na.rm=TRUE )
+  out$minY = min( xy[,2], na.rm=TRUE )
+
+  #scaling xyz helps stabilize and speed up solutions
+  z = (z - out$meanZ )/ sqrt( out$varZ ) # (centered and scaled by sd to avoid floating point issues)
+  zrange = range( z, na.rm=TRUE )   
+
+  names(xy) =  c("plon", "plat" ) # arbitrary
+  xr = range( xy$plon, na.rm=TRUE )
+  yr = range( xy$plat, na.rm=TRUE )
+  drange = min( diff( xr), diff( yr)  )
+
+  # if max dist not given, make a sensible choice
+  if ( is.na(maxdist)) {
+    maxdist = drange * 0.1  # default
+  } else if ( maxdist=="all") {
+    maxdist = drange
   }
+  out$drange = drange
+  out$maxdist = maxdist
+
+  # positions and distances are scaled to max dist ..
+  xy$plon = ( xy$plon - out$minX ) / maxdist
+  xy$plat = ( xy$plat - out$minY ) / maxdist
+
 
   # ------------------------
 
