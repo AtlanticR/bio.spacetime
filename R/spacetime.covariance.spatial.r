@@ -84,9 +84,8 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
       levelplot( ( S[zz,"range"] ) ~ plon + plat, pps[zz,], aspect="iso",
         labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
     }
-
-
   }  # end for loop
+
   h5close(S)
   h5close(Sloc)
   h5close(Yloc)
