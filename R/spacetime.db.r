@@ -62,7 +62,7 @@
       Y_ = B[, p$variables$Y ] 
       if ( exists("spacetime.link", p) ) Y_ = p$spacetime.link ( Y_ ) 
       Y = h5file(name =p$ptr$Y, mode = "a")
-      Y["Y", compression=0L, chunksize=p$hdf5.chunksize] = Y_
+      Y["Y", compression=0L, chunksize=p$hdf5.chunksize] = as.vector(Y_)
       h5close(Y)
       rm(Y_)
 
@@ -133,10 +133,10 @@
 
       # data:
       Y = h5file( p$ptr$Y)["Y"]
-      hasdata = 1:length(Y)
+      hasdata = 1:length(Y[])
       bad = which( !is.finite( Y[]))
       if (length(bad)> 0 ) hasdata[bad] = NA
-      h5close(p$ptr$Y)
+      h5close(Y)
 
       # covariates (independent vars)
       if ( exists( "COV", p$variables) ) {
@@ -147,8 +147,8 @@
           bad = which( !is.finite( rowSums(Ycov)) )
         }
         if (length(bad)> 0 ) hasdata[bad] = NA
+        h5close(Ycov)
       }
-      h5close(p$ptr$Ycov)
 
       ii = na.omit(hasdata)
       ndata = length(ii)
@@ -165,11 +165,11 @@
       Sloc = h5file( p$ptr$Sloc)["Sloc"] # statistical output locations
       boundary$inside.polygon = point.in.polygon( Sloc[,1], Sloc[,2],
           boundary$polygon$loc[,1], boundary$polygon$loc[,2], mode.checked=TRUE)
-      h5close(p$ptr$Sloc)
+      h5close(Sloc)
       save( boundary, file=fn, compress=TRUE )
       plot( Yloc[ii,], pch="." ) # data locations
       lines( boundary$polygon$loc , col="green" )
-      h5close(p$ptr$Yloc)      
+      h5close(Yloc)      
       return( fn )
     }
 
@@ -235,14 +235,14 @@
             # completed
             k = which( is.finite (S[,1])  ) # not yet done
         }
-        nS = nrow(S) 
-        h5close(S)
-        p_incomp=sS$n.incomplete / ( sS$n.problematic + sS$n.incomplete + sS$n.complete)
-        cat( paste("Proportion incomplete:", p_incomp, "\n" )) 
- 
-        return( list(problematic=i, incomplete=j, completed=k, n.total=nS,
+
+        out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
                      n.incomplete=length(j), n.problematic=length(i), 
-                     n.complete=length(k), to.ignore=to.ignore ) )
+                     n.complete=length(k), to.ignore=to.ignore )
+        out$prop_incomp=out$n.incomplete / ( out$n.problematic + out$n.incomplete + out$n.complete)
+        h5close(S)
+        cat( paste("Proportion incomplete:", round(out$prop_incomp,5), "\n" )) 
+        return( out )
       }
     }
   }

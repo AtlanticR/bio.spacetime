@@ -4,39 +4,37 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
 
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-  p = spacetime.db( p=p, DS="bigmemory.filenames" )
+  p = spacetime.db( p=p, DS="filenames" )
 
   #---------------------
   # data for modelling
   # dependent vars
-  Y = attach.big.matrix(p$descriptorfile.Y, path=p$tmp.datadir )
-
+  Y = h5file( p$ptr$Y ) 
   hasdata = 1:length(Y)
   bad = which( !is.finite( Y[]))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
-
   # data locations
-  LOCS = attach.big.matrix(p$descriptorfile.LOCS, path=p$tmp.datadir )
-  bad = which( !is.finite( rowSums(LOCS[])))
+  Yloc = h5file( p$ptr$Yloc )
+  bad = which( !is.finite( rowSums(Yloc[])))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
-
   hasdata = na.omit(hasdata)
-  LOCS_good = LOCS[hasdata,]
+  Yloc_good = Yloc[hasdata,]
 
   #-----------------
   # row, col indices for statistical outputs
-  Sloc = attach.big.matrix(p$descriptorfile.Sloc , path=p$tmp.datadir )  # statistical output locations
-  rcS = data.frame( cbind( Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
+  Sloc = h5file( p$ptr$Sloc )  # statistical output locations
+  rcS = data.frame( cbind( 
+      Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
+      Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
 
   # main loop over each output location in S (stats output locations)
+  S = h5file( p$ptr$S )
   for ( iip in ip ) {
     dd = p$runs[ iip, "jj" ]
     focal = t(Sloc[dd,])
     # print (dd)
-
-    S = attach.big.matrix(p$descriptorfile.S , path=p$tmp.datadir )  # statistical outputs
 
     if ( is.nan( S[dd,1] ) ) next()
     if ( !is.na( S[dd,1] ) ) next()
@@ -47,7 +45,7 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
     # slow ... need to find a faster solution
 
     ppp = NULL
-    ppp = try( point.in.block( focal[1,c(1,2)], LOCS_good, dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
+    ppp = try( point.in.block( focal[1,c(1,2)], Yloc_good, dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
       upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) )
 
     if( is.null(ppp)) next()
@@ -60,7 +58,7 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
     # print ( paste( "Ndata :", ndata ) )
     if (ndata < p$n.min) next()
 
-    xy = as.data.frame( LOCS[j,] )
+    xy = as.data.frame( Yloc[j,] )
     z = Y[j]
 
     print( "Computing variogram" )
@@ -87,7 +85,13 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
         labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
     }
 
+
   }  # end for loop
+  h5close(S)
+  h5close(Sloc)
+  h5close(Yloc)
+  h5close(Y)
+
   return( "complete" )
 
 }

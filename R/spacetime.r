@@ -57,7 +57,8 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
         o = which( S[,1] < yyy ); S[o,] = NA_real_
         h5close(S)
       }
-    p = make.list( list( jj=sample( spacetime.db( p, DS="statistics.status" )["incomplete"] ) ), Y=p ) # random order helps use all cpus
+    o = spacetime.db( p, DS="statistics.status" )
+    p = make.list( sample(  o["incomplete"] ) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.covariance.spatial, p=p ) # no more GMT dependency! :)
     # spacetime.covariance.spatial( p=p )  # if testing serial process
     # save to file
@@ -83,8 +84,8 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
       spacetime.db( p=p, DS="predictions.initialize", B=OUT )
   	}
     cat( "Warning this will take a very *long* time! (weeks) /n")
-    
-    p = make.list( list( jj=sample( spacetime.db( p, DS="statistics.status" )["incomplete"] ) ), Y=p ) # random order helps 
+    o = spacetime.db( p, DS="statistics.status" )
+    p = make.list( sample(  o["incomplete"] ) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.interpolate.inla.local, p=p ) # no more GMT dependency! :)
     # spacetime.interpolate.inla.local( p=p, debugrun=TRUE )  # if testing serial process
     
@@ -195,8 +196,8 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
   	# full.model = gam( ). ... -- no random effects
 
   	# residuals
-  	
-    p = make.list( list( jj=sample( spacetime.db( p, DS="statistics.status" )["incomplete"] ) ), Y=p ) # random order helps 
+    o = spacetime.db( p, DS="statistics.status" )
+    p = make.list( sample(  o["incomplete"] ) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.interpolate.gam.harmonic, p=p ) # no more GMT dependency! :)
     # spacetime.interpolate.gam.harmonic( p=p, debugrun=TRUE )  # if testing serial process
     
