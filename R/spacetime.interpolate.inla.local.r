@@ -342,10 +342,10 @@
         # extract summary statistics from a spatial (SPDE) analysis and update the output file
         inla.summary = spacetime.summary.inla.spde2 ( RES, SPDE )
         # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
-        S[dd,1] = inla.summary["range", "mode"]
-        S[dd,2] = inla.summary["range", "sd"]
-        S[dd,3] = inla.summary["spatial error", "mode"]
-        S[dd,4] = inla.summary["observation error", "mode"]
+        S[dd,1] = inla.summary["spatial error", "mode"]
+        S[dd,2] = inla.summary["observation error", "mode"]
+        S[dd,3] = inla.summary["range", "mode"]
+        S[dd,4] = inla.summary["range", "sd"]
         if ( debugrun)  {
           print( inla.summary )
           cat( paste( Sys.time(), deid, "statistics saved  \n" ), file=p$debug.file, append=TRUE )

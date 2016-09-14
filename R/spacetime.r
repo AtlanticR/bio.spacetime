@@ -7,7 +7,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
   
 	if (!is.null(DS)) {
    	#\\ data extraction layer for user objects created by spacetime
-    if ( DS=="spatial.covariance")  {
+    if ( DS=="spatial.covariance") {
       stats = NULL
       if (file.exists( p$fn.results.covar) ) load( p$fn.results.covar )
       return(stats)
@@ -39,24 +39,32 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
   	}
 	}
 
+  if (0) {
+    # DEBUG:: for checking status of outputs **during** parallel runs: they access hdf5 temporary files
+    #   bathymetry.figures( DS="statistics", p=p )
+    #   bathymetry.figures( DS="predictions", p=p )
+    #   bathymetry.figures( DS="predictions.error", p=p )
+    p = spacetime.db( p=p, DS="filenames" )
+    S = h5file( p$ptr$S)["S"]  # statistical outputs
+    hist(S[,1] )
+    o = which( S[,1] > 600 ); S[o,] = NA_real_
+    S[sS$problematic,] = NA
+    o = which( S[,1] < 10 );  S[o,] = NA_real_
+    h5close(S)
+  }
+
+
 	# no time .. pure space, no covariates and no prediction
 	if (method=="spatial.covariance" ) { 
-		if (is.null(overwrite) || overwrite) {
+    # not used here but passed onto "statistics.initialize" to determine size of output stats matrix
+    p$statvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa") 
+		
+    if (is.null(overwrite) || overwrite) {
 			spacetime.db( p=p, DS="data.initialize", B=DATA )
       spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
 		}
 	  # define boundary polygon for data .. zz a little ..
-	  spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
-      if (0) {
-        # to reset results manually .. just a template
-        # p = spacetime.db( p=p, DS="filenames" )
-        S = h5file( p$ptr$S )["S"]  # statistical outputs
-        hist(S[,1] )
-        o = which( S[,1] > xxx ) ; S[o,] = NA_real_
-        S[sS$problematic,] = NA
-        o = which( S[,1] < yyy ); S[o,] = NA_real_
-        h5close(S)
-      }
+	  if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
     o = spacetime.db( p, DS="statistics.status" )
     p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.covariance.spatial, p=p ) # no more GMT dependency! :)
@@ -77,6 +85,10 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 
   
   if (  method =="inla.interpolations" ) {
+    
+    p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
+    nstatvars = length( p$statsvars )
+
   	# no time .. pure spatial effects and covariates .. 
   	if (is.null(overwrite) || overwrite) {
       spacetime.db( p=p, DS="data.initialize", B=DATA )
@@ -89,19 +101,6 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     parallel.run( spacetime.interpolate.inla.local, p=p ) # no more GMT dependency! :)
     # spacetime.interpolate.inla.local( p=p, debugrun=TRUE )  # if testing serial process
     
-    if (0) {
-      # for checking status of outputs **during** parallel runs: they access hdf5 temporary files
-#        bathymetry.figures( DS="statistics", p=p )
-#        bathymetry.figures( DS="predictions", p=p )
-#        bathymetry.figures( DS="predictions.error", p=p )
-      p = spacetime.db( p=p, DS="filenames" )
-      S = h5file( p$ptr$S)["S"]  # statistical outputs
-      hist(S[,1] )
-      o = which( S[,1] > 600 ); S[o,] = NA_real_
-      S[sS$problematic,] = NA
-      o = which( S[,1] < 10 );  S[o,] = NA_real_
-      h5close(S)
-    }
 
     # save to file
     pp = h5file( p$ptr$P)["P"]  # predictions
@@ -125,11 +124,9 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     ss = as.data.frame( S[] )
     h5close(S)
 
-    statnames  = c( "range", "range.sd", "spatial.sd", "observation.sd" )
-    statnames0 = c( "range", "range.sd", "spatial.var", "observation.var"  )
     datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
     revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
-    names(ss) = statnames0
+    names(ss) =  p$statsvars
     
     ssl = h5file( p$ptr$Sloc)["Sloc"]  # statistical output locations
     sslocs = as.data.frame(ssl[]) # copy
@@ -138,16 +135,13 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     names(sslocs) = p$variables$LOCS
     ss = cbind( sslocs, ss )
     rm (S)
-    ss$spatial.sd = sqrt( ss$spatial.var )
-    ss$observation.sd = sqrt( ss$observation.var )
-    ss$spatial.var = NULL
-    ss$observation.var = NULL
+
     locsout = expand.grid( p$plons, p$plats ) # final output grid
     attr( locsout , "out.attrs") = NULL
     names( locsout ) = p$variables$LOCS
-    stats = matrix( NA, ncol=length(statnames), nrow=nrow( locsout) )  # output data
-    colnames(stats)=statnames
-    for ( i in 1:length(statnames) ) {
+    stats = matrix( NA, ncol=nstatvars, nrow=nrow( locsout) )  # output data
+    colnames(stats)=p$statsvars
+    for ( i in 1:nstatvars ) {
       data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
       res = spacetime.reshape( data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
         interp.method="kernel.density", theta=p$dist.mwin, nsd=10)
@@ -184,11 +178,16 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
   # -------------------f
 
   if (  method =="gam.harmonic" ) {
-  	# space, time and covars 
+     
+    p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
+    nstatvars = length( p$statsvars )
+
+    # space, time and covars 
   	if (is.null(overwrite) || overwrite) {
         spacetime.db( DS="inputs.data", B=DATA )
         spacetime.db( DS="inputs.prediction", B=OUT) # covas on prediction locations
-        spacetime.db( DS="statistics.initialize", B=matrix( NA_real_, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
+        spacetime.db( DS="statistics.initialize", 
+          B=matrix( NA_real_, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
   	}
 
   	fmla = as.formula(p$gam.harmonic.formula)  # covariates  
@@ -200,21 +199,6 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.interpolate.gam.harmonic, p=p ) # no more GMT dependency! :)
     # spacetime.interpolate.gam.harmonic( p=p, debugrun=TRUE )  # if testing serial process
-    
-
-    if (0) {
-      # for checking status of outputs **during** parallel runs: they access hdf5 temporary files
-#        bathymetry.figures( DS="statistics", p=p )
-#        bathymetry.figures( DS="predictions", p=p )
-#        bathymetry.figures( DS="predictions.error", p=p )
-      p = spacetime.db( p=p, DS="filenames" )
-      S = h5file( p$ptr$S)["S"]  # statistical outputs
-      hist(S[,1] )
-      o = which( S[,1] > 600 ); S[o,] = NA
-      S[sS$problematic,] = NA
-      o = which( S[,1] < 10 );  S[o,] = NA
-      h5close(S)
-    }
 
     # save to file
     pp = h5file( p$ptr$P)["P"]  # predictions
@@ -237,11 +221,9 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     ss = as.data.frame( S[] )
     h5close(S)
     
-    statnames  = c( "range", "range.sd", "spatial.sd", "observation.sd" )
-    statnames0 = c( "range", "range.sd", "spatial.var", "observation.var"  )
     datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
     revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
-    names(ss) = statnames0
+    names(ss) =  p$statvars 
     
     ssl = h5file( p$ptr$Sloc)["Sloc"]  # statistical output locations
     sslocs = as.data.frame(ssl[]) # copy
@@ -257,9 +239,10 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     locsout = expand.grid( p$plons, p$plats ) # final output grid
     attr( locsout , "out.attrs") = NULL
     names( locsout ) = p$variables$LOCS
-    stats = matrix( NA, ncol=length(statnames), nrow=nrow( locsout) )  # output data
-    colnames(stats)=statnames
-    for ( i in 1:length(statnames) ) {
+    stats = matrix( NA, ncol=nstatvars, nrow=nrow( locsout) )  # output data
+    colnames(stats)= p$statsvars
+
+    for ( i in 1:nstatvars ) {
       data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
       res = spacetime.reshape( data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
         interp.method="kernel.density", theta=p$dist.mwin, nsd=10)
@@ -292,8 +275,6 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     spacetime.db( p=p, DS="cleanup" )
     return(p)
   }
-
-
 
 }
 
