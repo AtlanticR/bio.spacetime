@@ -32,9 +32,11 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     tmpfiles = spacetime.db( p=p, DS="filelist" )
 	  for (tf in tmpfiles) {
   		if (file.exists( tf)) {
-  			cat( "Temporary files exist from a previous run found. \n")
-  			cat( "Send explicit overwrite=TRUE or overwrite=FALSE to proceed. \n") 
-  			stop()
+  			cat( "Temporary files exist from a previous run found at: \n")
+        cat( tf )
+        cat( "\n")
+  			cat( "Send an explicit overwrite=TRUE or overwrite=FALSE option to proceed. \n") 
+  			return(NULL)
   		}
   	}
 	}
@@ -57,7 +59,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 	# no time .. pure space, no covariates and no prediction
 	if (method=="spatial.covariance" ) { 
     # not used here but passed onto "statistics.initialize" to determine size of output stats matrix
-    p$statvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa") 
+    p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa") 
 		
     if (is.null(overwrite) || overwrite) {
 			spacetime.db( p=p, DS="data.initialize", B=DATA )
@@ -75,6 +77,8 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     stats = as.data.frame( stats )
     save(stats, file=p$fn.results.covar, compress=TRUE )
     h5close(stats)
+
+    
     print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
     spacetime.db( p=p, DS="cleanup" )
     return( p )

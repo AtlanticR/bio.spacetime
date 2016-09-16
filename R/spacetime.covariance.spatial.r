@@ -74,14 +74,12 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
         S[dd,3] = res[[p$variogram.engine]]$varObs
         S[dd,4] = res[[p$variogram.engine]]$range
         S[dd,5] = res[[p$variogram.engine]]$phi
-        S[dd,6] = res[[p$variogram.engine]]$kappa
+        S[dd,6] = res[[p$variogram.engine]]$nu
     }}
 
     if(0) {
-      pps = expand.grid( plon=p$plons, plat=p$plats)
-      zz = which(pps$plon > min(pa$plon) & pps$plon < max(pa$plon) & pps$plat < max(pa$plat) & pps$plat > min(pa$plat) )
       x11();
-      levelplot( ( S[zz,"range"] ) ~ plon + plat, pps[zz,], aspect="iso",
+      levelplot( ( S[,4] ) ~ plon + plat, data=Sloc[,], aspect="iso",
         labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
     }
   }  # end for loop
