@@ -33,37 +33,28 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
   S = h5file( p$ptr$S )["S"]  
   for ( iip in ip ) {
     dd = p$runs[ iip, "jj" ]
-    focal = (Sloc[dd,])
     # print (dd)
-
     if ( is.nan( S[dd,1] ) ) next()
     if ( !is.na( S[dd,1] ) ) next()
-
-    S[dd,1] = NaN   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
-    # .. it gets over-written below if successful
+    S[dd,1] = NaN  # flag: if a run fails, do not revisit, over-written below if successful
     # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
-    # slow ... need to find a faster solution
-
     ppp = NULL
-    ppp = try( point.in.block( focal, Yloc_good, dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
+    ppp = try( point.in.block( Sloc[dd,], Yloc_good, 
+      dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
       upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) )
-
     if( is.null(ppp)) next()
     if (class( ppp ) %in% "try-error" ) next()
     dist.cur = ppp$dist.to.nmax
-
     j = hasdata[ppp$indices]
-    rm(ppp )
+    rm(ppp)
     ndata = length(j) # number of data locations
-    # print ( paste( "Ndata :", ndata ) )
     if (ndata < p$n.min) next()
-
-    xy = as.data.frame( Yloc[j,] )
+    xy = as.data.frame(  )
     z = Y[j]
 
     print( "Computing variogram" )
     res = NULL
-    res = spacetime.variogram( xy, z, methods=p$variogram.engine )
+    res = spacetime.variogram( Yloc[j,], z, methods=p$variogram.engine )
 
     if (!is.null(res)) {
       if (exists(p$variogram.engine, res) ) {

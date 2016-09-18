@@ -35,11 +35,17 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
   			cat( "Temporary files exist from a previous run found at: \n")
         cat( tf )
         cat( "\n")
-  			cat( "Send an explicit overwrite=TRUE or overwrite=FALSE option to proceed. \n") 
+  			cat( "Send an explicit overwrite=TRUE (i.e., restart) or overwrite=FALSE (i.e., continue) option to proceed. \n") 
   			return(NULL)
   		}
   	}
 	}
+
+  # init input data
+  if (is.null(overwrite) || overwrite) {
+    spacetime.db( p=p, DS="data.initialize", B=DATA )
+  }
+
 
   if (0) {
     # DEBUG:: for checking status of outputs **during** parallel runs: they access hdf5 temporary files
@@ -56,17 +62,15 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
   }
 
 
-	# no time .. pure space, no covariates and no prediction
-	if (method=="spatial.covariance" ) { 
-    # not used here but passed onto "statistics.initialize" to determine size of output stats matrix
-    p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa") 
-		
+  if (method=="simple" ) { 
+    # 2D space and time,  no covariates
+    p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa", ....) 
+    
     if (is.null(overwrite) || overwrite) {
-			spacetime.db( p=p, DS="data.initialize", B=DATA )
       spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
-		}
-	  # define boundary polygon for data .. zz a little ..
-	  if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
+    }
+    # define boundary polygon for data .. zz a little ..
+    if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
     o = spacetime.db( p, DS="statistics.status" )
     p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.covariance.spatial, p=p ) # no more GMT dependency! :)
@@ -85,6 +89,33 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
   }
 
 
+	# no time .. pure space, no covariates and no prediction
+	if (method=="spatial.covariance" ) { 
+    # not used here but passed onto "statistics.initialize" to determine size of output stats matrix
+    p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa") 
+		
+    if (is.null(overwrite) || overwrite) {
+      spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
+		}
+	  # define boundary polygon for data .. zz a little ..
+	  if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
+    o = spacetime.db( p, DS="statistics.status" )
+    p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
+    parallel.run( spacetime.covariance.spatial, p=p ) # no more GMT dependency! :)
+    # spacetime.covariance.spatial( p=p )  # if testing serial process
+    # save to file
+    print( paste( "Results are being saved to:", p$fn.results.covar ) )
+    stats = h5file( p$ptr$S)["S"][]  # statistical outputs
+    stats = as.data.frame( stats )
+    save(stats, file=p$fn.results.covar, compress=TRUE )
+    h5close(stats)
+
+    print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
+    spacetime.db( p=p, DS="cleanup" )
+    return( p )
+  }
+
+
   # ------------------------
 
   
@@ -95,7 +126,6 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 
   	# no time .. pure spatial effects and covariates .. 
   	if (is.null(overwrite) || overwrite) {
-      spacetime.db( p=p, DS="data.initialize", B=DATA )
       spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
       spacetime.db( p=p, DS="predictions.initialize", B=OUT )
   	}
@@ -105,7 +135,6 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     parallel.run( spacetime.interpolate.inla.local, p=p ) # no more GMT dependency! :)
     # spacetime.interpolate.inla.local( p=p, debugrun=TRUE )  # if testing serial process
     
-
     # save to file
     pp = h5file( p$ptr$P)["P"]  # predictions
     preds = pp[]
@@ -147,8 +176,9 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     colnames(stats)=p$statsvars
     for ( i in 1:nstatvars ) {
       data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
-      res = spacetime.reshape( data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
-        interp.method="kernel.density", theta=p$dist.mwin, nsd=10)
+      res = spacetime.interpolate.xy( interp.method="kernel.density", 
+        data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
+        theta=p$dist.mwin, xwidth=p$dist.mwin*10, ywidth=p$dist.mwin*10)
       if (!is.null(res)) stats[i,] = revlink[[i]] (res)
     }
     save( stats,  file=p$fn.S, compress=TRUE )
@@ -188,7 +218,6 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 
     # space, time and covars 
   	if (is.null(overwrite) || overwrite) {
-        spacetime.db( DS="inputs.data", B=DATA )
         spacetime.db( DS="inputs.prediction", B=OUT) # covas on prediction locations
         spacetime.db( DS="statistics.initialize", 
           B=matrix( NA_real_, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
@@ -245,11 +274,11 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     names( locsout ) = p$variables$LOCS
     stats = matrix( NA, ncol=nstatvars, nrow=nrow( locsout) )  # output data
     colnames(stats)= p$statsvars
-
     for ( i in 1:nstatvars ) {
       data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
-      res = spacetime.reshape( data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
-        interp.method="kernel.density", theta=p$dist.mwin, nsd=10)
+      res = spacetime.interpolate.xy( interp.method="kernel.density", 
+        data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
+        theta=p$dist.mwin, xwidth=p$dist.mwin*10, ywidth=p$dist.mwin*10)
       if (!is.null(res)) stats[i,] = revlink[[i]] (res)
     }
     save( stats,  file=p$fn.S, compress=TRUE )
