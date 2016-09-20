@@ -5,6 +5,83 @@ spacetime.interpolate.xyts = function( ip, p ) {
 
   if (0) {
 
+
+  mf = switch( p$tsmethod ,
+    annual = ' t ~ s(yr) ',
+    seasonal.basic = ' t ~ s(yr) + s(dyear, bs="cc") ',
+    seasonal.smoothed = ' t ~ s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ',
+    harmonics.1 = ' t ~ s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ',
+    harmonics.2 = ' t ~ s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' ,
+    harmonics.3 = ' t ~ s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) '
+  )
+
+  mf = formula(mf)
+
+  for ( dm in p$dist.km ) {
+      drange = c(-1,1) * dm
+      plon0 = pp$plon + drange
+      plat0 = pp$plat + drange
+      i = which( bb$plon > plon0[1] & bb$plon < plon0[2] & bb$plat > plat0[1] & bb$plat < plat0[2] )
+      if (length(i) > p$nMin.tbot ) {
+
+      #  browser()
+
+        # only attempt interpolation if we have enough data (nMin.tbot)
+        x = bb[i,] # faster to reduce the size of bb here
+        # remove potentially noisy/erroneous data --- they are highly influential when there is little data
+        # xt = quantile( x$t, probs=c(0.005, 0.995) )
+        # xi = which( x$t >= xt[1] & x$t <= xt[2] )
+        # if (length(xi) < p$nMin.tbot ) next()
+        # x = x[xi, ]
+
+        x$w = 1 / (( pp$plon - x$plon)**2 + (pp$plat - x$plat)**2 )# weight data in space: inverse distance squared
+        x$w[ which( x$w < 1e-3 ) ] = 1e-3
+        x$w[ which( x$w > 1 ) ] = 1
+
+        # data transformations and creation of new variables where required for raw data
+        if ( p$tsmethod %in% c( "harmonics.1", "harmonics.2", "harmonics.3"  ) ) {
+          x$cos.w  = cos( 2*pi*x$tiyr )
+          x$sin.w  = sin( 2*pi*x$tiyr )
+
+          years.with.data = unique( x$yr)
+          no.years = which( !( zz$yr %in% years.with.data) )
+          zz$yr[ no.years ] = median( years.with.data)
+          zz$cos.w  = cos( zz$tiyr )
+          zz$sin.w  = sin( zz$tiyr )
+
+          # compute additional harmonics only if required (to try to speed things up a bit)
+          if ( p$tsmethod %in% c( "harmonics.2", "harmonics.3"  ) ) {
+            x$cos.w2 = cos( 2*x$tiyr )
+            x$sin.w2 = sin( 2*x$tiyr )
+            zz$cos.w2 = cos( 2*zz$tiyr )
+            zz$sin.w2 = sin( 2*zz$tiyr )
+          }
+          if ( p$tsmethod %in% c( "harmonics.3"  ) ) {
+            x$cos.w3 = cos( 3*x$tiyr )
+            x$sin.w3 = sin( 3*x$tiyr )
+            zz$cos.w3 = cos( 3*zz$tiyr )
+            zz$sin.w3 = sin( 3*zz$tiyr )
+          }
+        }
+
+        tsmodel = NULL
+        tsmodel = try( gam( mf, data=x, weights=w, optimizer=c("outer","bfgs")  ) )
+        if ( ! "try-error" %in% class(tsmodel) ) {
+          out = try( predict( tsmodel, newdata=zz, type="response", se.fit=T ) )
+          if ( ! "try-error" %in% class( out ) ) {
+            zz$fit = out$fit
+            zz$se = out$se.fit
+            break()  # candidate predictions found exit inner loop (dm)
+          }
+        }
+      } 
+  }
+
+
+
+
+
+
     # default output grid
     z0 = expand.grid( dyear=1:p$nw, yr=p$tyears )
     attr( z0, "out.attrs" ) = NULL
@@ -24,9 +101,6 @@ spacetime.interpolate.xyts = function( ip, p ) {
         cat("TODO \n")
         # interpolate.ts = temperature.timeseries.interpolate.spectral  ## to do..
     }
-
-
-    
 
     for ( iip in ip ) {
       mm = p$runs[iip,"loc"]
@@ -48,19 +122,19 @@ spacetime.interpolate.xyts = function( ip, p ) {
 
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-   # load hdf5 data objects pointers
+   # load data objects pointers
   p = spacetime.db( p=p, DS="filenames" )
 
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime.db("dependent")
-  Y = h5file(p$ptr$Y)["Y"]
+  Y = p$ff$Y
   hasdata = 1:length(Y)
   bad = which( !is.finite( Y[]))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
   # data locations
-  Yloc = h5file(p$ptr$Yloc)["Yloc"]
+  Yloc = p$ff$Yloc
   bad = which( !is.finite( rowSums(Yloc[])))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
@@ -68,7 +142,7 @@ spacetime.interpolate.xyts = function( ip, p ) {
 
   #---------------------
   # prediction locations and covariates
-  Ploc = h5file(p$ptr$Ploc)["Ploc"]  # prediction locations
+  Ploc = p$ff$Ploc  # prediction locations
   phasdata = 1:nrow( Ploc ) # index of locs with no covariate data
   pbad = which( !is.finite( rowSums(Ploc[])))
   if (length(pbad)> 0 ) phasdata[ pbad ] = NA
@@ -83,7 +157,7 @@ spacetime.interpolate.xyts = function( ip, p ) {
 
   #-----------------
   # row, col indices
-  Sloc = h5file(p$ptr$Sloc)["Sloc"]  # statistical output locations
+  Sloc = p$ff$Sloc  # statistical output locations
   rcS = data.frame( cbind( 
     Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
     Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
@@ -93,7 +167,7 @@ spacetime.interpolate.xyts = function( ip, p ) {
     dd = p$runs[ iip, "jj" ]
     focal = t(Sloc[dd,])
 
-    S = h5file(p$ptr$S)["S"]  # statistical outputs
+    S = p$ff$S  # statistical outputs
 
     if ( is.nan( S[dd,1] ) ) next()
     if ( !is.na( S[dd,1] ) ) next()
@@ -144,6 +218,7 @@ spacetime.interpolate.xyts = function( ip, p ) {
         points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="yellow", pch=".", cex=0.7 )
       }
 
+      close(Ploc)
 
       # prediction stack:: check for covariates
       if ( any( grepl ("predictions.direct", p$spacetime.outputs))) {
@@ -203,7 +278,7 @@ spacetime.interpolate.xyts = function( ip, p ) {
         stdevs = 3
         ii = pa$i
 
-        P = h5file(p$ptr$P)["P"]  # predictions
+        P = p$ff$P  # predictions
         test = rowSums( P[ii,] )
         u = which( is.finite( test ) )  # these have data already .. update
         if ( length( u ) > 0 ) {
@@ -258,9 +333,14 @@ spacetime.interpolate.xyts = function( ip, p ) {
       x11(); levelplot( ( P[zz,means] ) ~ plon + plat, pps[zz,], aspect="iso", labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
     }
 
+
     rm( ii, good, pa, xs, xm, mi, mf, si, sf ) ; gc()
     if ( debugrun) cat( paste( Sys.time(), deid, "end \n" ), file=p$debug.file, append=TRUE ) 
   }  # end for loop
+
+  close(P)
+  close(S)
+  close(Y)
 
   return( "complete" )
 

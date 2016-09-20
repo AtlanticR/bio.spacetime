@@ -24,7 +24,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
     }
 	}
   
-  # set up the data and problem using hdf5 data objects
+  # set up the data and problem using data objects
   print( paste( "Temporary files are being created at:", p$tmp.datadir ) )
   dir.create( p$rootdir, showWarnings=FALSE, recursive =TRUE)
   
@@ -48,14 +48,13 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
 
 
   if (0) {
-    # DEBUG:: for checking status of outputs **during** parallel runs: they access hdf5 temporary files
-    p = spacetime.db( p=p, DS="filenames" )
-    S = h5file( p$ptr$S)["S"]  # statistical outputs
+    # DEBUG:: for checking status of outputs **during** parallel runs: they access temporary files
+    S = p$ff$S  # statistical outputs
     hist(S[,1] )
-    o = which( S[,1] > 600 ); S[o,] = NA_real_
+    o = which( S[,1] > 600 ); S[o,] = NA
     S[sS$problematic,] = NA
-    o = which( S[,1] < 10 );  S[o,] = NA_real_
-    h5close(S)
+    o = which( S[,1] < 10 );  S[o,] = NA
+    close(S)
   }
 
 
@@ -75,10 +74,11 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
     # spacetime.interpolate.xyt( p=p )  # if testing serial process
     # save to file
     print( paste( "Results are being saved to:", p$fn.results.covar ) )
-    stats = h5file( p$ptr$S)["S"][]  # statistical outputs
-    stats = as.data.frame( stats )
+    
+    # statistical outputs
+    stats = as.data.frame( p$ff$S )
     save(stats, file=p$fn.results.covar, compress=TRUE )
-    h5close(stats)
+    close(p$ff$S)
     
     print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
     spacetime.db( p=p, DS="cleanup" )
@@ -102,10 +102,11 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
     # spacetime.covariance.spatial( p=p )  # if testing serial process
     # save to file
     print( paste( "Results are being saved to:", p$fn.results.covar ) )
-    stats = h5file( p$ptr$S)["S"][]  # statistical outputs
-    stats = as.data.frame( stats )
+    
+    # statistical outputs
+    stats = as.data.frame( p$ff$S[] )
     save(stats, file=p$fn.results.covar, compress=TRUE )
-    h5close(stats)
+    close( p$ff$S )
 
     print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
     spacetime.db( p=p, DS="cleanup" )
@@ -133,38 +134,27 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
     # spacetime.interpolate.inla.local( p=p, debugrun=TRUE )  # if testing serial process
     
     # save to file
-    pp = h5file( p$ptr$P)["P"]  # predictions
-    preds = pp[]
-    h5close(pp)
-    
-    ppl = h5file( p$ptr$Ploc)["Ploc"]
-    predloc = ppl[]
-    h5close(ppl)
-
-    preds = as.data.frame( cbind ( predloc, preds ) )
+    # predictions
+    preds = as.data.frame( cbind ( p$ff$Ploc[], p$ff$P[] ) )
     names(preds) = c( "plon", "plat", "ndata", "mean", "sdev" )
     save( preds, file=p$fn.P, compress=TRUE )
     
-    rm(preds, predloc)
-
+    rm(preds)
+    close(p$ff$Ploc)
+    close(p$ff$P)
     # this also rescales results to the full domain
     #\\ statistics are stored at a different resolution than the final grid
     #\\   this fast interpolates the solutions to the final grid
-    S = h5file( p$ptr$S)["S"]  # statistical outputs
-    ss = as.data.frame( S[] )
-    h5close(S)
-
+    
+    # statistical outputs
     datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
     revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
-    names(ss) =  p$statsvars
+
+    ss = as.data.frame( cbind( p$ff$Sloc[], p$ff$S[] ) )
+    names(ss) = c( p$variables$LOCS, p$statsvars )
     
-    ssl = h5file( p$ptr$Sloc)["Sloc"]  # statistical output locations
-    sslocs = as.data.frame(ssl[]) # copy
-    h5close(ssl)
-    
-    names(sslocs) = p$variables$LOCS
-    ss = cbind( sslocs, ss )
-    rm (S)
+    close(p$ff$S)
+    close(p$ff$Sloc)
 
     locsout = expand.grid( p$plons, p$plats ) # final output grid
     attr( locsout , "out.attrs") = NULL
@@ -201,14 +191,14 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
       p$spatial.domain="canada.east.highres"
     }
 
-    # clean up hdf5 files
+    # clean up tmp files
     spacetime.db( p=p, DS="cleanup" )
     return(p)
   }
 
   # -------------------f
 
-  if (  method =="gam.harmonic" ) {
+  if (  method =="xyts" ) {
      
     p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
     nstatvars = length( p$statsvars )
@@ -217,7 +207,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
   	if (is.null(overwrite) || overwrite) {
         p = spacetime.db( DS="inputs.prediction", B=OUT) # covas on prediction locations
         p = spacetime.db( DS="statistics.initialize", 
-          B=matrix( NA_real_, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
+          B=matrix( NA, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
   	}
 
   	fmla = as.formula(p$gam.harmonic.formula)  # covariates  
@@ -227,41 +217,28 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
   	# residuals
     o = spacetime.db( p, DS="statistics.status" )
     p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
-    parallel.run( spacetime.interpolate.gam.harmonic, p=p ) # no more GMT dependency! :)
-    # spacetime.interpolate.gam.harmonic( p=p, debugrun=TRUE )  # if testing serial process
+    parallel.run( spacetime.interpolate.xyts, p=p ) # no more GMT dependency! :)
+    # spacetime.interpolate.xyts( p=p, debugrun=TRUE )  # if testing serial process
 
     # save to file
-    pp = h5file( p$ptr$P)["P"]  # predictions
-    preds = pp[]
-    h5close(pp)
-    
-    ppl = h5file( p$ptr$Ploc)["Ploc"]
-    predloc = ppl[]
-    h5close(ppl)
-    
-    preds = as.data.frame( cbind ( predloc, preds ) )
+    preds = as.data.frame( cbind ( p$ff$Ploc[], p$ff$P[] ) )
     names(preds) = c( "plon", "plat", "ndata", "mean", "sdev" )
     save( preds, file=p$fn.P, compress=TRUE )
-    rm(preds, predloc)
-
+    rm(preds)
+    close(p$ff$P)
+    close(p$ff$Ploc)
+    
     # this also rescales results to the full domain
     #\\ statistics are stored at a different resolution than the final grid
     #\\   this fast interpolates the solutions to the final grid
-    S = h5file( p$ptr$S)["S"]  # statistical outputs
-    ss = as.data.frame( S[] )
-    h5close(S)
-    
     datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
     revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
-    names(ss) =  p$statvars 
     
-    ssl = h5file( p$ptr$Sloc)["Sloc"]  # statistical output locations
-    sslocs = as.data.frame(ssl[]) # copy
-    h5close(ssl)
-    names(sslocs) = p$variables$LOCS
-    
-    ss = cbind( sslocs, ss )
-    rm (S)
+    ss = as.data.frame( cbind( p$ff$Sloc[], p$ff$S[] ) )
+    names(ss) = c(p$variables$LOCS, p$statvars)
+    close(p$ff$S)
+    close(p$ff$Sloc)
+
     ss$spatial.sd = sqrt( ss$spatial.var )
     ss$observation.sd = sqrt( ss$observation.var )
     ss$spatial.var = NULL
@@ -301,7 +278,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
       p$spatial.domain="canada.east.highres"
     }
 
-    # clean up hdf5 files
+    # clean up tempfiles
     spacetime.db( p=p, DS="cleanup" )
     return(p)
   }

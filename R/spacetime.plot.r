@@ -8,15 +8,12 @@
     #\\   idat are indices for random field at data locations ( idat <- inla.stack.index( DATA, 'data')$data )
     #\\   nxout, nyout are the number of cells in x and y direct for interpolated output
 
-    gg =  grep("hdf5", obj)
+    gg =  grep("ff", obj)
     if ( length(gg)>0 ) {
       pp = grep("predictions", obj )
       if ( length(pp) > 0 ) {
-        p = spacetime.db( p=p, DS="filenames" )
-
         pps  =  expand.grid( plons=p$plons, plats=p$plats)
-        P = h5file(p$ptr$P)["P"]
-
+        P = p$ff$P 
         cl = 2 # default is mean value
         if ( grep("n", obj) ) cl=1
         if ( grep("mean", obj) ) cl=2
@@ -24,6 +21,7 @@
         require(lattice)
         levelplot( log( P[,2] ) ~plons+plats, pps ,
             col.regions=rev(sequential_hcl(100)), scale=list(draw=FALSE) , aspect="iso" )
+        close(P)
       }
     }
 
