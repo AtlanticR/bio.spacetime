@@ -1,6 +1,6 @@
 
 
-spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" ) {
+spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
 
   p = spacetime.db( p=p, DS="filenames" )
@@ -43,15 +43,12 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 
   # init input data
   if (is.null(overwrite) || overwrite) {
-    spacetime.db( p=p, DS="data.initialize", B=DATA )
+    p = spacetime.db( p=p, DS="data.initialize", B=DATA ) # p is updated with pointers to ff data
   }
 
 
   if (0) {
     # DEBUG:: for checking status of outputs **during** parallel runs: they access hdf5 temporary files
-    #   bathymetry.figures( DS="statistics", p=p )
-    #   bathymetry.figures( DS="predictions", p=p )
-    #   bathymetry.figures( DS="predictions.error", p=p )
     p = spacetime.db( p=p, DS="filenames" )
     S = h5file( p$ptr$S)["S"]  # statistical outputs
     hist(S[,1] )
@@ -62,26 +59,26 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
   }
 
 
-  if (method=="simple" ) { 
-    # 2D space and time,  no covariates
+  if (method=="space.time.seasonal" ) { 
+    # 2D space and time,  no covariates, eg, temperature
     p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa", ....) 
     
     if (is.null(overwrite) || overwrite) {
-      spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
+      p = spacetime.db( p=p, DS="predictions.initialize.xyts" )
+      p = spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
     }
     # define boundary polygon for data .. zz a little ..
     if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
     o = spacetime.db( p, DS="statistics.status" )
     p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
-    parallel.run( spacetime.covariance.spatial, p=p ) # no more GMT dependency! :)
-    # spacetime.covariance.spatial( p=p )  # if testing serial process
+    parallel.run( spacetime.interpolate.xyts, p=p ) # no more GMT dependency! :)
+    # spacetime.interpolate.xyt( p=p )  # if testing serial process
     # save to file
     print( paste( "Results are being saved to:", p$fn.results.covar ) )
     stats = h5file( p$ptr$S)["S"][]  # statistical outputs
     stats = as.data.frame( stats )
     save(stats, file=p$fn.results.covar, compress=TRUE )
     h5close(stats)
-
     
     print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
     spacetime.db( p=p, DS="cleanup" )
@@ -95,7 +92,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
     p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa") 
 		
     if (is.null(overwrite) || overwrite) {
-      spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
+      p = spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
 		}
 	  # define boundary polygon for data .. zz a little ..
 	  if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
@@ -126,8 +123,8 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 
   	# no time .. pure spatial effects and covariates .. 
   	if (is.null(overwrite) || overwrite) {
-      spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
-      spacetime.db( p=p, DS="predictions.initialize", B=OUT )
+      p = spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
+      p = spacetime.db( p=p, DS="predictions.initialize.xy", B=OUT )
   	}
     cat( "Warning this will take a very *long* time! (weeks) /n")
     o = spacetime.db( p, DS="statistics.status" )
@@ -218,8 +215,8 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method="inla" 
 
     # space, time and covars 
   	if (is.null(overwrite) || overwrite) {
-        spacetime.db( DS="inputs.prediction", B=OUT) # covas on prediction locations
-        spacetime.db( DS="statistics.initialize", 
+        p = spacetime.db( DS="inputs.prediction", B=OUT) # covas on prediction locations
+        p = spacetime.db( DS="statistics.initialize", 
           B=matrix( NA_real_, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
   	}
 

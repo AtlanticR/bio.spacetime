@@ -14,8 +14,25 @@ spacetime.interpolate.xy = function( interp.method, data, locsout,
     jj = which( data$z > vq[2] )
     if ( length(jj)>0) data$z[jj] = vq[2]
   }
-  out = res = NULL
-  
+
+  out = NULL
+
+  # ------
+
+  if (interp.method == "multilevel.b.splines") {
+    library(MBA)
+    out = mba.surf(data, no.X=nr, no.Y=nc, extend=TRUE)
+    if (0) {
+      image(out, xaxs = "r", yaxs = "r", main="Observed response")
+      locs= cbind(data$x, data$y)
+      points(locs)
+      contour(out, add=T)
+    }
+    return(out$xyz.est)
+  }
+
+  # ------
+
   if (interp.method == "kernel.density") {
     # default :: create a "surface" and reshape to a grid using (gaussian) kernel-based smooth via FFT
     require(fields)

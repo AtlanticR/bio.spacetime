@@ -2,7 +2,7 @@
   timeseries.smooth = function( OP, vn, smoothing.kernel=kernel( "modified.daniell", c(2,1)), truncation.quants=c(0.005, 0.995) ) {
     
     # constrain data to be smoother and within empirical range (e.g., 99.9% quantiles)
-    if( any( is.finite( OP[,vn] ) ) ) {
+    if ( any( is.finite( OP[,vn] ) ) ) {
         # default is a 2X smoothing kernel: 2 adjacent values and then 1 adjacent on the smoothed series .. i.e. a high-pass filter
         nd = length(smoothing.kernel$coef) - 1 # data points will be trimmed from tails so need to recenter:
         nd0 = length(OP[,vn] ) 

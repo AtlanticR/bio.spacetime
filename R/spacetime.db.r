@@ -6,51 +6,34 @@
     #// bigmemory operations are faster but do not support arrays .. left her in case read/write speed becomes an issue
 
     if (DS %in% "filenames" ) {
-      # input data stored as a hdf5 file to permit operations with min memory usage
-      # split into separate components to minimize filelocking conflicts
+      # input data stored as a ff file to permit operations with min memory usage
+      # split into separate components to reduce filelocking conflicts
       p$tmp.datadir = file.path( p$project.root, "tmp" )
       if( !file.exists(p$tmp.datadir)) dir.create( p$tmp.datadir, recursive=TRUE, showWarnings=FALSE )
       p$ptr =list()
-      p$ptr$Y =    file.path( p$tmp.datadir, "input.Y.hdf5")
-      p$ptr$Ycov = file.path( p$tmp.datadir, "input.Ycov.hdf5" )
-      p$ptr$Yloc = file.path( p$tmp.datadir, "input.Yloc.hdf5")
-      p$ptr$P =    file.path( p$tmp.datadir, "predictions.hdf5")
-      p$ptr$Pcov = file.path( p$tmp.datadir, "predictions_cov.hdf5")
-      p$ptr$Ploc = file.path( p$tmp.datadir, "predictions_loc.hdf5")
-      p$ptr$S =    file.path( p$tmp.datadir, "statistics.hdf5")
-      p$ptr$Sloc = file.path( p$tmp.datadir, "statistics_loc.hdf5")
+      p$ptr$Y =    file.path( p$tmp.datadir, "input.Y.ff")
+      p$ptr$Ycov = file.path( p$tmp.datadir, "input.Ycov.ff" )
+      p$ptr$Yloc = file.path( p$tmp.datadir, "input.Yloc.ff")
+      p$ptr$P =    file.path( p$tmp.datadir, "predictions.ff")
+      p$ptr$Pcov = file.path( p$tmp.datadir, "predictions_cov.ff")
+      p$ptr$Ploc = file.path( p$tmp.datadir, "predictions_loc.ff")
+      p$ptr$S =    file.path( p$tmp.datadir, "statistics.ff")
+      p$ptr$Sloc = file.path( p$tmp.datadir, "statistics_loc.ff")
       return(p)
     }
 
-    # --------------------------
-    if (DS %in% "filelist" ) {
-      p = spacetime.db( p=p, DS="filenames" )
-      fl = c( 
-           p$ptr$P,
-           p$ptr$Ploc,
-           p$ptr$Pcov,
-           p$ptr$S,
-           p$ptr$Sloc,
-           p$ptr$Y,
-           p$ptr$Ycov,
-           p$ptr$Yloc
-      )
-      return( fl )
-    }
 
     # --------------------------
     if (DS %in% "cleanup" ) {
-      todelete = spacetime.db(p=p, DS="filelist")
-      for (fn in todelete ) if (file.exists(fn)) file.remove(fn)
-      return( todelete )
+      p = spacetime.db( p=p, DS="filenames" )
+      for (fn in p$ptr ) if (file.exists(fn)) file.remove(fn)
+      return( "done" )
     }
 
 
     # ------------------
     if (DS == "data.initialize" ) {
-
       p = spacetime.db( p=p, DS="filenames" ) 
-
       if ( "data.frame" %in% class(B) ) {
         # B = B # nothing to do
       } else if ( "SpatialGridDataFrame" %in% class(B) ) {
@@ -58,34 +41,32 @@
       }
 
       # dependent variable
-      if ( file.exists( p$ptr$Y ) ) file.remove( p$ptr$Y )
       Y_ = B[, p$variables$Y ] 
       if ( exists("spacetime.link", p) ) Y_ = p$spacetime.link ( Y_ ) 
-      Y = h5file(name =p$ptr$Y, mode = "a")
-      Y["Y", compression=0L, chunksize=p$hdf5.chunksize] = as.vector(Y_)
-      h5close(Y)
-      rm(Y_)
+      Y = ff( Y_, filename=p$ptr$Y, overwrite=TRUE )
+      close(Y) # ensure write/sync
+      p$ff$Y = Y  # store pointer
 
       # independent variables/ covariate
       if (exists("COV", p$variables)) {
-        if ( file.exists( p$ptr$Ycov ) ) file.remove( p$ptr$Ycov )
-        Ycov = h5file(name =p$ptr$Ycov, mode = "a")
-        Ycov["Ycov", compression=0L, chunksize=p$hdf5.chunksize] = as.matrix( B[ , p$variables$COV ] )
-        h5close(Ycov)
+        Ycov_ = as.matrix( B[ , p$variables$COV ] )
+        Ycov = ff::ff( Ycov_, dim=dim(Ycov_), filename=p$ptr$Ycov, overwrite=TRUE )
+        close(Ycov)
+        p$ff$Ycov = Ycov # store pointer
       }
 
      # data coordinates
-      if ( file.exists( p$ptr$Yloc ) ) file.remove( p$ptr$Yloc )
-      Yloc = h5file(name =p$ptr$Yloc, mode = "a")
-      Yloc["Yloc", compression=0L, chunksize=p$hdf5.chunksize] = as.matrix( B[ , p$variables$LOCS ])
-      h5close(Yloc)
+      Yloc_ = as.matrix( B[ , p$variables$LOCS ])
+      Yloc = ff::ff( Yloc_, dim=dim(Yloc_), filename=p$ptr$Yloc, overwrite=TRUE )
+      close(Yloc)
+      p$ff$Yloc = Yloc # store pointer
   
-      return( "complete" )
+      return( p ) #return pointers to data
     }
 
 
     #---------------------
-    if (DS == "predictions.initialize" ) {
+    if (DS == "predictions.initialize.xy" ) {
 
       p = spacetime.db( p=p, DS="filenames" ) 
       
@@ -96,26 +77,72 @@
       }
       
       # prediction coordinates
-      if ( file.exists( p$ptr$Ploc ) ) file.remove( p$ptr$Ploc )
-      Ploc = h5file(name =p$ptr$Ploc, mode = "a")
-      Ploc["Ploc", compression=0L, chunksize=p$hdf5.chunksize] = as.matrix( B[, p$variables$LOCS ] )
-      h5close(Ploc)
+      Ploc_ = as.matrix( B[, p$variables$LOCS ] )
+      Ploc = ff::ff( Ploc_, dim=dim(Ploc_), filename=p$ptr$Ploc, overwrite=TRUE )
+      close(Ploc)
+      p$ff$Ploc = Ploc  # store pointer
 
       # prediction covariates i.e., independent variables/ covariates
       if (exists("COV", p$variables)) {
-        if ( file.exists( p$ptr$Pcov ) ) file.remove( p$ptr$Pcov )
-        Pcov = h5file(name =p$ptr$Pcov, mode = "a")
-        Pcov["Pcov", compression=0L, chunksize=p$hdf5.chunksize] = as.matrix( B[ , p$variables$COV ] )
-        h5close(Pcov)
+        Pcov_ = as.matrix( B[ , p$variables$COV ] )
+        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
+        close(Pcov)
+        p$ff$Pcov = Pcov  # store pointer
       }
 
       # predictions and associated stats
-      if ( file.exists( p$ptr$P ) ) file.remove( p$ptr$P )
-      P = h5file(name =p$ptr$P, mode = "a")
-      P["P", compression=0L, chunksize=p$hdf5.chunksize] = matrix( NA_real_, nrow=p$nPreds, ncol=3 ) # pred, count, sd
-      h5close(P)
+      P_ = matrix( NA, nrow=p$nPreds, ncol=3 ) # pred, count, sd
+      P = ff::ff( P_, dim=dim(P), filename=p$ptr$P, overwrite=TRUE )
+      close(P)
+      p$ff$P = P  # store pointer
       
-      return( "complete" )
+      return( p )
+    }
+
+
+
+    #---------------------
+    if (DS == "predictions.initialize.xyt" ) {
+      # prediction covariates i.e., independent variables/ covariates
+
+      p = spacetime.db( p=p, DS="filenames" ) 
+
+      if (exists("COV", p$variables)) {
+        Pcov_ = as.matrix( B[ , , , p$variables$COV ] )
+        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
+        close(Pcov)
+        p$ff$Pcov = Pcov  # store pointer
+      }
+      
+      # predictions and associated stats
+      P_ = array( NA, dims=c(p$nplons, p$nplats, p$ny, 3) # 3=pred, count, sd
+      P = ff::ff( P_, dim=dim(P_), filename=p$ptr$P, overwrite=TRUE )
+      close(P)
+      p$ff$P = P  # store pointer
+      
+      return( p )
+    }
+
+
+    #---------------------
+    if (DS == "predictions.initialize.xyts" ) {
+
+      p = spacetime.db( p=p, DS="filenames" ) 
+      
+      if (exists("COV", p$variables)) {
+        Pcov_ = as.matrix( B[ , , , , p$variables$COV ] )
+        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
+        close(Pcov)
+        p$ff$Pcov = Pcov  # store pointer
+      }
+      
+      # predictions and associated stats
+      P_ = array( NA, dims=c(p$nplons, p$nplats, p$ny, p$nw, 3) # 3=pred, count, sd
+      P = ff::ff( P_, dim=dim(P_), filename=p$ptr$P, overwrite=TRUE )
+      close(P)      
+      p$ff$P = P  # store pointer
+            
+      return( p )
     }
 
 
@@ -132,28 +159,28 @@
       }
 
       # data:
-      Y = h5file( p$ptr$Y)["Y"]
-      hasdata = 1:length(Y[])
+      Y = p$ff$Y
+      hasdata = 1:length(Y)
       bad = which( !is.finite( Y[]))
       if (length(bad)> 0 ) hasdata[bad] = NA
-      h5close(Y)
+      close(Y)
 
       # covariates (independent vars)
       if ( exists( "COV", p$variables) ) {
-        Ycov = h5file( p$ptr$Ycov)["Ycov"]
+        Ycov = p$ff$Ycov 
         if ( length( p$variables$COV ) == 1 ) {
-          bad = which( !is.finite( Ycov) )
+          bad = which( !is.finite( Ycov[]) )
         } else {
-          bad = which( !is.finite( rowSums(Ycov)) )
+          bad = which( !is.finite( rowSums(Ycov[])) )
         }
         if (length(bad)> 0 ) hasdata[bad] = NA
-        h5close(Ycov)
+        close(Ycov)
       }
 
       ii = na.omit(hasdata)
       ndata = length(ii)
 
-      Yloc = h5file( p$ptr$Yloc)["Yloc"]
+      Yloc = p$ff$Yloc 
       # locs_noise = Yloc[ii,] + runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise )
       maxdist = max( diff( range( Yloc[ii,1] )), diff( range( Yloc[ii,2] )) )
 
@@ -162,14 +189,16 @@
       resolution = 125
       if (exists( "mesh.boundary.resolution", p) ) resolution=p$mesh.boundary.resolution
       boundary=list( polygon = inla.nonconvex.hull(  Yloc[ii,], convex=convex, resolution=resolution ) )
-      Sloc = h5file( p$ptr$Sloc)["Sloc"] # statistical output locations
+      Sloc = p$ff$Sloc  # statistical output locations
       boundary$inside.polygon = point.in.polygon( Sloc[,1], Sloc[,2],
           boundary$polygon$loc[,1], boundary$polygon$loc[,2], mode.checked=TRUE)
-      h5close(Sloc)
+      
       save( boundary, file=fn, compress=TRUE )
       plot( Yloc[ii,], pch="." ) # data locations
       lines( boundary$polygon$loc , col="green" )
-      h5close(Yloc)      
+      
+      close(Sloc)
+      close(Yloc)      
       return( fn )
     }
 
@@ -182,26 +211,23 @@
       if ( DS=="statistics.initialize" ) {
         # statistics storage matrix ( aggregation window, coords ) .. no inputs required
         # statistics coordinates
-        Sloc_ = expand.grid( p$sbbox$plons, p$sbbox$plats )
-        Sloc_ = as.matrix( Sloc_)
-        if ( file.exists( p$ptr$Sloc ) ) file.remove( p$ptr$Sloc )
-        Sloc = h5file(name =p$ptr$Sloc, mode = "a")
-        Sloc["Sloc", compression=0L, chunksize=p$hdf5.chunksize] <- Sloc_
-        h5close(Sloc)
+        Sloc_ = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
+        Sloc = ff::ff( Sloc_, dim=dim(Sloc_), filename=p$ptr$Sloc_, overwrite=TRUE )
+        close(Sloc)
+        p$ff$Sloc = Sloc
 
-        S_ = matrix( NA_real_, nrow=nrow(Sloc_), ncol=length( p$statsvars ) )
-        if ( file.exists( p$ptr$S ) ) file.remove( p$ptr$S )
-        S = h5file(name =p$ptr$S, mode = "a")
-        S["S", compression=0L, chunksize=p$hdf5.chunksize] <- S_
-        h5close(S)
-        return( "complete" )
+        S_ = matrix( NA, nrow=nrow(Sloc_), ncol=length( p$statsvars ) )
+        S = ff::ff( S_, dim=dim(S_), filename=p$ptr$S, overwrite=TRUE )
+        close(S)
+        p$ff$S = S
+
+        return( p )
       }
       
 
       if ( DS=="statistics.size" ) {
-        S = h5file( p$ptr$S)["S"]
-        nS =  nrow(S) 
-        h5close(S) 
+        nS = nrow(p$ff$S) 
+        close(S) 
         return(nS)
       }
       
@@ -215,7 +241,7 @@
       if ( DS=="statistics.status" ) {
         # find locations for statistic computation and trim area based on availability of data
         # stats:
-        S = h5file( p$ptr$S)["S"]
+        S = p$ff$S
         bnds = try( spacetime.db( p, DS="boundary" ) )
 
         if (!is.null(bnds)) {
@@ -240,7 +266,7 @@
                      n.incomplete=length(j), n.problematic=length(i), 
                      n.complete=length(k), to.ignore=to.ignore )
         out$prop_incomp=out$n.incomplete / ( out$n.problematic + out$n.incomplete + out$n.complete)
-        h5close(S)
+        close(S)
         cat( paste("Proportion incomplete:", round(out$prop_incomp,5), "\n" )) 
         return( out )
       }

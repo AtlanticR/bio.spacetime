@@ -2,7 +2,9 @@
 hdf5_timer = function( engine="hdf5", nr=2000, nc=2000, 
   cs=c(16, 24, 32, 40, 48, 64, 78, 100, 128, 184, 256, 512, 1024), n=1, times=3 ) {
   #\\ find optimal chuncksize for hdf5
-  #\\ also compare with bigmemory .. just a bit faster than hdf5 (1 to 2X) but no flexibility with data structures
+  #\\ also compare with bigmemory and ff 
+  #\\ ff is the clear winner .. bigmemory is just a bit faster than hdf5 
+  #\\ (1 to 2X) but no flexibility with data structures
 
   dd = matrix(runif(nr*nc), ncol=nc )
 
@@ -41,13 +43,13 @@ hdf5_timer = function( engine="hdf5", nr=2000, nc=2000,
   
   if(engine=="bigmemory") {
     require(bigmemory)
-    a = filebacked.big.matrix( nrow=nr, ncol=nc, type="double", dimnames=NULL, separated=FALSE,
+    ab = filebacked.big.matrix( nrow=nr, ncol=nc, type="double", dimnames=NULL, separated=FALSE,
          backingpath=".", backingfile="bm.test.bigmemory", descriptorfile="bm.test.desc" )
-    a[] = dd 
+    ab[] = dd 
     bm = function(nr, nc, dd, n) {
       for(i in 1:n) {
-        a = bigmemory::attach.big.matrix("bm.test.desc", path="." )
-        a[1,] = log(a[1,] +a[2,])
+        ab = bigmemory::attach.big.matrix("bm.test.desc", path="." )
+        ab[1,] = log(ab[1,] +ab[2,])
       }
       return(NULL)
     }
@@ -58,6 +60,31 @@ hdf5_timer = function( engine="hdf5", nr=2000, nc=2000,
     cat("matrix size: \n")
     for ( i in 1:length(s0) ) {
       mb = microbenchmark::microbenchmark( bm( nr=s0[i], nc=s0[i], dd=dd, n=n),
+        times=times, unit="s" )
+      ab = summary(mb)
+      print( paste( s0[i], ":",  round(ab$mean,5) , attr(ab, "unit")))
+      out[i,2] = as.numeric(ab$mean)
+    }
+    return(out)
+  }
+
+  if(engine=="ff") {
+    require(ff)
+    a = ff::ff( dd, filename="/home/jae/tmp/test.ff", finalizer="close" )
+
+    bm = function(a, nr, nc, dd, n) {
+      for(i in 1:n) {
+        a[1,] = log(a[1,] +a[2,])
+      }
+      return(NULL)
+    }
+    
+    s0 = c(10, 50, 100, 500, 1000, 2000, 4000)
+    out = matrix( NA, ncol=2, nrow=length(s0) )
+    out[,1] = s0
+    cat("matrix size: \n")
+    for ( i in 1:length(s0) ) {
+      mb = microbenchmark::microbenchmark( bm( a=a, nr=s0[i], nc=s0[i], dd=dd, n=n),
         times=times, unit="s" )
       ab = summary(mb)
       print( paste( s0[i], ":",  round(ab$mean,5) , attr(ab, "unit")))

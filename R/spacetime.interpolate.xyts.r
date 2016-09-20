@@ -1,7 +1,49 @@
 
 
-spacetime.interpolate.xyt = function( ip, p ) {
+spacetime.interpolate.xyts = function( ip, p ) {
   #\\ harmonic in time method
+
+  if (0) {
+
+    # default output grid
+    z0 = expand.grid( dyear=1:p$nw, yr=p$tyears )
+    attr( z0, "out.attrs" ) = NULL
+    z0$fit = NA  # these will be filled in with predicted fits and se's
+    z0$se  = NA
+    z0$tiyr = z0$yr + (z0$dyear-0.5) / p$nw # mid-points
+    z0 = z0[ order(z0$tiyr), ]
+
+    if ( p$tsmethod %in% c("annual", "seasonal.basic", "seasonal.smoothed", "harmonics.1", "harmonics.2", "harmonics.3" ) ) {
+        interpolate.ts = temperature.timeseries.interpolate.gam
+    }
+    if (p$tsmethod %in% c("inla.ts.simple" ) ) {
+        interpolate.ts = temperature.timeseries.interpolate.inla
+    }
+
+    if ( p$tsmethod %in% c("ar" ) ) {
+        cat("TODO \n")
+        # interpolate.ts = temperature.timeseries.interpolate.spectral  ## to do..
+    }
+
+
+    
+
+    for ( iip in ip ) {
+      mm = p$runs[iip,"loc"]
+      if ( is.nan( tbot[mm,1] )) next() #  this location is problematic .. skip
+      if ( !is.na( tbot[mm,1] )) next() # has a solution from previous run .. skip
+      tbot[mm,1] = NaN # flag as being operated upon .. in case a restart is needed
+      res = NULL
+      res = try( interpolate.ts ( p=p, bb=B, pp=P[mm,], zz=z0 ), silent=TRUE )
+      if ( class(res) %in% "try-error" ) next()
+      if ( any(is.finite(res$fit)) ) {
+        print (mm)
+        tbot[ mm,] = res$fit
+        tbot.se[mm,] = res$se
+      }
+    } # end each point
+
+  }
 
 
   if (exists( "libs", p)) RLibrary( p$libs )
