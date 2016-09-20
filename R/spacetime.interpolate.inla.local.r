@@ -18,19 +18,19 @@
     #---------------------
     # data for modelling
     # dependent vars # already link-transformed in spacetime.db("dependent")
-    Y = h5file( p$ptr$Y)["Y"]
+    Y =  p$ff$Y  # readonly
     hasdata = 1:length(Y)
     bad = which( !is.finite( Y[]))
     if (length(bad)> 0 ) hasdata[bad] = NA
 
    # data locations
-    Yloc = h5file( p$ptr$Yloc)["Yloc"]
+    Yloc =  p$ff$Yloc
     bad = which( !is.finite( rowSums(Yloc[])))
     if (length(bad)> 0 ) hasdata[bad] = NA
 
     # covariates (independent vars)
     if ( exists( "COV", p$variables) ) {
-      Ycov = h5file( p$ptr$Ycov)["Ycov"]
+      Ycov =  p$ff$Ycov
       if ( length( p$variables$COV ) == 1 ) {
         bad = which( !is.finite( Ycov[]) )
       } else {
@@ -43,18 +43,19 @@
 
     #---------------------
     # prediction locations and covariates
-    Ploc = h5file( p$ptr$Ploc)["Ploc"]
+    Ploc =  p$ff$Ploc # read only
     phasdata = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
     if (length(pbad)> 0 ) phasdata[ pbad ] = NA
     if ( exists( "COV", p$variables) ) {
-      Pcov = h5file( p$ptr$Pcov)["Pcov"]  # covariates at prediction locations
+      Pcov =  p$ff$Pcov  # covariates at prediction locations; read only
       if ( length( p$variables$COV ) == 1 ) {
         pbad = which( !is.finite( Pcov[]) )
       } else {
         pbad = which( !is.finite( rowSums(Pcov[])) )
       }
       if (length(pbad)> 0 ) phasdata[pbad] = NA
+      close(Pcov)
     }
     rcP = data.frame( cbind( Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1))
     # rcP$i =1:nrow(rcP) # row index
@@ -64,7 +65,7 @@
 
     #-----------------
     # row, col indices
-    Sloc = h5file( p$ptr$Sloc)["Sloc"]  # statistical output locations
+    Sloc =  p$ff$Sloc  # statistical output locations
     rcS = data.frame( cbind( Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
 
     # main loop over each output location in S (stats output locations)
@@ -75,7 +76,7 @@
       if (debugrun) cat( paste( Sys.time(), deid, "start \n" ), file=p$debug.file, append=TRUE )
       focal = t(Sloc[dd,])
 
-      S = h5file( p$ptr$S)["S"]  # statistical outputs
+      S =  p$ff$S  # statistical outputs
 
       if ( is.nan( S[dd,1] ) ) next()
       if ( !is.na( S[dd,1] ) ) next()
@@ -194,6 +195,7 @@
         preds_eff = list()
         preds_eff[["spde"]] = c( preds_index, list(intercept=1) )
         if ( exists( "COV", p$variables) ) {
+          Pcov =  p$ff$Pcov  # covariates at prediction locations; read only
           if ( length(p$variables$COV) == 1 ) {
             pcovars = as.data.frame(Pcov[ kP ])
           } else {
@@ -202,6 +204,7 @@
           colnames( pcovars ) = p$variables$COV
           preds_eff[["covar"]] = as.list( pcovars )
           preds_A = list( inla.spde.make.A(MESH, loc=preds_locs ), 1)
+          close(Pcov)
         } else {
           preds_A = list( inla.spde.make.A(MESH, loc=preds_locs ) )
         }
@@ -212,6 +215,9 @@
         preds_stack_index = inla.stack.index( DATA, "preds")$data  # indices of predictions in stacked data
         rm ( preds_eff, preds_ydata, preds_A, PREDS, preds_index, preds_locs, pcovars, kP ); gc()
       }
+
+      close(Yloc)
+      close(Ploc)
 
       RES = NULL
       RES = spacetime.inla.call( FM=p$modelformula, DATA=DATA, SPDE=SPDE, FAMILY=p$spacetime.family )
@@ -304,7 +310,7 @@
         stdevs = 3
         ii = pa$i
 
-        P = h5file( p$ptr$P)["P"]  # predictions
+        P =  p$ff$P # predictions
         test = rowSums( P[ii,] )
         u = which( is.finite( test ) )  # these have data already .. update
         if ( length( u ) > 0 ) {
@@ -358,6 +364,10 @@
         zz = which(pps$plon > min(pa$plon) & pps$plon < max(pa$plon) & pps$plat < max(pa$plat) & pps$plat > min(pa$plat) )
         x11(); levelplot( ( P[zz,means] ) ~ plon + plat, pps[zz,], aspect="iso", labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
       }
+
+      close(Y)
+      close(P)
+      close(S)
 
       rm( SPDE, RES) ; gc()
 
