@@ -6,19 +6,19 @@ spacetime.interpolate.xyt = function( ip, p ) {
 
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-   # load hdf5 data objects pointers
+
   p = spacetime.db( p=p, DS="filenames" )
 
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime.db("dependent")
-  Y = h5file(p$ptr$Y)["Y"]
+  Y = p$ff$Y
   hasdata = 1:length(Y)
   bad = which( !is.finite( Y[]))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
   # data locations
-  Yloc = h5file(p$ptr$Yloc)["Yloc"]
+  Yloc = p$ff$Yloc
   bad = which( !is.finite( rowSums(Yloc[])))
   if (length(bad)> 0 ) hasdata[bad] = NA
 
@@ -26,7 +26,7 @@ spacetime.interpolate.xyt = function( ip, p ) {
 
   #---------------------
   # prediction locations and covariates
-  Ploc = h5file(p$ptr$Ploc)["Ploc"]  # prediction locations
+  Ploc = p$ff$Ploc # prediction locations
   phasdata = 1:nrow( Ploc ) # index of locs with no covariate data
   pbad = which( !is.finite( rowSums(Ploc[])))
   if (length(pbad)> 0 ) phasdata[ pbad ] = NA
@@ -41,7 +41,7 @@ spacetime.interpolate.xyt = function( ip, p ) {
 
   #-----------------
   # row, col indices
-  Sloc = h5file(p$ptr$Sloc)["Sloc"]  # statistical output locations
+  Sloc = p$ff$Sloc  # statistical output locations
   rcS = data.frame( cbind( 
     Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
     Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
@@ -51,7 +51,7 @@ spacetime.interpolate.xyt = function( ip, p ) {
     dd = p$runs[ iip, "jj" ]
     focal = t(Sloc[dd,])
 
-    S = h5file(p$ptr$S)["S"]  # statistical outputs
+    S = p$ff$S # statistical outputs
 
     if ( is.nan( S[dd,1] ) ) next()
     if ( !is.na( S[dd,1] ) ) next()
@@ -161,7 +161,7 @@ spacetime.interpolate.xyt = function( ip, p ) {
         stdevs = 3
         ii = pa$i
 
-        P = h5file(p$ptr$P)["P"]  # predictions
+        P = p$ff$P  # predictions
         test = rowSums( P[ii,] )
         u = which( is.finite( test ) )  # these have data already .. update
         if ( length( u ) > 0 ) {
@@ -216,6 +216,13 @@ spacetime.interpolate.xyt = function( ip, p ) {
       x11(); levelplot( ( P[zz,means] ) ~ plon + plat, pps[zz,], aspect="iso", labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
     }
 
+    close(Yloc)
+    close(Ploc)
+    close(Sloc)
+    close(Y)
+    close(P)
+    close(S)
+    
     rm( ii, good, pa, xs, xm, mi, mf, si, sf ) ; gc()
     if ( debugrun) cat( paste( Sys.time(), deid, "end \n" ), file=p$debug.file, append=TRUE ) 
   }  # end for loop
