@@ -15,6 +15,8 @@
       p$ptr$Ycov = file.path( p$tmp.datadir, "input.Ycov.ff" )
       p$ptr$Yloc = file.path( p$tmp.datadir, "input.Yloc.ff")
       p$ptr$P =    file.path( p$tmp.datadir, "predictions.ff")
+      p$ptr$Psd =  file.path( p$tmp.datadir, "predictions_sd.ff")
+      p$ptr$Pn =   file.path( p$tmp.datadir, "predictions_n.ff")
       p$ptr$Pcov = file.path( p$tmp.datadir, "predictions_cov.ff")
       p$ptr$Ploc = file.path( p$tmp.datadir, "predictions_loc.ff")
       p$ptr$S =    file.path( p$tmp.datadir, "statistics.ff")
@@ -108,18 +110,30 @@
       p = spacetime.db( p=p, DS="filenames" ) 
 
       if (exists("COV", p$variables)) {
-        Pcov_ = as.matrix( B[ , , , p$variables$COV ] )
-        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
-        close(Pcov)
-        p$ff$Pcov = Pcov  # store pointer
+        p$ff$Pcov = list()
+        for ( i in p$variables$COV ){
+          Pcov_ = as.matrix( B[[i]] )  # must pass as lists due to size constraints of ff
+          fni = paste(p$ptr$Pcov, i, sep="_")
+          p$ff$Pcov[i] = ff::ff( Pcov_, dim=dim(Pcov_), filename=fni, overwrite=TRUE )
+          close(p$ff$Pcov[i])
+        }
       }
       
       # predictions and associated stats
-      P_ = array( NA, dims=c(p$nplons, p$nplats, p$ny, 3) ) # 3=pred, count, sd
+      # predictions and associated stats
+      P_ = array( NA, dim=c(p$nplons, p$nplats, p$ny, p$nw) ) # 3=pred, count, sd
       P = ff::ff( P_, dim=dim(P_), filename=p$ptr$P, overwrite=TRUE )
-      close(P)
+      close(P)      
       p$ff$P = P  # store pointer
+
+      Pn = ff::ff( P_, dim=dim(P_), filename=p$ptr$Pn, overwrite=TRUE )
+      close(Pn)      
+      p$ff$Pn = Pn  # store pointer
       
+      Psd = ff::ff( P_, dim=dim(P_), filename=p$ptr$Psd, overwrite=TRUE )
+      close(Psd)      
+      p$ff$Psd = Psd  # store pointer
+         
       return( p )
     }
 
@@ -130,17 +144,28 @@
       p = spacetime.db( p=p, DS="filenames" ) 
       
       if (exists("COV", p$variables)) {
-        Pcov_ = as.matrix( B[ , , , , p$variables$COV ] )
-        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
-        close(Pcov)
-        p$ff$Pcov = Pcov  # store pointer
+        p$ff$Pcov = list()
+        for ( i in p$variables$COV ){
+          Pcov_ = as.matrix( B[[i]] ) # B must be a list that is already formatted properly
+          fni = paste(p$ptr$Pcov, i, sep="_")
+          p$ff$Pcov[i] = ff::ff( Pcov_, dim=dim(Pcov_), filename=fni, overwrite=TRUE )
+          close(p$ff$Pcov[i])
+        }
       }
       
       # predictions and associated stats
-      P_ = array( NA, dims=c(p$nplons, p$nplats, p$ny, p$nw, 3) ) # 3=pred, count, sd
+      P_ = array( NA, dim=c(p$nplons, p$nplats, p$ny, p$nw) ) # 3=pred, count, sd
       P = ff::ff( P_, dim=dim(P_), filename=p$ptr$P, overwrite=TRUE )
       close(P)      
       p$ff$P = P  # store pointer
+
+      Pn = ff::ff( P_, dim=dim(P_), filename=p$ptr$Pn, overwrite=TRUE )
+      close(Pn)      
+      p$ff$Pn = Pn  # store pointer
+      
+      Psd = ff::ff( P_, dim=dim(P_), filename=p$ptr$Psd, overwrite=TRUE )
+      close(Psd)      
+      p$ff$Psd = Psd  # store pointer
             
       return( p )
     }

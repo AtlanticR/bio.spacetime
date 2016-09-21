@@ -29,7 +29,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
   dir.create( p$rootdir, showWarnings=FALSE, recursive =TRUE)
   
   if (is.null(overwrite)) {
-    tmpfiles = spacetime.db( p=p, DS="filelist" )
+    tmpfiles = unlist( p$ptr)
 	  for (tf in tmpfiles) {
   		if (file.exists( tf)) {
   			cat( "Temporary files exist from a previous run found at: \n")
