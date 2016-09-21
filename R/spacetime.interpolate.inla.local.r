@@ -7,13 +7,10 @@
     # ip is the first parameter passed in the parallel mode
     if (exists( "libs", p)) RLibrary( p$libs )
     if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-    # load bigmemory data objects pointers
-    p = spacetime.db( p=p, DS="filenames" )
 
     # priors
     # kappa0 = sqrt(8)/p$expected.range
     # tau0 = 1/(sqrt(4*pi)*kappa0* p$expected.sigma)
-
 
     #---------------------
     # data for modelling
@@ -76,14 +73,14 @@
       if (debugrun) cat( paste( Sys.time(), deid, "start \n" ), file=p$debug.file, append=TRUE )
       focal = t(Sloc[dd,])
 
-      S =  p$ff$S  # statistical outputs
-
+      S = p$ff$S  # statistical outputs
       if ( is.nan( S[dd,1] ) ) next()
       if ( !is.na( S[dd,1] ) ) next()
-
       S[dd,1] = NaN   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
       # .. it gets over-written below if successful
       # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
+      close(S)
+
       # slow ... need to find a faster solution
       ppp = NULL
       ppp = try( point.in.block( focal[1,c(1,2)], Yloc[hasdata,], dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
@@ -329,6 +326,7 @@
             P[ ui[mm], means ]  = means_update[mm]
           }
         }
+        
         # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
         test = rowSums( P[ii,] )
         f = which( !is.finite( test ) ) # first time
@@ -338,6 +336,8 @@
           P[ fi, means ] = pa$xmean[f]
           P[ fi, stdevs ] = pa$xsd[f]
         }
+        close(P)
+
       }
       rm(MESH); gc()
 
@@ -348,6 +348,8 @@
         # extract summary statistics from a spatial (SPDE) analysis and update the output file
         inla.summary = spacetime.summary.inla.spde2 ( RES, SPDE )
         # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
+
+        S = p$ff$S  # statistical outputs
         S[dd,1] = inla.summary["spatial error", "mode"]
         S[dd,2] = inla.summary["observation error", "mode"]
         S[dd,3] = inla.summary["range", "mode"]
@@ -356,18 +358,19 @@
           print( inla.summary )
           cat( paste( Sys.time(), deid, "statistics saved  \n" ), file=p$debug.file, append=TRUE )
         }
+        close(S)
       }
 
       if(debugrun) {
+        P = p$ff$P
         pps = expand.grid( plon=p$plons, plat=p$plats)
         # zz = which(pps$plon > -50 & pps$plon < 50 & pps$plats < 50 & pps$plats > -50 ) # & P[,2] > 0   )
         zz = which(pps$plon > min(pa$plon) & pps$plon < max(pa$plon) & pps$plat < max(pa$plat) & pps$plat > min(pa$plat) )
         x11(); levelplot( ( P[zz,means] ) ~ plon + plat, pps[zz,], aspect="iso", labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
+        close(P)
       }
 
       close(Y)
-      close(P)
-      close(S)
 
       rm( SPDE, RES) ; gc()
 

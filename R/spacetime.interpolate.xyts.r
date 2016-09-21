@@ -1,129 +1,9 @@
 
 
 spacetime.interpolate.xyts = function( ip, p ) {
-  #\\ harmonic in time method
-
-  if (0) {
-
-
-  mf = switch( p$tsmethod ,
-    annual = ' t ~ s(yr) ',
-    seasonal.basic = ' t ~ s(yr) + s(dyear, bs="cc") ',
-    seasonal.smoothed = ' t ~ s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ',
-    harmonics.1 = ' t ~ s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ',
-    harmonics.2 = ' t ~ s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' ,
-    harmonics.3 = ' t ~ s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) '
-  )
-
-  mf = formula(mf)
-
-  for ( dm in p$dist.km ) {
-      drange = c(-1,1) * dm
-      plon0 = pp$plon + drange
-      plat0 = pp$plat + drange
-      i = which( bb$plon > plon0[1] & bb$plon < plon0[2] & bb$plat > plat0[1] & bb$plat < plat0[2] )
-      if (length(i) > p$nMin.tbot ) {
-
-      #  browser()
-
-        # only attempt interpolation if we have enough data (nMin.tbot)
-        x = bb[i,] # faster to reduce the size of bb here
-        # remove potentially noisy/erroneous data --- they are highly influential when there is little data
-        # xt = quantile( x$t, probs=c(0.005, 0.995) )
-        # xi = which( x$t >= xt[1] & x$t <= xt[2] )
-        # if (length(xi) < p$nMin.tbot ) next()
-        # x = x[xi, ]
-
-        x$w = 1 / (( pp$plon - x$plon)**2 + (pp$plat - x$plat)**2 )# weight data in space: inverse distance squared
-        x$w[ which( x$w < 1e-3 ) ] = 1e-3
-        x$w[ which( x$w > 1 ) ] = 1
-
-        # data transformations and creation of new variables where required for raw data
-        if ( p$tsmethod %in% c( "harmonics.1", "harmonics.2", "harmonics.3"  ) ) {
-          x$cos.w  = cos( 2*pi*x$tiyr )
-          x$sin.w  = sin( 2*pi*x$tiyr )
-
-          years.with.data = unique( x$yr)
-          no.years = which( !( zz$yr %in% years.with.data) )
-          zz$yr[ no.years ] = median( years.with.data)
-          zz$cos.w  = cos( zz$tiyr )
-          zz$sin.w  = sin( zz$tiyr )
-
-          # compute additional harmonics only if required (to try to speed things up a bit)
-          if ( p$tsmethod %in% c( "harmonics.2", "harmonics.3"  ) ) {
-            x$cos.w2 = cos( 2*x$tiyr )
-            x$sin.w2 = sin( 2*x$tiyr )
-            zz$cos.w2 = cos( 2*zz$tiyr )
-            zz$sin.w2 = sin( 2*zz$tiyr )
-          }
-          if ( p$tsmethod %in% c( "harmonics.3"  ) ) {
-            x$cos.w3 = cos( 3*x$tiyr )
-            x$sin.w3 = sin( 3*x$tiyr )
-            zz$cos.w3 = cos( 3*zz$tiyr )
-            zz$sin.w3 = sin( 3*zz$tiyr )
-          }
-        }
-
-        tsmodel = NULL
-        tsmodel = try( gam( mf, data=x, weights=w, optimizer=c("outer","bfgs")  ) )
-        if ( ! "try-error" %in% class(tsmodel) ) {
-          out = try( predict( tsmodel, newdata=zz, type="response", se.fit=T ) )
-          if ( ! "try-error" %in% class( out ) ) {
-            zz$fit = out$fit
-            zz$se = out$se.fit
-            break()  # candidate predictions found exit inner loop (dm)
-          }
-        }
-      } 
-  }
-
-
-
-
-
-
-    # default output grid
-    z0 = expand.grid( dyear=1:p$nw, yr=p$tyears )
-    attr( z0, "out.attrs" ) = NULL
-    z0$fit = NA  # these will be filled in with predicted fits and se's
-    z0$se  = NA
-    z0$tiyr = z0$yr + (z0$dyear-0.5) / p$nw # mid-points
-    z0 = z0[ order(z0$tiyr), ]
-
-    if ( p$tsmethod %in% c("annual", "seasonal.basic", "seasonal.smoothed", "harmonics.1", "harmonics.2", "harmonics.3" ) ) {
-        interpolate.ts = temperature.timeseries.interpolate.gam
-    }
-    if (p$tsmethod %in% c("inla.ts.simple" ) ) {
-        interpolate.ts = temperature.timeseries.interpolate.inla
-    }
-
-    if ( p$tsmethod %in% c("ar" ) ) {
-        cat("TODO \n")
-        # interpolate.ts = temperature.timeseries.interpolate.spectral  ## to do..
-    }
-
-    for ( iip in ip ) {
-      mm = p$runs[iip,"loc"]
-      if ( is.nan( tbot[mm,1] )) next() #  this location is problematic .. skip
-      if ( !is.na( tbot[mm,1] )) next() # has a solution from previous run .. skip
-      tbot[mm,1] = NaN # flag as being operated upon .. in case a restart is needed
-      res = NULL
-      res = try( interpolate.ts ( p=p, bb=B, pp=P[mm,], zz=z0 ), silent=TRUE )
-      if ( class(res) %in% "try-error" ) next()
-      if ( any(is.finite(res$fit)) ) {
-        print (mm)
-        tbot[ mm,] = res$fit
-        tbot.se[mm,] = res$se
-      }
-    } # end each point
-
-  }
-
 
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-   # load data objects pointers
-  p = spacetime.db( p=p, DS="filenames" )
 
   #---------------------
   # data for modelling
@@ -167,15 +47,15 @@ spacetime.interpolate.xyts = function( ip, p ) {
     dd = p$runs[ iip, "jj" ]
     focal = t(Sloc[dd,])
 
-    S = p$ff$S  # statistical outputs
-
+    S = p$ff$S  # statistical outputs inside loop to safely save data and pass onto other processes
     if ( is.nan( S[dd,1] ) ) next()
     if ( !is.na( S[dd,1] ) ) next()
-
     S[dd,1] = NaN   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
     # .. it gets over-written below if successful
     # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
     # slow ... need to find a faster solution
+    close(S)
+
     ppp = NULL
     ppp = try( point.in.block( focal[1,c(1,2)], Yloc[hasdata,], dist.max=p$dist.max, n.min=p$n.min, n.max=p$n.max,
       upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) )
@@ -316,14 +196,16 @@ spacetime.interpolate.xyts = function( ip, p ) {
     if ( any( grepl ("statistics", p$spacetime.outputs))) {
       print( "Saving summary statisitics" )
       # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
-      S[dd,1] = inla.summary["spatial error", "mode"]
-      S[dd,2] = inla.summary["observation error", "mode"]
-      S[dd,3] = inla.summary["range", "mode"]
-      S[dd,4] = inla.summary["range", "sd"]
-      if ( debugrun)  {
-        print( inla.summary )
-        cat( paste( Sys.time(), deid, "statistics saved  \n" ), file=p$debug.file, append=TRUE )
-      }
+      S = p$ff$S  # statistical outputs inside loop to safely save data and pass onto other processes
+        S[dd,1] = inla.summary["spatial error", "mode"]
+        S[dd,2] = inla.summary["observation error", "mode"]
+        S[dd,3] = inla.summary["range", "mode"]
+        S[dd,4] = inla.summary["range", "sd"]
+        if ( debugrun)  {
+          print( inla.summary )
+          cat( paste( Sys.time(), deid, "statistics saved  \n" ), file=p$debug.file, append=TRUE )
+        }
+      close(S)
     }
 
     if(0) {
@@ -339,7 +221,6 @@ spacetime.interpolate.xyts = function( ip, p ) {
   }  # end for loop
 
   close(P)
-  close(S)
   close(Y)
 
   return( "complete" )

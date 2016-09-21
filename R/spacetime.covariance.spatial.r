@@ -4,8 +4,7 @@ spacetime.covariance.spatial = function( ip=NULL, p ) {
 
   if (exists( "libs", p)) RLibrary( p$libs )
   if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-  p = spacetime.db( p=p, DS="filenames" )
-
+  
   #---------------------
   # data for modelling
   # dependent vars

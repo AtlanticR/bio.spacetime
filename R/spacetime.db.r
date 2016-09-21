@@ -115,7 +115,7 @@
       }
       
       # predictions and associated stats
-      P_ = array( NA, dims=c(p$nplons, p$nplats, p$ny, 3) # 3=pred, count, sd
+      P_ = array( NA, dims=c(p$nplons, p$nplats, p$ny, 3) ) # 3=pred, count, sd
       P = ff::ff( P_, dim=dim(P_), filename=p$ptr$P, overwrite=TRUE )
       close(P)
       p$ff$P = P  # store pointer
@@ -137,7 +137,7 @@
       }
       
       # predictions and associated stats
-      P_ = array( NA, dims=c(p$nplons, p$nplats, p$ny, p$nw, 3) # 3=pred, count, sd
+      P_ = array( NA, dims=c(p$nplons, p$nplats, p$ny, p$nw, 3) ) # 3=pred, count, sd
       P = ff::ff( P_, dim=dim(P_), filename=p$ptr$P, overwrite=TRUE )
       close(P)      
       p$ff$P = P  # store pointer
