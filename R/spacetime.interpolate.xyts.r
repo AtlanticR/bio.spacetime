@@ -117,7 +117,7 @@ spacetime.interpolate.xyts = function( ip, p ) {
     ndata = length(j) # number of data locations
     if (ndata < p$n.min) next()
 
-    ---> Y[j] # already link-transformed in spacetime.db("dependent")
+    # ---> Y[j] # already link-transformed in spacetime.db("dependent")
 
     #  NOTE:: by default, all areas chosen to predict within the window.. but if covariates are involved,
     #  this can be done only where covariates exists .. so next step is to determine this and predict
