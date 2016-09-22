@@ -63,8 +63,10 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
     p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa", ....) 
     
     if (is.null(overwrite) || overwrite) {
+      message( "Initializing temporary storage of data and outputs ... ")
       p = spacetime.db( p=p, DS="predictions.initialize.xyts" )
       p = spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
+      message( "Finshed. Moving onto analysis... ")
     }
     # define boundary polygon for data .. zz a little ..
     if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min

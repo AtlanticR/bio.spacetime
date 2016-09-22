@@ -206,21 +206,23 @@
       ndata = length(ii)
 
       Yloc = p$ff$Yloc 
-      # locs_noise = Yloc[ii,] + runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise )
-      maxdist = max( diff( range( Yloc[ii,1] )), diff( range( Yloc[ii,2] )) )
+      locs_noise =  runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise )
+      # maxdist = max( diff( range( Yloc[ii,1] )), diff( range( Yloc[ii,2] )) )
 
-      convex = -0.04
+      convex = -0.02
       if (exists( "mesh.boundary.convex", p) ) convex=p$mesh.boundary.convex
-      resolution = 125
+      resolution = 150
       if (exists( "mesh.boundary.resolution", p) ) resolution=p$mesh.boundary.resolution
-      boundary=list( polygon = inla.nonconvex.hull(  Yloc[ii,], convex=convex, resolution=resolution ) )
+      
+      boundary=list( polygon = non_convex_hull( Yloc[ii,]+locs_noise, alpha=20 ), plot=TRUE )
+
       Sloc = p$ff$Sloc  # statistical output locations
       boundary$inside.polygon = point.in.polygon( Sloc[,1], Sloc[,2],
-          boundary$polygon$loc[,1], boundary$polygon$loc[,2], mode.checked=TRUE)
+          boundary$polygon$loc[,1], boundary$polygon$loc[,2], mode.checked=TRUE )
       
       save( boundary, file=fn, compress=TRUE )
       plot( Yloc[ii,], pch="." ) # data locations
-      lines( boundary$polygon$loc , col="green" )
+      lines( boundary$polygon$loc , col="green", pch=2 )
       
       close(Sloc)
       close(Yloc)      
