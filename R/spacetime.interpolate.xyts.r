@@ -27,57 +27,108 @@ spacetime.interpolate.xyts = function( ip, p ) {
   pbad = which( !is.finite( rowSums(Ploc[])))
   if (length(pbad)> 0 ) phasdata[ pbad ] = NA
 
-  rcP = data.frame( cbind( 
-    Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  
-    Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1) )
-  # rcP$i =1:nrow(rcP) # row index
-  rcP$rc = paste( rcP$Prow, rcP$Pcol, sep="~")
-  rcP$Prow = rcP$Pcol = NULL
-  gc()
+  # rcP = data.frame( cbind( 
+  #   Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  
+  #   Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1) )
+  # # rcP$i =1:nrow(rcP) # row index
+  # rcP$rc = paste( rcP$Prow, rcP$Pcol, sep="~")
+  # rcP$Prow = rcP$Pcol = NULL
+  # gc()
 
   #-----------------
   # row, col indices
   Sloc = p$ff$Sloc  # statistical output locations
-  rcS = data.frame( cbind( 
-    Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
-    Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
+  # rcS = data.frame( cbind( 
+  #   Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
+  #   Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
 
   # main loop over each output location in S (stats output locations)
   for ( iip in ip ) {
     dd = p$runs[ iip, "jj" ]
-    focal = t(Sloc[dd,])
+    focal = Sloc[dd,]
 
     S = p$ff$S  # statistical outputs inside loop to safely save data and pass onto other processes
     if ( is.nan( S[dd,1] ) ) next()
     if ( !is.na( S[dd,1] ) ) next()
     S[dd,1] = NaN   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
     # .. it gets over-written below if successful
-    # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
+    # choose a distance <= p$p$dist.max where n is within range of reasonable limits to permit a numerical solution
     # slow ... need to find a faster solution
     close(S)
 
-    ppp = NULL
-    ppp = try( point.in.block( focal[1,c(1,2)], Yloc[hasdata,], dist.max=p$dist.max, n.min=p$n.min, n.max=p$n.max,
-      upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) )
-    if( is.null(ppp)) next()
-    if (class( ppp ) %in% "try-error" ) next()
-    dist.cur = ppp$dist.to.nmax
+    U = NULL  # data within a specified range/distance/number of points
 
-    j = hasdata[ppp$indices]
+    dlon = abs( Sloc[dd,1] - Yloc[hasdata,1] ) 
+    dlat = abs( Sloc[dd,2] - Yloc[hasdata,2] ) 
+    j = which( dlon  <= p$dist.max  & dlat <= p$dist.max ) # faster to take a block 
+    ndat = length(j)
+    dist.cur = p$dist.max
+    
+    if ( ndat < p$n.min )  {
+      for ( usamp in p$upsampling )  {
+        dist.cur = p$dist.max * usamp
+        j = which( dlon < dist.cur & dlat < dist.cur ) # faster to take a block 
+        ndat = length(j)
+        # print( paste( "  ... finding larger distance:", ndat, dist.cur, usamp ))
+        if ( ndat >= p$n.min ) {
+          if (ndat >= p$n.max) {
+            j = j[ .Internal( sample(  length(j), p$n.max, replace=FALSE, prob=NULL)) ] 
+            U = list( dist.to.nmax=dist.cur, indices=j, xypoints=Yloc[hasdata[j],] ) 
+          } else {
+            U = list( dist.to.nmax = dist.cur, indices = j, xypoints = Yloc[hasdata[j],] ) 
+          }
+        }
+      }
+    }
+    
+    if ( ndat >= p$n.min ) {
+      if ( ndat <= p$n.max * 1.5 ) { # if close to p$n.max, subsample quickly and return
+        if ( ndat > p$n.max) { 
+          j = j[ .Internal( sample(  length(j), p$n.max, replace=FALSE, prob=NULL)) ] 
+        }
+        return( list( dist.to.nmax = dist.cur, indices = j, xypoints = Yloc[hasdata[j],] ) )
+      } else {
+        # reduce size of distance/block     
+        for ( dsamp in p$downsampling )  {
+          dist.cur = p$dist.max * dsamp
+          j = which( dlon < dist.cur & dlat < dist.cur )# faster to take a block 
+          ndat = length(j)
+          if ( ndat <= p$n.max ) U= list( dist.to.nmax = dist.cur, indices = j, xypoints = Yloc[hasdata[j],] )  
+          if ( dist.cur <= dist.min ) {
+            # print( paste( "  reached lower limit in distance, taking a subsample instead:", ndat, dist.cur, dsamp ))
+            j = which( dlon < dist.min & dlat < dist.min ) # faster to take a block 
+            ndat = length(j)
+            j = j[ .Internal( sample( length(j), p$n.max, replace=FALSE, prob=NULL)) ]
+            U = list( dist.to.nmax=dist.min, indices=j, xypoints=Yloc[hasdata[j],] )
+          }
+          # print( paste( "  ... finding smaller distance:", ndat, dist.cur, dsamp ))
+        }
+        # as a last resort, try sampling from the data as the distances are getting too small
+        j = j[ .Internal( sample( length(j), p$n.max, replace=FALSE, prob=NULL)) ]
+        if ( ndat <= p$n.max ) U = list( dist.to.nmax = dist.cur, indices = j, xypoints = Yloc[hasdata[j],] )  
+      }
+    }
+
+    if( is.null(U)) next()
+    if (class( U ) %in% "try-error" ) next()
+    dist.cur = U$dist.to.nmax
+
+    j = hasdata[U$indices]
     ndata = length(j) # number of data locations
     if (ndata < p$n.min) next()
 
-    obs_ydata = list()
-    obs_ydata[[ p$variables$Y ]] =  Y[j] # already link-transformed in spacetime.db("dependent")
+    ---> Y[j] # already link-transformed in spacetime.db("dependent")
 
     #  NOTE:: by default, all areas chosen to predict within the window.. but if covariates are involved,
     #  this can be done only where covariates exists .. so next step is to determine this and predict
     #  over the correct area.
     #  Once all predictions are complete, simple (kernal-based?) interpolation
     #  for areas without covariates can be completed
-      windowsize.half = floor(dist.cur/p$pres)# convert distance to discretized increments of row/col indices
+      windowsize.half = floor(dist.cur/p$pres) # convert distance to discretized increments of row/col indices
       pa_offsets = -windowsize.half : windowsize.half
-      pa = expand.grid( Prow = rcS[dd,1] + pa_offsets, Pcol = rcS[dd,2] + pa_offsets ) # row,col coords
+      pa = 
+      pa$Prow = rcS[dd,1] + pa_offsets
+      pa$Pcol = rcS[dd,2] + pa_offsets  # row,col coords
       bad = which( (pa$Prow < 1 & pa$Prow > p$nplons) | (pa$Pcol < 1 & pa$Pcol > p$nplats) )
       if (length(bad) > 0 ) pa = pa[-bad,]
       if (nrow(pa)< p$n.min) next()
@@ -86,13 +137,14 @@ spacetime.interpolate.xyts = function( ip, p ) {
       bad = which( !is.finite(pa$i))
       if (length(bad) > 0 ) pa = pa[-bad,]
       if (nrow(pa)< p$n.min) next()
+      
       pa$plon = Ploc[ pa$i, 1]
       pa$plat = Ploc[ pa$i, 2]
 
       if (0) {
-        plot( Yloc[ppp$indices,1]~ Yloc[ppp$indices,2], col="red", pch=".")
+        plot( Yloc[U$indices,1]~ Yloc[U$indices,2], col="red", pch=".")
         points( Yloc[j,1] ~ Yloc[j,2], col="green" )
-        points( focal[1,1] ~ focal[1,2], col="blue" )
+        points( Sloc[dd,1] ~ Sloc[dd,2], col="blue" )
         points( p$plons[rcS[dd,1]] ~ p$plats[rcS[dd,2]] , col="purple", pch=25, cex=2 )
         points( p$plons[pa$Prow] ~ p$plats[ pa$Pcol] , col="cyan", pch=".", cex=0.01 )
         points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="yellow", pch=".", cex=0.7 )
