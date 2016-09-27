@@ -67,7 +67,7 @@
 
     # main loop over each output location in S (stats output locations)
     for ( iip in ip ) {
-      dd = p$runs[ iip, "jj" ]
+      dd = p$runs[ iip, "locs" ]
       # dd=2000
       if (debugrun) deid = paste( Sys.info()["nodename"], "index=", dd )
       if (debugrun) cat( paste( Sys.time(), deid, "start \n" ), file=p$debug.file, append=TRUE )

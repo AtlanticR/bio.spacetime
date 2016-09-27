@@ -14,13 +14,16 @@
       p$ptr$Y =    file.path( p$tmp.datadir, "input.Y.ff")
       p$ptr$Ycov = file.path( p$tmp.datadir, "input.Ycov.ff" )
       p$ptr$Yloc = file.path( p$tmp.datadir, "input.Yloc.ff")
+      p$ptr$Ytime = file.path( p$tmp.datadir, "input.Ytime.ff")
       p$ptr$P =    file.path( p$tmp.datadir, "predictions.ff")
       p$ptr$Psd =  file.path( p$tmp.datadir, "predictions_sd.ff")
       p$ptr$Pn =   file.path( p$tmp.datadir, "predictions_n.ff")
       p$ptr$Pcov = file.path( p$tmp.datadir, "predictions_cov.ff")
       p$ptr$Ploc = file.path( p$tmp.datadir, "predictions_loc.ff")
+      p$ptr$Ptime = file.path( p$tmp.datadir, "predictions_time.ff")
       p$ptr$S =    file.path( p$tmp.datadir, "statistics.ff")
       p$ptr$Sloc = file.path( p$tmp.datadir, "statistics_loc.ff")
+      p$ptr$Stime = file.path( p$tmp.datadir, "statistics_time.ff")
       return(p)
     }
 
@@ -58,11 +61,19 @@
       }
 
      # data coordinates
-      Yloc_ = as.matrix( B[ , p$variables$LOCS ])
+      Yloc_ = as.matrix( B[, p$variables$LOCS ])
       Yloc = ff::ff( Yloc_, dim=dim(Yloc_), filename=p$ptr$Yloc, overwrite=TRUE )
       close(Yloc)
       p$ff$Yloc = Yloc # store pointer
-  
+
+      # prediction times
+      if ( exists("TIME", p$variables) ) {
+        Ytime_ = as.matrix( B[, p$variables$TIME ] )
+        Ytime = ff::ff( Ytime_, dim=dim( Ytime_), filename=p$ptr$Ytime, overwrite=TRUE )
+        close(Ytime)
+        p$ff$Ytime = Ytime  # store pointer
+      }
+
       return( p ) #return pointers to data
     }
 
@@ -133,6 +144,27 @@
       Psd = ff::ff( P_, dim=dim(P_), filename=p$ptr$Psd, overwrite=TRUE )
       close(Psd)      
       p$ff$Psd = Psd  # store pointer
+
+      # prediction coordinates
+      Ploc_ = as.matrix( B[, p$variables$LOCS ] )
+      Ploc = ff::ff( Ploc_, dim=dim(Ploc_), filename=p$ptr$Ploc, overwrite=TRUE )
+      close(Ploc)
+      p$ff$Ploc = Ploc  # store pointer
+
+      # prediction times
+      Ptime_ = as.matrix( B[, p$variables$TIME ] )
+      Ptime = ff::ff( Ptime_, dim=dim(Ptime_), filename=p$ptr$Ptime, overwrite=TRUE )
+      close(Ptime)
+      p$ff$Ptime = Ptime  # store pointer
+
+      # prediction covariates i.e., independent variables/ covariates
+      if (exists("COV", p$variables)) {
+        Pcov_ = as.matrix( B[ , p$variables$COV ] )
+        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
+        close(Pcov)
+        p$ff$Pcov = Pcov  # store pointer
+      }
+
          
       return( p )
     }
@@ -166,11 +198,29 @@
       Psd = ff::ff( P_, dim=dim(P_), filename=p$ptr$Psd, overwrite=TRUE )
       close(Psd)      
       p$ff$Psd = Psd  # store pointer
-            
+
+      # prediction coordinates
+      Ploc_ = as.matrix( B[, p$variables$LOCS ] )
+      Ploc = ff::ff( Ploc_, dim=dim(Ploc_), filename=p$ptr$Ploc, overwrite=TRUE )
+      close(Ploc)
+      p$ff$Ploc = Ploc  # store pointer
+
+      # prediction times
+      Ptime_ = as.matrix( B[, p$variables$TIME ] )
+      Ptime = ff::ff( Ptime_, dim=dim(Ptime_), filename=p$ptr$Ptime, overwrite=TRUE )
+      close(Ptime)
+      p$ff$Ptime = Ptime  # store pointer
+
+      # prediction covariates i.e., independent variables/ covariates
+      if (exists("COV", p$variables)) {
+        Pcov_ = as.matrix( B[ , p$variables$COV ] )
+        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
+        close(Pcov)
+        p$ff$Pcov = Pcov  # store pointer
+      }
+
       return( p )
     }
-
-
 
     # -----------------
 
@@ -209,20 +259,16 @@
       locs_noise =  runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise )
       # maxdist = max( diff( range( Yloc[ii,1] )), diff( range( Yloc[ii,2] )) )
 
-      convex = -0.02
-      if (exists( "mesh.boundary.convex", p) ) convex=p$mesh.boundary.convex
-      resolution = 150
-      if (exists( "mesh.boundary.resolution", p) ) resolution=p$mesh.boundary.resolution
-      
-      boundary=list( polygon = non_convex_hull( Yloc[ii,]+locs_noise, alpha=20 ), plot=TRUE )
+      boundary=list( polygon = non_convex_hull( Yloc[ii,]+locs_noise, alpha=20, plot=TRUE ) )
 
       Sloc = p$ff$Sloc  # statistical output locations
       boundary$inside.polygon = point.in.polygon( Sloc[,1], Sloc[,2],
-          boundary$polygon$loc[,1], boundary$polygon$loc[,2], mode.checked=TRUE )
+          boundary$polygon[,1], boundary$polygon[,2], mode.checked=TRUE )
       
       save( boundary, file=fn, compress=TRUE )
-      plot( Yloc[ii,], pch="." ) # data locations
-      lines( boundary$polygon$loc , col="green", pch=2 )
+      plot( Yloc[ii,], pch=".", col="grey" ) # data locations
+      points( Sloc[which(boundary$inside.polygon==1),], pch=".", col="orange" )
+      lines( boundary$polygon[] , col="green", pch=2 )
       
       close(Sloc)
       close(Yloc)      

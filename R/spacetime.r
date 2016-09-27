@@ -1,6 +1,6 @@
 
 
-spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) {
+spacetime = function( p, DATA, overwrite=NULL, DS=NULL, method=NULL ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
 
   p = spacetime.db( p=p, DS="filenames" )
@@ -43,9 +43,8 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
 
   # init input data
   if (is.null(overwrite) || overwrite) {
-    p = spacetime.db( p=p, DS="data.initialize", B=DATA ) # p is updated with pointers to ff data
+    p = spacetime.db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to ff data
   }
-
 
   if (0) {
     # DEBUG:: for checking status of outputs **during** parallel runs: they access temporary files
@@ -71,7 +70,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
     # define boundary polygon for data .. zz a little ..
     if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
     o = spacetime.db( p, DS="statistics.status" )
-    p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
+    p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.interpolate.xyts, p=p ) # no more GMT dependency! :)
     # spacetime.interpolate.xyt( p=p )  # if testing serial process
     # save to file
@@ -99,7 +98,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
 	  # define boundary polygon for data .. zz a little ..
 	  if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
     o = spacetime.db( p, DS="statistics.status" )
-    p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
+    p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.covariance.spatial, p=p ) # no more GMT dependency! :)
     # spacetime.covariance.spatial( p=p )  # if testing serial process
     # save to file
@@ -127,11 +126,11 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
   	# no time .. pure spatial effects and covariates .. 
   	if (is.null(overwrite) || overwrite) {
       p = spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
-      p = spacetime.db( p=p, DS="predictions.initialize.xy", B=OUT )
+      p = spacetime.db( p=p, DS="predictions.initialize.xy", B=DATA$output )
   	}
     cat( "Warning this will take a very *long* time! (weeks) /n")
     o = spacetime.db( p, DS="statistics.status" )
-    p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
+    p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.interpolate.inla.local, p=p ) # no more GMT dependency! :)
     # spacetime.interpolate.inla.local( p=p, debugrun=TRUE )  # if testing serial process
     
@@ -207,7 +206,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
 
     # space, time and covars 
   	if (is.null(overwrite) || overwrite) {
-        p = spacetime.db( DS="inputs.prediction", B=OUT) # covas on prediction locations
+        p = spacetime.db( DS="inputs.prediction", B=DATA$OUT) # covas on prediction locations
         p = spacetime.db( DS="statistics.initialize", 
           B=matrix( NA, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
   	}
@@ -218,7 +217,7 @@ spacetime = function( p, DATA, OUT=NULL, overwrite=NULL, DS=NULL, method=NULL ) 
 
   	# residuals
     o = spacetime.db( p, DS="statistics.status" )
-    p = make.list( list(jj=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
+    p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime.interpolate.xyts, p=p ) # no more GMT dependency! :)
     # spacetime.interpolate.xyts( p=p, debugrun=TRUE )  # if testing serial process
 
