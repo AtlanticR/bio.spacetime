@@ -173,15 +173,8 @@ spacetime.interpolate.xyts = function( ip, p ) {
       pa = pa[ which(is.finite( pa$i)),] # reduce to data locations as stack_index points only to locs with covariates
 
               # default output grid
-              res0 = expand.grid( plon=pa$plon, plat=pa$plat, dyear=1:p$nw, yr=p$tyears )
-              attr( res0, "out.attrs" ) = NULL
-              res0$fit = NA  # these will be filled in with predicted fits and se's
-              res0$se  = NA
-              res0$tiyr = res0$yr + (res0$dyear-0.5) / p$nw # mid-points
-#              res0 = res0[ order(res0$tiyr), ]
-
  
-              res = res0
+              res = expand.grid( Ptime , Ploc )
 
               # harmonic method explanation:
               # old method use 1 harmonic ... forcing sinusoid as a seasonal component

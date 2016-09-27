@@ -119,17 +119,21 @@
       # prediction covariates i.e., independent variables/ covariates
 
       p = spacetime.db( p=p, DS="filenames" ) 
-
+  
       if (exists("COV", p$variables)) {
         p$ff$Pcov = list()
         for ( i in p$variables$COV ){
-          Pcov_ = as.matrix( B[[i]] )  # must pass as lists due to size constraints of ff
+          if (is.vector(B$COV) ) {
+            Pcov_ = as.matrix( B$COV ) 
+          } else {
+            Pcov_ = as.matrix( B$COV[,i] ) 
+          }
           fni = paste(p$ptr$Pcov, i, sep="_")
-          p$ff$Pcov[i] = ff::ff( Pcov_, dim=dim(Pcov_), filename=fni, overwrite=TRUE )
-          close(p$ff$Pcov[i])
+          p$ff$Pcov[[i]] = ff::ff( Pcov_, dim=dim(Pcov_), filename=fni, overwrite=TRUE )
+          close(p$ff$Pcov[[i]])
         }
       }
-      
+          
       # predictions and associated stats
       # predictions and associated stats
       P_ = array( NA, dim=c(p$nplons, p$nplats, p$ny, p$nw) ) # 3=pred, count, sd
@@ -156,15 +160,6 @@
       Ptime = ff::ff( Ptime_, dim=dim(Ptime_), filename=p$ptr$Ptime, overwrite=TRUE )
       close(Ptime)
       p$ff$Ptime = Ptime  # store pointer
-
-      # prediction covariates i.e., independent variables/ covariates
-      if (exists("COV", p$variables)) {
-        Pcov_ = as.matrix( B[ , p$variables$COV ] )
-        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
-        close(Pcov)
-        p$ff$Pcov = Pcov  # store pointer
-      }
-
          
       return( p )
     }
@@ -178,10 +173,14 @@
       if (exists("COV", p$variables)) {
         p$ff$Pcov = list()
         for ( i in p$variables$COV ){
-          Pcov_ = as.matrix( B[[i]] ) # B must be a list that is already formatted properly
+          if (is.vector(B$COV) ) {
+            Pcov_ = as.matrix( B$COV ) 
+          } else {
+            Pcov_ = as.matrix( B$COV[,i] ) 
+          }
           fni = paste(p$ptr$Pcov, i, sep="_")
-          p$ff$Pcov[i] = ff::ff( Pcov_, dim=dim(Pcov_), filename=fni, overwrite=TRUE )
-          close(p$ff$Pcov[i])
+          p$ff$Pcov[[i]] = ff::ff( Pcov_, dim=dim(Pcov_), filename=fni, overwrite=TRUE )
+          close(p$ff$Pcov[[i]])
         }
       }
       
@@ -200,24 +199,16 @@
       p$ff$Psd = Psd  # store pointer
 
       # prediction coordinates
-      Ploc_ = as.matrix( B[, p$variables$LOCS ] )
+      Ploc_ = as.matrix( B$LOCS )
       Ploc = ff::ff( Ploc_, dim=dim(Ploc_), filename=p$ptr$Ploc, overwrite=TRUE )
       close(Ploc)
       p$ff$Ploc = Ploc  # store pointer
 
       # prediction times
-      Ptime_ = as.matrix( B[, p$variables$TIME ] )
+      Ptime_ = as.matrix( B$TIME )
       Ptime = ff::ff( Ptime_, dim=dim(Ptime_), filename=p$ptr$Ptime, overwrite=TRUE )
       close(Ptime)
       p$ff$Ptime = Ptime  # store pointer
-
-      # prediction covariates i.e., independent variables/ covariates
-      if (exists("COV", p$variables)) {
-        Pcov_ = as.matrix( B[ , p$variables$COV ] )
-        Pcov = ff::ff( Pcov_, dim=dim(Pcov_), filename=p$ptr$Pcov, overwrite=TRUE )
-        close(Pcov)
-        p$ff$Pcov = Pcov  # store pointer
-      }
 
       return( p )
     }
@@ -257,10 +248,7 @@
 
       Yloc = p$ff$Yloc 
       locs_noise =  runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise )
-      # maxdist = max( diff( range( Yloc[ii,1] )), diff( range( Yloc[ii,2] )) )
-
-      boundary=list( polygon = non_convex_hull( Yloc[ii,]+locs_noise, alpha=20, plot=TRUE ) )
-
+      boundary=list( polygon = non_convex_hull( Yloc[ii,]+locs_noise, alpha=20, plot=FALSE ) )
       Sloc = p$ff$Sloc  # statistical output locations
       boundary$inside.polygon = point.in.polygon( Sloc[,1], Sloc[,2],
           boundary$polygon[,1], boundary$polygon[,2], mode.checked=TRUE )
