@@ -129,7 +129,7 @@ spacetime.interpolate.xyts = function( ip, p ) {
     ndata = length(j) # number of data locations
     if (ndata < p$n.min) next()
 
--->> p$nMin.tbot == p$n.min
+# -->> p$nMin.tbot == p$n.min
 
     #  NOTE:: by default, all areas chosen to predict within the window.. but if covariates are involved,
     #  this can be done only where covariates exists .. so next step is to determine this and predict
