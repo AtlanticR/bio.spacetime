@@ -7,6 +7,24 @@
     # ip is the first parameter passed in the parallel mode
     if (exists( "libs", p)) RLibrary( p$libs )
     if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
+ 
+    # the following parameters are for inside and outside ... do not make them exact multiples as this seems to make things hang ..
+    if ( !exists("inla.mesh.max.edge", stp))  stp$inla.mesh.max.edge = c(  0.025,   0.04 )    # proportion of 2*stp$dist.max or equivalent: c(inside,outside) -- must be positive valued
+    if ( !exists("inla.mesh.offset", stp))  stp$inla.mesh.offset   = c( - 0.025,  - 0.05 )   # how much to extend inside and outside of boundary: proportion of dist.max .. neg val = proportion
+    if ( !exists("inla.mesh.cutoff", stp)) stp$inla.mesh.cutoff   = c( - 0.05,   - 0.5 )    ## min distance allowed between points: proportion of dist.max ; neg val = proportion
+
+    if ( !exists("inla.mesh.hull.radius", stp)) stp$inla.mesh.hull.radius = c( -0.04, - 0.08 ) ## radius of boundary finding algorythm ; neg val = proportion
+
+    if ( !exists("inla.mesh.hull.resolution", stp)) stp$inla.mesh.hull.resolution = 125  ## resolution for discretization to find boundary
+
+    if ( !exists("spacetime.noise", stp)) stp$spacetime.noise = 0.001  # add a little noise to coordinates to prevent a race condition
+
+    if ( !exists("inla.alpha", stp)) stp$inla.alpha = 2 # bessel function curviness
+    if ( !exists("inla.nsamples", stp)) stp$inla.nsamples = 5000 # posterior similations 
+    if ( !exists("predict.in.one.go", stp)) stp$predict.in.one.go = FALSE # use false, one go is very very slow and a resource expensive method
+    if ( !exists("predict.quantiles", stp)) stp$predict.quantiles = c(0.025, 0.975 )  # posterior predictions robustified by trimming extreme values 
+    
+    if ( !exists("debug.file", stp)) stp$debug.file = file.path( bio.workdirectory, "inla.debug.out" )
 
     # priors
     # kappa0 = sqrt(8)/p$expected.range
@@ -16,14 +34,14 @@
     # data for modelling
     # dependent vars # already link-transformed in spacetime.db("dependent")
     Y =  p$ff$Y  # readonly
-    hasdata = 1:length(Y)
+    Yi = 1:length(Y)
     bad = which( !is.finite( Y[]))
-    if (length(bad)> 0 ) hasdata[bad] = NA
+    if (length(bad)> 0 ) Yi[bad] = NA
 
    # data locations
     Yloc =  p$ff$Yloc
     bad = which( !is.finite( rowSums(Yloc[])))
-    if (length(bad)> 0 ) hasdata[bad] = NA
+    if (length(bad)> 0 ) Yi[bad] = NA
 
     # covariates (independent vars)
     if ( exists( "COV", p$variables) ) {
@@ -33,17 +51,17 @@
       } else {
         bad = which( !is.finite( rowSums(Ycov[])) )
       }
-      if (length(bad)> 0 ) hasdata[bad] = NA
+      if (length(bad)> 0 ) Yi[bad] = NA
     }
 
-    hasdata = na.omit( hasdata )
+    Yi = na.omit( Yi )
 
     #---------------------
     # prediction locations and covariates
     Ploc =  p$ff$Ploc # read only
-    phasdata = 1:nrow( Ploc ) # index of locs with no covariate data
+    Pi = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
-    if (length(pbad)> 0 ) phasdata[ pbad ] = NA
+    if (length(pbad)> 0 ) Pi[ pbad ] = NA
     if ( exists( "COV", p$variables) ) {
       Pcov =  p$ff$Pcov  # covariates at prediction locations; read only
       if ( length( p$variables$COV ) == 1 ) {
@@ -51,7 +69,7 @@
       } else {
         pbad = which( !is.finite( rowSums(Pcov[])) )
       }
-      if (length(pbad)> 0 ) phasdata[pbad] = NA
+      if (length(pbad)> 0 ) Pi[pbad] = NA
       close(Pcov)
     }
     rcP = data.frame( cbind( Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1))
@@ -67,37 +85,41 @@
 
     # main loop over each output location in S (stats output locations)
     for ( iip in ip ) {
-      dd = p$runs[ iip, "locs" ]
-      # dd=2000
-      if (debugrun) deid = paste( Sys.info()["nodename"], "index=", dd )
+      Si = p$runs[ iip, "locs" ]
+      # Si=2000
+      if (debugrun) deid = paste( Sys.info()["nodename"], "index=", Si )
       if (debugrun) cat( paste( Sys.time(), deid, "start \n" ), file=p$debug.file, append=TRUE )
-      focal = t(Sloc[dd,])
+      focal = t(Sloc[Si,])
 
       S = p$ff$S  # statistical outputs
-      if ( is.nan( S[dd,1] ) ) next()
-      if ( !is.na( S[dd,1] ) ) next()
-      S[dd,1] = NaN   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
+      if ( is.nan( S[Si,1] ) ) next()
+      if ( !is.na( S[Si,1] ) ) next()
+      S[Si,1] = NaN   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
       # .. it gets over-written below if successful
       # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
       close(S)
 
-      # slow ... need to find a faster solution
-      ppp = NULL
-      ppp = try( point.in.block( focal[1,c(1,2)], Yloc[hasdata,], dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max,
-        upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) )
-      if( is.null(ppp)) next()
-      if (class( ppp ) %in% "try-error" ) next()
-      dist.cur = ppp$dist.to.nmax
-
-      j = hasdata[ppp$indices]
-      ndata = length(j) # number of data locations
-      if (ndata < p$n.min) next()
+      # find data withing a given distance / number 
+      pib = point_in_block( Sloc=Sloc, Si=Si, Yloc=Yloc, Yi=Yi, 
+        dist.max=p$dist.max, dist.min=p$dist.min, 
+        n.min=p$n.min, n.max=p$n.max, 
+        upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) 
+      if ( is.null(pib)) {
+        next()
+      } else {
+        dist.cur = pib$dist
+        U = pib$U
+        rm(pib); gc()
+      }
+      ndata = length(U)
+      if ((ndata < p$n.min) | (ndata > p$n.max) ) next()
+      YiU = Yi[U]
 
       if (debugrun) cat( paste( Sys.time(), deid, "n=", ndata, "dist=", dist.cur, "\n" ), file=p$debug.file, append=TRUE )
       locs_noise = runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise ) # add  noise  to prevent a race condition
 
       # also sending direct distances rather than proportion seems to cause issues..
-      MESH = spacetime.mesh( locs=Yloc[j,]+locs_noise,
+      MESH = spacetime.mesh( locs=Yloc[YiU,]+locs_noise,
         lengthscale=dist.cur*2,
         max.edge=p$inla.mesh.max.edge * dist.cur*2,
         bnd.offset=p$inla.mesh.offset,
@@ -132,19 +154,21 @@
       obs_eff[["spde"]] = c( obs_index, list(intercept=1) )
       if ( exists( "COV", p$variables) ) {
         if ( length(p$variables$COV) == 1 ) {
-          covar = as.data.frame( Ycov[j])
+          covar = as.data.frame( Ycov[YiU])
         } else {
-          covar= as.data.frame( Ycov[j,])
+          covar= as.data.frame( Ycov[YiU,])
         }
         colnames( covar ) = p$variables$COV
         obs_eff[["covar"]] = as.list(covar)
-        obs_A = list( inla.spde.make.A( mesh=MESH, loc=Yloc[j,] ), 1 )
+        obs_A = list( inla.spde.make.A( mesh=MESH, loc=Yloc[YiU,] ), 1 )
       } else {
-        obs_A = list( inla.spde.make.A( mesh=MESH, loc=Yloc[j,] ) ) # no effects
+        obs_A = list( inla.spde.make.A( mesh=MESH, loc=Yloc[YiU,] ) ) # no effects
       }
 
       obs_ydata = list()
-      obs_ydata[[ p$variables$Y ]] =  Y[j]
+      obs_ydata[[ p$variables$Y ]] = Y[YiU]
+      if ( exists("spacetime.link", p) ) obs_ydata[[ p$variables$Y ]] = p$spacetime.link ( Y[YiU] ) 
+      
       DATA = inla.stack( tag="obs", data=obs_ydata, A=obs_A, effects=obs_eff, remove.unused=FALSE )
       rm ( obs_index, obs_eff, obs_ydata, obs_A )
       # remove.unused=FALSE ensures that we can look at the estimated field effect without
@@ -160,7 +184,7 @@
       #        for areas without covariates can be completed
       windowsize.half = floor(dist.cur/p$pres)# covert distance to discretized increments of row/col indices
       pa_offsets = -windowsize.half : windowsize.half
-      pa = expand.grid( Prow = rcS[dd,1] + pa_offsets, Pcol = rcS[dd,2] + pa_offsets ) # row,col coords
+      pa = expand.grid( Prow = rcS[Si,1] + pa_offsets, Pcol = rcS[Si,2] + pa_offsets ) # row,col coords
       bad = which( (pa$Prow < 1 & pa$Prow > p$nplons) | (pa$Pcol < 1 & pa$Pcol > p$nplats) )
       if (length(bad) > 0 ) pa = pa[-bad,]
       if (nrow(pa)< p$n.min) next()
@@ -173,17 +197,17 @@
       pa$plat = Ploc[ pa$i, 2]
 
       if (0) {
-        plot( Yloc[ppp$indices,1]~ Yloc[ppp$indices,2], col="red", pch=".")
-        points( Yloc[j,1] ~ Yloc[j,2], col="green" )
+        plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".")
+        points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )
         points( focal[1,1] ~ focal[1,2], col="blue" )
-        points( p$plons[rcS[dd,1]] ~ p$plats[rcS[dd,2]] , col="purple", pch=25, cex=2 )
+        points( p$plons[rcS[Si,1]] ~ p$plats[rcS[Si,2]] , col="purple", pch=25, cex=2 )
         points( p$plons[pa$Prow] ~ p$plats[ pa$Pcol] , col="cyan", pch=".", cex=0.01 )
         points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="yellow", pch=".", cex=0.7 )
       }
 
       # prediction stack:: check for covariates
       if ( any( grepl ("predictions.direct", p$spacetime.outputs))) {
-        pa$i = phasdata[ pa$i ]  ## flag to ignore
+        pa$i = Pi[ pa$i ]  ## flag to ignore
         kP = na.omit(pa$i)
         if ( length( kP) < p$n.min ) next()
         pa = pa[ which(is.finite( pa$i)),] # reduce to data locations as stack_index points only to locs with covariates
@@ -232,7 +256,7 @@
       }
 
       if (is.null(RES)) {
-        cat( paste(  Sys.time(), Sys.info()["nodename"], "index=", dd,  "inla call error \n" ), file=p$debug.file, append=TRUE )
+        cat( paste(  Sys.time(), Sys.info()["nodename"], "index=", Si,  "inla call error \n" ), file=p$debug.file, append=TRUE )
         next()
       }
 
@@ -264,7 +288,7 @@
         }
 
         if ( task=="predictions.projected") {
-          #\\ note this method only works with simple additive models 
+          #\\ note this method only works with simple aSiitive models 
           #\\ when smoothes are involved, it becomes very complicated and direct estimation is probably faster/easier
           locs_new=pa[,c("plon", "plat")]
           pG = inla.mesh.projector( MESH, loc=as.matrix( locs_new) )
@@ -350,10 +374,10 @@
         # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
 
         S = p$ff$S  # statistical outputs
-        S[dd,1] = inla.summary["spatial error", "mode"]
-        S[dd,2] = inla.summary["observation error", "mode"]
-        S[dd,3] = inla.summary["range", "mode"]
-        S[dd,4] = inla.summary["range", "sd"]
+        S[Si,1] = inla.summary["spatial error", "mode"]
+        S[Si,2] = inla.summary["observation error", "mode"]
+        S[Si,3] = inla.summary["range", "mode"]
+        S[Si,4] = inla.summary["range", "sd"]
         if ( debugrun)  {
           print( inla.summary )
           cat( paste( Sys.time(), deid, "statistics saved  \n" ), file=p$debug.file, append=TRUE )

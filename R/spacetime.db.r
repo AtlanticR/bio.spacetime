@@ -47,7 +47,6 @@
 
       # dependent variable
       Y_ = B[, p$variables$Y ] 
-      if ( exists("spacetime.link", p) ) Y_ = p$spacetime.link ( Y_ ) 
       Y = ff( Y_, filename=p$ptr$Y, overwrite=TRUE )
       close(Y) # ensure write/sync
       p$ff$Y = Y  # store pointer
