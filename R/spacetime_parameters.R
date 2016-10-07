@@ -1,6 +1,6 @@
 
 
-spatial.parameters = function( p=NULL, type=NULL ) {
+spacetime_parameters = function( p=NULL, type=NULL ) {
 
   if (is.null(p)) p=list()
 

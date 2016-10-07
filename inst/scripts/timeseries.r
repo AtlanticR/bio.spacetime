@@ -10,23 +10,23 @@
   bioLibrary( "bio.spacetime" )
 
   #sunspot data
-  o = timeseries.simulated.data( DS="sunspots.seasonal" )
-  o = timeseries.simulated.data( DS="sunspots" )  # just annual
+  o = timeseries_simulator( DS="sunspots.seasonal" )
+  o = timeseries_simulator( DS="sunspots" )  # just annual
 
-  o = timeseries.simulated.data( )  # random
+  o = timeseries_simulator( )  # random
   o$y = o$y0
 
 
 # compare methods with sunspots data
-  o = timeseries.simulated.data( DS="sunspots" )  # just annual
+  o = timeseries_simulator( DS="sunspots" )  # just annual
   sunspots = o$y
   time.diff = mean(diff(o$timestamp)) # unit of time
   plot(sunspots,type="b")
 
   x = sunspot.year
   x = sunspots
-  o = timeseries.autocorrelation( x=x, freq=frequency(x) ) # default = spec.pgram
-  o = timeseries.autocorrelation( x=x, method="fft", freq=frequency(x) )
+  o = timeseries_autocorrelation( x=x, freq=frequency(x) ) # default = spec.pgram
+  o = timeseries_autocorrelation( x=x, method="fft", freq=frequency(x) )
 
 
 

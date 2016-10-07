@@ -1,5 +1,5 @@
 
-spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("geoR"), maxdist=NA, nbreaks = 15, functionalform="matern" ) {
+spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("geoR"), maxdist=NA, nbreaks = 15, functionalform="matern" ) {
 
   #\\ estimate empirical variograms (actually correlation functions) and then model them using a number of different approaches .. mostly using Matern as basis
   #\\ returns empirical variogram and parameter estimates, and the models themselves
@@ -27,11 +27,11 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     edge=c(1/3, 1)
     nbreaks = 15
         # tests
-    gr = spacetime.variogram( xy, z, methods="geoR" )
-    gs = spacetime.variogram( xy, z, methods="gstat" )
-    grf = spacetime.variogram( xy, z, methods="RandomFields" )
-    gsp = spacetime.variogram( xy, z, methods="spBayes" )
-    ginla = spacetime.variogram( xy, z, methods="inla" )
+    gr = spacetime_variogram( xy, z, methods="geoR" )
+    gs = spacetime_variogram( xy, z, methods="gstat" )
+    grf = spacetime_variogram( xy, z, methods="RandomFields" )
+    gsp = spacetime_variogram( xy, z, methods="spBayes" )
+    ginla = spacetime_variogram( xy, z, methods="inla" )
 
     # tests:
     out = gsp
@@ -45,23 +45,23 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     hist( out$spBayes$recover$p.theta.samples[,3] ) # 1/phi
     hist( out$spBayes$recover$p.theta.samples[,4] ) # nu
 
-    out = spacetime.variogram( xy, z )
+    out = spacetime_variogram( xy, z )
     (out$geoR$range)
-    out = spacetime.variogram( xy, z, nbreaks=30 )
+    out = spacetime_variogram( xy, z, nbreaks=30 )
     (out$geoR$range)
 
-    out = spacetime.variogram( xy, log(z), nbreaks=30 )
+    out = spacetime_variogram( xy, log(z), nbreaks=30 )
     (out$geoR$range)
-    out = spacetime.variogram( xy, log(z) )
+    out = spacetime_variogram( xy, log(z) )
     (out$geoR$range)
     require(mgcv)
     og = gam( log(z) ~ s( x) + s(y) + s(x,y), data=xy )
     zr = residuals(og)
-    out = spacetime.variogram( xy, zr )  # remove spatial trend results in no variogram, as would be expected
+    out = spacetime_variogram( xy, zr )  # remove spatial trend results in no variogram, as would be expected
     (out$geoR$range)
     og = gam( log(z) ~ s( elev ) , data=meuse )
     zr = residuals(og)
-    out = spacetime.variogram( xy, zr )  # remove spatial trend results in no variogram, as would be expected
+    out = spacetime_variogram( xy, zr )  # remove spatial trend results in no variogram, as would be expected
     (out$geoR$range)
 
     require(geoR)
@@ -302,7 +302,7 @@ spacetime.variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     require(spBayes)
     library(MBA)
     require( geoR )
-    geoR = spacetime.variogram( xy, z, methods="geoR" )
+    geoR = spacetime_variogram( xy, z, methods="geoR" )
     rbounds = c( median( diff(  geoR$geoR$vgm$u) )/2, geoR$geoR$range *1.5 )
     phibounds = range( -log(0.05) / rbounds ) ## approximate
     nubounds = c(1e-3, geoR$geoR$nu * 1.5 )# Finley et al 2007 suggest limiting this to (0,2)

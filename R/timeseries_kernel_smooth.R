@@ -1,5 +1,5 @@
   
-  timeseries.smooth = function( OP, vn, smoothing.kernel=kernel( "modified.daniell", c(2,1)), truncation.quants=c(0.005, 0.995) ) {
+  timeseries_kernel_smooth = function( OP, vn, smoothing.kernel=kernel( "modified.daniell", c(2,1)), truncation.quants=c(0.005, 0.995) ) {
     
     # constrain data to be smoother and within empirical range (e.g., 99.9% quantiles)
     if ( any( is.finite( OP[,vn] ) ) ) {

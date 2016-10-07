@@ -1,5 +1,5 @@
 
-  spacetime.inla.call = function( FM, DATA, SPDE, FAMILY ) {
+  spacetime_inla_call = function( FM, DATA, SPDE, FAMILY ) {
     #\\ call inla using spacetime expected data objects: 
     #\\   FM is the model formula
     #\\   DATA is the "stacked" data

@@ -1,5 +1,5 @@
 
-spacetime.mesh = function(locs, lengthscale=NULL, max.edge=NULL, bnd.offset=NULL, cutoff=NULL, convex=NULL, resolution=NULL, plotmesh=FALSE ) {
+spacetime_mesh = function(locs, lengthscale=NULL, max.edge=NULL, bnd.offset=NULL, cutoff=NULL, convex=NULL, resolution=NULL, plotmesh=FALSE ) {
   #\\ create a mesh object for inla-based analysis
   #\\    note: "-" parameter values means to take as a proportion in inla
 

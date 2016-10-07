@@ -1,5 +1,5 @@
 
-  spacetime.interpolate.inla.local = function( ip=NULL, p, debugrun=FALSE ) {
+  spacetime_interpolate_xy_local_inla = function( ip=NULL, p, debugrun=FALSE ) {
     #\\ generic spatial and space-time interpolator using inla
     #\\ parameter and data requirements can be seen in bathymetry\src\bathymetry.r
     #\\ note this can run in parallel and serial mode
@@ -32,7 +32,7 @@
 
     #---------------------
     # data for modelling
-    # dependent vars # already link-transformed in spacetime.db("dependent")
+    # dependent vars # already link-transformed in spacetime_db("dependent")
     Y =  p$ff$Y  # readonly
     Yi = 1:length(Y)
     bad = which( !is.finite( Y[]))
@@ -92,9 +92,9 @@
       focal = t(Sloc[Si,])
 
       S = p$ff$S  # statistical outputs
-      if ( is.nan( S[Si,1] ) ) next()
-      if ( !is.na( S[Si,1] ) ) next()
-      S[Si,1] = NaN   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
+      if ( is.na( S[Si,1] ) ) next()
+      if ( !is.nan( S[Si,1] ) ) next()
+      S[Si,1] = NA   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
       # .. it gets over-written below if successful
       # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
       close(S)
@@ -119,7 +119,7 @@
       locs_noise = runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise ) # add  noise  to prevent a race condition
 
       # also sending direct distances rather than proportion seems to cause issues..
-      MESH = spacetime.mesh( locs=Yloc[YiU,]+locs_noise,
+      MESH = spacetime_mesh( locs=Yloc[YiU,]+locs_noise,
         lengthscale=dist.cur*2,
         max.edge=p$inla.mesh.max.edge * dist.cur*2,
         bnd.offset=p$inla.mesh.offset,
@@ -135,7 +135,7 @@
           next()
         } else {
           cat( paste( Sys.time(), deid,  "mesh finished \n" ), file=p$debug.file, append=TRUE )
-          plot( MESH )  # or ... spacetime.plot( p=p, "mesh", MESH=MESH )
+          plot( MESH )  # or ... spacetime_plot( p=p, "mesh", MESH=MESH )
         }
       }
 
@@ -184,7 +184,8 @@
       #        for areas without covariates can be completed
       windowsize.half = floor(dist.cur/p$pres)# covert distance to discretized increments of row/col indices
       pa_offsets = -windowsize.half : windowsize.half
-      pa = expand.grid( Prow = rcS[Si,1] + pa_offsets, Pcol = rcS[Si,2] + pa_offsets ) # row,col coords
+      pa = expand.grid( Prow = rcS[Si,1] + pa_offsets, Pcol = rcS[Si,2] + pa_offsets, KEEP.OUT.ATTRS=FALSE ) # row,col coords
+      # attr(pa, "out.attrs") = NULL
       bad = which( (pa$Prow < 1 & pa$Prow > p$nplons) | (pa$Pcol < 1 & pa$Pcol > p$nplats) )
       if (length(bad) > 0 ) pa = pa[-bad,]
       if (nrow(pa)< p$n.min) next()
@@ -241,17 +242,17 @@
       close(Ploc)
 
       RES = NULL
-      RES = spacetime.inla.call( FM=p$modelformula, DATA=DATA, SPDE=SPDE, FAMILY=p$spacetime.family )
+      RES = spacetime_inla_call( FM=p$modelformula, DATA=DATA, SPDE=SPDE, FAMILY=p$spacetime.family )
       if ( debugrun && !is.null( RES) ) {
         cat( paste(  Sys.time(), deid, "computations finished \n" ), file=p$debug.file, append=TRUE )
         print(RES)
         print( summary(RES))
         # low level debugging .. and looking at posterior marginals
         idat =  inla.stack.index( DATA, 'data')$data # indices of data locations
-        spacetime.plot( p=p, "range", RES=RES, MESH=MESH, SPDE=SPDE, vname=p$spatial.field.name, idat=idat )
-        spacetime.plot( p=p, "nugget", RES=RES, MESH=MESH, SPDE=SPDE, vname=p$spatial.field.name, idat=idat )
-        spacetime.plot( p=p, "partial.sill", RES=RES, MESH=MESH, SPDE=SPDE, vname=p$spatial.field.name, idat=idat )
-        spacetime.plot( p=p, "fixed.intercept", RES=RES, MESH=MESH, SPDE=SPDE, vname=p$spatial.field.name, idat=idat )
+        spacetime_plot( p=p, "range", RES=RES, MESH=MESH, SPDE=SPDE, vname=p$spatial.field.name, idat=idat )
+        spacetime_plot( p=p, "nugget", RES=RES, MESH=MESH, SPDE=SPDE, vname=p$spatial.field.name, idat=idat )
+        spacetime_plot( p=p, "partial.sill", RES=RES, MESH=MESH, SPDE=SPDE, vname=p$spatial.field.name, idat=idat )
+        spacetime_plot( p=p, "fixed.intercept", RES=RES, MESH=MESH, SPDE=SPDE, vname=p$spatial.field.name, idat=idat )
         rm (idat); gc()
       }
 
@@ -370,7 +371,7 @@
       if ( any( grepl ("statistics", p$spacetime.outputs))) {
         print( "Saving summary statisitics" )
         # extract summary statistics from a spatial (SPDE) analysis and update the output file
-        inla.summary = spacetime.summary.inla.spde2 ( RES, SPDE )
+        inla.summary = spacetime_summary_inla_spde2 ( RES, SPDE )
         # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
 
         S = p$ff$S  # statistical outputs

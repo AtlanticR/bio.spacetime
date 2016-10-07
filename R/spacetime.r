@@ -1,33 +1,23 @@
 
 
-spacetime = function( p, DATA, overwrite=NULL, DS=NULL, method=NULL ) {
+spacetime = function( p, DATA, overwrite=NULL, method=NULL ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
 
-  p = spacetime.db( p=p, DS="filenames" )
+  p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "ff", "ffbase", "fields" ) )
+
+  if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
   
-	if (!is.null(DS)) {
-   	#\\ data extraction layer for user objects created by spacetime
-    if ( DS=="spatial.covariance") {
-      stats = NULL
-      if (file.exists( p$fn.results.covar) ) load( p$fn.results.covar )
-      return(stats)
-    }
-    if ( DS =="inla.predictions" ) {
-      preds = NULL
-      if (file.exists( p$fn.P ) ) load( p$fn.P )
-      return( preds )
-    }
-    if ( DS =="inla.statistics" ) {
-      stats = NULL
-      if (file.exists( p$fn.S) ) load( p$fn.S )
-      return( stats )
-    }
-	}
+  p$tmp.datadir = file.path( p$project.root, "tmp" )
+  message( paste( "Temporary files are being created at:", p$tmp.datadir ) )
+  if( !file.exists(p$tmp.datadir)) dir.create( p$tmp.datadir, recursive=TRUE, showWarnings=FALSE )
+
+  p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
+  message( paste( "Final outputs will be palced at:", p$savedir ) )
+  if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
+    
+  p = spacetime_db( p=p, DS="filenames" )
   
   # set up the data and problem using data objects
-  print( paste( "Temporary files are being created at:", p$tmp.datadir ) )
-  dir.create( p$rootdir, showWarnings=FALSE, recursive =TRUE)
-  
   if (is.null(overwrite)) {
     tmpfiles = unlist( p$ptr)
 	  for (tf in tmpfiles) {
@@ -41,249 +31,221 @@ spacetime = function( p, DATA, overwrite=NULL, DS=NULL, method=NULL ) {
   	}
 	}
 
-  # init input data
-  if (is.null(overwrite) || overwrite) {
-    p = spacetime.db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to ff data
-  }
-
-  if (0) {
-    # DEBUG:: for checking status of outputs **during** parallel runs: they access temporary files
-    S = p$ff$S  # statistical outputs
-    hist(S[,1] )
-    o = which( S[,1] > 600 ); S[o,] = NA
-    S[sS$problematic,] = NA
-    o = which( S[,1] < 10 );  S[o,] = NA
-    close(S)
-  }
+  # permit passing a function rather than data directly .. less RAM usage
+  if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
 
 
-  if (method=="space.time.seasonal" ) { 
-    # 2D space and time,  no covariates, eg, temperature
-    p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa" ) 
+  # -------------------------------------
+
+  if (method=="xy" ) { 
+
+    if ( p$spacetime_engine=="inla" ) {
+      # kept for historical reasons ..
+      p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
+      nstatvars = length( p$statsvars )
+      if (!exists("modelformula", p) ) {
+        p$modelformula = " -1 + intercept + f( spatial.field, model=SPDE ) " # SPDE is the spatial object to be created by inla 
+        p$modelformula = as.formula( paste( p$variables$Y, "~", p$modelformula ) )
+      }
+      if (is.null(overwrite) || overwrite) {
+        p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects: requires p$statvars
+        p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to ff data
+        p = spacetime_db( p=p, DS="predictions.initialize.xy", B=DATA$output )
+        rm(DATA);gc()
+        spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to ff objectss
+        message( "Finshed. Moving onto analysis... ")
+      } else {
+        p = spacetime_db( p=NULL, DS="load.parameters" )
+      }
+      message( "Warning this will take a very *long* time! (weeks) /n")
+      o = spacetime_db( p, DS="statistics.status" )
+      p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
+      parallel.run( spacetime_interpolate_xy_local_inla, p=p ) # no more GMT dependency! :)
+      # save to file
+      preds = as.data.frame( cbind ( p$ff$Ploc[], p$ff$P[] ) )
+      names(preds) = c( "plon", "plat", "ndata", "mean", "sdev" )
+      save( preds, file=p$fn.P, compress=TRUE )
+      rm(preds)
+      close(p$ff$Ploc)
+      close(p$ff$P)
+      # this also rescales results to the full domain
+      datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
+      revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
+      ss = as.data.frame( cbind( p$ff$Sloc[], p$ff$S[] ) )
+      names(ss) = c( p$variables$LOCS, p$statsvars )
+      close(p$ff$S)
+      close(p$ff$Sloc)
+      locsout = expand.grid( p$plons, p$plats ) # final output grid
+      attr( locsout , "out.attrs") = NULL
+      names( locsout ) = p$variables$LOCS
+      stats = matrix( NA, ncol=nstatvars, nrow=nrow( locsout) )  # output data
+      colnames(stats)=p$statsvars
+      for ( i in 1:nstatvars ) {
+        data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
+        res = spacetime_interpolate_xy_singlepass( interp.method="kernel.density", 
+          data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
+          theta=p$dist.mwin, xwidth=p$dist.mwin*10, ywidth=p$dist.mwin*10)
+        if (!is.null(res)) stats[i,] = revlink[[i]] (res)
+      }
+      save( stats,  file=p$fn.S, compress=TRUE )
+
+      if (0) {
+        p$spatial.domain="canada.east"  # force isobaths to work in levelplot
+        datarange = log( c( 5, 1200 ))
+        dr = seq( datarange[1], datarange[2], length.out=150)
+        oc = landmask( db="worldHires", regions=c("Canada", "US"), return.value="not.land", tag="predictions" )  
+        ## resolution of "predictions" which is the final grid size
+        toplot = cbind( locsout, z=(stats[,"range"]) )[oc,]
+        resol = c(p$dist.mwin,p$dist.mwin)
+        levelplot( log(z) ~ plon + plat, toplot, aspect="iso", at=dr, col.regions=color.code( "seis", dr) ,
+          contour=FALSE, labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE), cex=2, resol=resol,
+          panel = function(x, y, subscripts, ...) {
+            panel.levelplot (x, y, subscripts, aspect="iso", rez=resol, ...)
+            cl = landmask( return.value="coast.lonlat",  ylim=c(36,53), xlim=c(-72,-45) )
+            cl = lonlat2planar( data.frame( cbind(lon=cl$x, lat=cl$y)), proj.type=p$internal.crs )
+            panel.xyplot( cl$plon, cl$plat, col = "black", type="l", lwd=0.8 )
+          }
+        )
+        p$spatial.domain="canada.east.highres"
+      }
+      # clean up tmp files
+      spacetime_db( p=p, DS="cleanup" )
+      return(p)
+    }
+
+    # ------------
     
+    if ( p$spacetime_engine=="gam" ) {
+      p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa") 
+      if (exists("modelformula", p) ) {
+        #message( "The formula is equivalent to Y ~ 1 + spatial.covariance" ) 
+      }
+      if (is.null(overwrite) || overwrite) {
+        p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to ff data
+        p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects: requires p$statvars
+        spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to ff  
+      } else {
+        p = spacetime_db( p=NULL, DS="load.parameters" )
+      }
+      # define boundary polygon for data .. zz a little ..
+      if (p$spacetime.stats.boundary.redo) spacetime_db( p, DS="boundary.redo" ) # ~ 5 min
+      o = spacetime_db( p, DS="statistics.status" )
+      p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
+      parallel.run( spacetime_interpolate_xy, p=p ) # no more GMT dependency! :)
+
+      #  save predictions to disk
+
+      # statistical outputs
+      stats = as.data.frame( cbind( p$ff$Sloc, p$ff$S ) )
+      save(stats, file=p$stats, compress=TRUE )
+      close( p$ff$S )
+
+      print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
+      spacetime_db( p=p, DS="cleanup" )
+      return( p )
+    }
+  }
+
+
+
+  # -------------------------------------
+
+  if (method=="xyt" ) { 
+ 
+  }
+
+
+  # -------------------------------------
+
+  if (method=="xyts" ) { 
+    # 2D space and time, eg, temperature
+    # spacetime_engine specific methods are inside of sapcetime_interpolate_xyts 
+    #.. this is req here to identifiy the size of the statistics output dim
+    if ( p$spacetime_engine %in% 
+      c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
+         "seasonal.basic", "seasonal.smoothed", "annual"  ) ) {
+      p$statsvars =  c("varZ" )  ## to add to this we need to add to the function creating stats in  spacetime_timeseries
+    }
+
     if (is.null(overwrite) || overwrite) {
       message( "Initializing temporary storage of data and outputs ... ")
-      p = spacetime.db( p=p, DS="predictions.initialize.xyts", B=DATA$output )
-      p = spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
+      message( "These are large files so be patient. ")
+      p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
+      p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to ff data
+      p = spacetime_db( p=p, DS="predictions.initialize.xyts", B=DATA$output )
+      rm(DATA); gc()
+      spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to ff objectss
       message( "Finshed. Moving onto analysis... ")
+    } else {
+      p = spacetime_db( p=NULL, DS="load.parameters" )
     }
-    # define boundary polygon for data .. zz a little ..
-    if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
-    o = spacetime.db( p, DS="statistics.status" )
-    p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
-    parallel.run( spacetime.interpolate.xyts, p=p ) # no more GMT dependency! :)
-    # spacetime.interpolate.xyt( p=p )  # if testing serial process
-    # save to file
-    print( paste( "Results are being saved to:", p$fn.results.covar ) )
-    
+    if (p$spacetime.stats.boundary.redo) {
+      message( "Defining boundary polygon for data .. this reduces the number of points to analyse") 
+      message( "but takes a few (~5) minutes to complete ...")
+      spacetime_db( p, DS="boundary.redo" ) # ~ 5 min
+    }
+    if (!exists("modelformula", p) ) {
+      # these are simple, generic defaults .. 
+      # for more complex models (.i.e, with covariates) the formula should be passed directly 
+      p$modelformula = switch( p$spacetime_engine ,
+        seasonal.basic = ' s(yr) + s(dyear, bs="cc") ', 
+        seasonal.smoothed = ' s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ', 
+        harmonics.1 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ', 
+        harmonics.2 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' , 
+        harmonics.3 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) ',
+        harmonics.1.depth = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) +s(z)  ', 
+        annual = ' s(yr) '
+      )
+      p$modelformula = as.formula( paste( p$variables$Y, "~", p$modelformula ) )
+      message( "Verify that the modelformula is/should be:" )
+      message( p$modelformula )
+    }
+ 
+    # 1. localized space-time interpolation
+    o = spacetime_db( p, DS="statistics.status" )
+    p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
+    parallel.run( spacetime_interpolation_xyts, p=p ) 
+
+    # 2. fast/simple spatial interpolation for anything not yet resolved
+    # .. but first, pre-compute a few things 
+    Ploc = p$ff$Ploc
+    p$Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
+    close(Ploc)
+    p$wght = setup.image.smooth(nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres,
+      theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
+    p = make.list( list( tiyr_index=1:(p$nw*p$yr)), Y=p ) # random order helps use all cpus
+    parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
+
+    # 3. save to disk
+    ffP   = p$ff$P  # predictions
+    ffPsd = p$ff$Psd  # predictions
+    for ( r in 1:length(p$tyears) ) {
+      y = p$tyears[r]
+      fn1 = file.path( p$savedir, paste("spacetime.interpolation",  y, "rdata", sep="." ) )
+      fn2 = file.path( p$savedir, paste("spacetime.interpolation.sd",  y, "rdata", sep="." ) )
+      col.ranges = (r-1) * p$nw + (1:p$nw) 
+      P = ffP  [,col.ranges]
+      V = ffPsd[,col.ranges]
+      save( P, file=fn1, compress=T )
+      save( V, file=fn2, compress=T )
+      print ( paste("Year:", y)  )
+    }
+    close(ffP)
+    close(ffPsd)
+
     # statistical outputs
-    stats = as.data.frame( p$ff$S )
-    save(stats, file=p$fn.results.covar, compress=TRUE )
+    stats = as.data.frame( cbind( p$ff$Sloc, p$ff$S ) )
+    ## warp this onto prediction grid
+    save(stats, file=p$fn.stats, compress=TRUE )
     close(p$ff$S)
-    
+
+    ## Here we parse predictions and save in a more useful format
+
     print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
-    spacetime.db( p=p, DS="cleanup" )
+    spacetime_db( p=p, DS="cleanup" )
     return( p )
   }
-
-
-	# no time .. pure space, no covariates and no prediction
-	if (method=="spatial.covariance" ) { 
-    # not used here but passed onto "statistics.initialize" to determine size of output stats matrix
-    p$statsvars =  c("varZ", "varSpatial", "varObs", "range", "phi", "kappa") 
-		
-    if (is.null(overwrite) || overwrite) {
-      p = spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
-		}
-	  # define boundary polygon for data .. zz a little ..
-	  if (p$spacetime.stats.boundary.redo) spacetime.db( p, DS="boundary.redo" ) # ~ 5 min
-    o = spacetime.db( p, DS="statistics.status" )
-    p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
-    parallel.run( spacetime.covariance.spatial, p=p ) # no more GMT dependency! :)
-    # spacetime.covariance.spatial( p=p )  # if testing serial process
-    # save to file
-    print( paste( "Results are being saved to:", p$fn.results.covar ) )
     
-    # statistical outputs
-    stats = as.data.frame( p$ff$S[] )
-    save(stats, file=p$fn.results.covar, compress=TRUE )
-    close( p$ff$S )
-
-    print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
-    spacetime.db( p=p, DS="cleanup" )
-    return( p )
-  }
-
-
-  # ------------------------
-
-  
-  if (  method =="inla.interpolations" ) {
-    
-    p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
-    nstatvars = length( p$statsvars )
-
-  	# no time .. pure spatial effects and covariates .. 
-  	if (is.null(overwrite) || overwrite) {
-      p = spacetime.db( p=p, DS="statistics.initialize" ) # init output data objects
-      p = spacetime.db( p=p, DS="predictions.initialize.xy", B=DATA$output )
-  	}
-    cat( "Warning this will take a very *long* time! (weeks) /n")
-    o = spacetime.db( p, DS="statistics.status" )
-    p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
-    parallel.run( spacetime.interpolate.inla.local, p=p ) # no more GMT dependency! :)
-    # spacetime.interpolate.inla.local( p=p, debugrun=TRUE )  # if testing serial process
-    
-    # save to file
-    # predictions
-    preds = as.data.frame( cbind ( p$ff$Ploc[], p$ff$P[] ) )
-    names(preds) = c( "plon", "plat", "ndata", "mean", "sdev" )
-    save( preds, file=p$fn.P, compress=TRUE )
-    
-    rm(preds)
-    close(p$ff$Ploc)
-    close(p$ff$P)
-    # this also rescales results to the full domain
-    #\\ statistics are stored at a different resolution than the final grid
-    #\\   this fast interpolates the solutions to the final grid
-    
-    # statistical outputs
-    datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
-    revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
-
-    ss = as.data.frame( cbind( p$ff$Sloc[], p$ff$S[] ) )
-    names(ss) = c( p$variables$LOCS, p$statsvars )
-    
-    close(p$ff$S)
-    close(p$ff$Sloc)
-
-    locsout = expand.grid( p$plons, p$plats ) # final output grid
-    attr( locsout , "out.attrs") = NULL
-    names( locsout ) = p$variables$LOCS
-    stats = matrix( NA, ncol=nstatvars, nrow=nrow( locsout) )  # output data
-    colnames(stats)=p$statsvars
-    for ( i in 1:nstatvars ) {
-      data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
-      res = spacetime.interpolate.xy( interp.method="kernel.density", 
-        data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
-        theta=p$dist.mwin, xwidth=p$dist.mwin*10, ywidth=p$dist.mwin*10)
-      if (!is.null(res)) stats[i,] = revlink[[i]] (res)
-    }
-    save( stats,  file=p$fn.S, compress=TRUE )
-
-    plotdata=FALSE ## to debug
-    if (plotdata) {
-      p$spatial.domain="canada.east"  # force isobaths to work in levelplot
-      datarange = log( c( 5, 1200 ))
-      dr = seq( datarange[1], datarange[2], length.out=150)
-      oc = landmask( db="worldHires", regions=c("Canada", "US"),
-                     return.value="not.land", tag="predictions" )  ## resolution of "predictions" which is the final grid size
-      toplot = cbind( locsout, z=(stats[,"range"]) )[oc,]
-      resol = c(p$dist.mwin,p$dist.mwin)
-      levelplot( log(z) ~ plon + plat, toplot, aspect="iso", at=dr, col.regions=color.code( "seis", dr) ,
-        contour=FALSE, labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE), cex=2, resol=resol,
-        panel = function(x, y, subscripts, ...) {
-          panel.levelplot (x, y, subscripts, aspect="iso", rez=resol, ...)
-          cl = landmask( return.value="coast.lonlat",  ylim=c(36,53), xlim=c(-72,-45) )
-          cl = lonlat2planar( data.frame( cbind(lon=cl$x, lat=cl$y)), proj.type=p$internal.crs )
-          panel.xyplot( cl$plon, cl$plat, col = "black", type="l", lwd=0.8 )
-        }
-      )
-      p$spatial.domain="canada.east.highres"
-    }
-
-    # clean up tmp files
-    spacetime.db( p=p, DS="cleanup" )
-    return(p)
-  }
-
-  # -------------------f
-
-  if (  method =="xyts" ) {
-     
-    p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
-    nstatvars = length( p$statsvars )
-
-    # space, time and covars 
-  	if (is.null(overwrite) || overwrite) {
-        p = spacetime.db( DS="inputs.prediction", B=DATA$OUT) # covas on prediction locations
-        p = spacetime.db( DS="statistics.initialize", 
-          B=matrix( NA, nrow=p$sbbox$nrow, ncol=p$sbbox$ncol ) )
-  	}
-
-  	fmla = as.formula(p$gam.harmonic.formula)  # covariates  
-
-  	# full.model = gam( ). ... -- no random effects
-
-  	# residuals
-    o = spacetime.db( p, DS="statistics.status" )
-    p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
-    parallel.run( spacetime.interpolate.xyts, p=p ) # no more GMT dependency! :)
-    # spacetime.interpolate.xyts( p=p, debugrun=TRUE )  # if testing serial process
-
-    # save to file
-    preds = as.data.frame( cbind ( p$ff$Ploc[], p$ff$P[] ) )
-    names(preds) = c( "plon", "plat", "ndata", "mean", "sdev" )
-    save( preds, file=p$fn.P, compress=TRUE )
-    rm(preds)
-    close(p$ff$P)
-    close(p$ff$Ploc)
-    
-    # this also rescales results to the full domain
-    #\\ statistics are stored at a different resolution than the final grid
-    #\\   this fast interpolates the solutions to the final grid
-    datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
-    revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
-    
-    ss = as.data.frame( cbind( p$ff$Sloc[], p$ff$S[] ) )
-    names(ss) = c(p$variables$LOCS, p$statvars)
-    close(p$ff$S)
-    close(p$ff$Sloc)
-
-    ss$spatial.sd = sqrt( ss$spatial.var )
-    ss$observation.sd = sqrt( ss$observation.var )
-    ss$spatial.var = NULL
-    ss$observation.var = NULL
-    locsout = expand.grid( p$plons, p$plats ) # final output grid
-    attr( locsout , "out.attrs") = NULL
-    names( locsout ) = p$variables$LOCS
-    stats = matrix( NA, ncol=nstatvars, nrow=nrow( locsout) )  # output data
-    colnames(stats)= p$statsvars
-    for ( i in 1:nstatvars ) {
-      data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
-      res = spacetime.interpolate.xy( interp.method="kernel.density", 
-        data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
-        theta=p$dist.mwin, xwidth=p$dist.mwin*10, ywidth=p$dist.mwin*10)
-      if (!is.null(res)) stats[i,] = revlink[[i]] (res)
-    }
-    save( stats,  file=p$fn.S, compress=TRUE )
-
-    plotdata=FALSE ## to debug
-    if (plotdata) {
-      p$spatial.domain="canada.east"  # force isobaths to work in levelplot
-      datarange = log( c( 5, 1200 ))
-      dr = seq( datarange[1], datarange[2], length.out=150)
-      oc = landmask( db="worldHires", regions=c("Canada", "US"),
-                     return.value="not.land", tag="predictions" )  ## resolution of "predictions" which is the final grid size
-      toplot = cbind( locsout, z=(stats[,"range"]) )[oc,]
-      resol = c(p$dist.mwin,p$dist.mwin)
-      levelplot( log(z) ~ plon + plat, toplot, aspect="iso", at=dr, col.regions=color.code( "seis", dr) ,
-        contour=FALSE, labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE), cex=2, resol=resol,
-        panel = function(x, y, subscripts, ...) {
-          panel.levelplot (x, y, subscripts, aspect="iso", rez=resol, ...)
-          cl = landmask( return.value="coast.lonlat",  ylim=c(36,53), xlim=c(-72,-45) )
-          cl = lonlat2planar( data.frame( cbind(lon=cl$x, lat=cl$y)), proj.type=p$internal.crs )
-          panel.xyplot( cl$plon, cl$plat, col = "black", type="l", lwd=0.8 )
-        }
-      )
-      p$spatial.domain="canada.east.highres"
-    }
-
-    # clean up tempfiles
-    spacetime.db( p=p, DS="cleanup" )
-    return(p)
-  }
-
 }
 
 

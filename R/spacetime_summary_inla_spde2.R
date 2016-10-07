@@ -1,7 +1,7 @@
  
-  spacetime.summary.inla.spde2 = function( RES, SPDE, spatial.field.name="spatial.field" ) {
+  spacetime_summary_inla_spde2 = function( RES, SPDE, spatial.field.name="spatial.field" ) {
     #\\ extract summary stats from SPDE results of the random field 
-    #\\ spatial parameters are  on user scale, low/high is 95% HPD
+    #\\ spacetime_parameters are  on user scale, low/high is 95% HPD
 
     oo = inla.spde2.result(RES, spatial.field.name, SPDE, do.transf=TRUE)
    

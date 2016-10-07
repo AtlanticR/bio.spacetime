@@ -1,6 +1,6 @@
 
 
-spacetime.interpolate.xyt = function( ip, p ) {
+spacetime_interpolate_xyt = function( p ) {
   #\\ harmonic in time method .. annual 
 
 

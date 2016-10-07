@@ -64,11 +64,11 @@ if (using.random) {
   xy = ss[,c("x","y")]
   z =  ss[,"z"]
 
-  vgs = bio.spacetime::spacetime.variogram( xy, z, methods="gstat" )
-  vgr = bio.spacetime::spacetime.variogram( xy, z, methods="geoR" )
-  vsp = bio.spacetime::spacetime.variogram( xy, z, methods="spBayes" )
-  vrf = bio.spacetime::spacetime.variogram( xy, z, methods="RandomFields" )
-  vin = bio.spacetime::spacetime.variogram( xy, z, methods="inla" )
+  vgs = bio.spacetime::spacetime_variogram( xy, z, methods="gstat" )
+  vgr = bio.spacetime::spacetime_variogram( xy, z, methods="geoR" )
+  vsp = bio.spacetime::spacetime_variogram( xy, z, methods="spBayes" )
+  vrf = bio.spacetime::spacetime_variogram( xy, z, methods="RandomFields" )
+  vin = bio.spacetime::spacetime_variogram( xy, z, methods="inla" )
 
 }
 

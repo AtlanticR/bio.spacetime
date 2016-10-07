@@ -1,5 +1,5 @@
 
-spatial.parameters.to.raster = function( params, edge.reference=TRUE ) {
+spacetime_parameters_to_raster = function( params, edge.reference=TRUE ) {
   #\\ Take a spatial parameter list wirh corners and resolution and CRS
   #\\ and convert to a raster template
   #\\ bio uses left edge as coordinates, raster uses center
@@ -73,13 +73,13 @@ spatial.parameters.to.raster = function( params, edge.reference=TRUE ) {
       v = unique( params$plats-vv )
 
       if( u!=0) {
-        print(" This has been tested with known projections in bio, this is a new one? and raster library is not happy? You might need to add a new condition to spatial.parameters.toraster.. " )
+        print(" This has been tested with known projections in bio, this is a new one? and raster library is not happy? You might need to add a new condition to spacetime_parameters.toraster.. " )
         print(u)
         stop(" plons offsets are not unique/correct")
       }
 
       if( v!=0) {
-        print(" This has been tested with known projections in bio, this is a new one? and raster library is not happy? You might need to add a new condition to spatial.parameters.toraster.." )
+        print(" This has been tested with known projections in bio, this is a new one? and raster library is not happy? You might need to add a new condition to spacetime_parameters.toraster.." )
         print(v)
         stop(" plats offsets are not unique/correct? ")
       }
@@ -91,20 +91,20 @@ spatial.parameters.to.raster = function( params, edge.reference=TRUE ) {
   if (0) {
     bioLibrary("bio.spacetime")
     require("rgdal")
-    p = spatial.parameters( type="canada.east.highres" )
-    u = spatial.parameters.to.raster(p)
+    p = spacetime_parameters( type="canada.east.highres" )
+    u = spacetime_parameters_to_raster(p)
 
-    p = spatial.parameters( type="canada.east" )
-    u = spatial.parameters.to.raster(p)
+    p = spacetime_parameters( type="canada.east" )
+    u = spacetime_parameters_to_raster(p)
 
-    p = spatial.parameters( type="SSE" )
-    u = spatial.parameters.to.raster(p)
+    p = spacetime_parameters( type="SSE" )
+    u = spacetime_parameters_to_raster(p)
 
-    p = spatial.parameters( type="SSE.mpa" )
-    u = spatial.parameters.to.raster(p)
+    p = spacetime_parameters( type="SSE.mpa" )
+    u = spacetime_parameters_to_raster(p)
 
-    p = spatial.parameters( type="snowcrab" )
-    u = spatial.parameters.to.raster(p)
+    p = spacetime_parameters( type="snowcrab" )
+    u = spacetime_parameters_to_raster(p)
   }
 
 }

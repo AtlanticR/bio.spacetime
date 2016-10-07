@@ -13,7 +13,7 @@
 
   p$project.outdir.root = project.datadirectory( p$project.name, "analysis" )
 
-  p = spatial.parameters( p, "SSE" )  # data  domain
+  p = spacetime_parameters( p, "SSE" )  # data  domain
   p$crs = lookup.projection.params( p$internal.projection )
 
   p$vars.required = c("timestamp", "longitude", "latitude" )

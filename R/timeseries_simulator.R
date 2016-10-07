@@ -1,8 +1,7 @@
 
-timeseries.simulated.data = function( DS="default", n=600, ar.cor=0.9, missing=0.1 ) {
+timeseries_simulator = function( DS="default", n=600, ar.cor=0.9, missing=0.1 ) {
   #\\ data for development/testing
   #\\ ar.cor is the autocorrelation coefficient
-  require(lubridate)
 
   if (DS == "default") {
     x = 1:n

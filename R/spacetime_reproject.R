@@ -1,5 +1,5 @@
 
-spacetime.reproject = function( Z0, L0, L1, p0, p1, method="fast" ) {
+spacetime_reproject = function( Z0, L0, L1, p0, p1, method="fast" ) {
   #\\ regrid/reproject from p0 to p1 ; rgdal calls this "warping"
   
   if (method=="raster") {
@@ -7,8 +7,8 @@ spacetime.reproject = function( Z0, L0, L1, p0, p1, method="fast" ) {
     require (raster)
     for (vn in names(Z0)) {
        Z[[vn]] = projectRaster( 
-          from = rasterize( Z0, spatial.parameters.to.raster(p0), field=vn, fun=mean), 
-          to   = spatial.parameters.to.raster( p1) )
+          from = rasterize( Z0, spacetime_parameters_to_raster(p0), field=vn, fun=mean), 
+          to   = spacetime_parameters_to_raster( p1) )
     }
     return (Z)
   }
