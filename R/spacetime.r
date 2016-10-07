@@ -55,7 +55,7 @@ spacetime = function( p, DATA, overwrite=NULL, method=NULL ) {
         spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to ff objectss
         message( "Finshed. Moving onto analysis... ")
       } else {
-        p = spacetime_db( p=NULL, DS="load.parameters" )
+        p = spacetime_db( p=p, DS="load.parameters" )
       }
       message( "Warning this will take a very *long* time! (weeks) /n")
       o = spacetime_db( p, DS="statistics.status" )
@@ -78,7 +78,7 @@ spacetime = function( p, DATA, overwrite=NULL, method=NULL ) {
       locsout = expand.grid( p$plons, p$plats ) # final output grid
       attr( locsout , "out.attrs") = NULL
       names( locsout ) = p$variables$LOCS
-      stats = matrix( NA, ncol=nstatvars, nrow=nrow( locsout) )  # output data
+      stats = matrix( NaN, ncol=nstatvars, nrow=nrow( locsout) )  # output data
       colnames(stats)=p$statsvars
       for ( i in 1:nstatvars ) {
         data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
@@ -125,7 +125,7 @@ spacetime = function( p, DATA, overwrite=NULL, method=NULL ) {
         p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects: requires p$statvars
         spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to ff  
       } else {
-        p = spacetime_db( p=NULL, DS="load.parameters" )
+        p = spacetime_db( p=p, DS="load.parameters" )
       }
       # define boundary polygon for data .. zz a little ..
       if (p$spacetime.stats.boundary.redo) spacetime_db( p, DS="boundary.redo" ) # ~ 5 min
@@ -177,7 +177,7 @@ spacetime = function( p, DATA, overwrite=NULL, method=NULL ) {
       spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to ff objectss
       message( "Finshed. Moving onto analysis... ")
     } else {
-      p = spacetime_db( p=NULL, DS="load.parameters" )
+      p = spacetime_db( p=p, DS="load.parameters" )
     }
     if (p$spacetime.stats.boundary.redo) {
       message( "Defining boundary polygon for data .. this reduces the number of points to analyse") 

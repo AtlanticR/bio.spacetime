@@ -2,10 +2,9 @@
   spacetime_db = function( DS, p, B=NULL, grp=NULL, yr=NULL ) {
     #// usage: low level function to convert data into file-based data obects to permit parallel
     #// data access and manipulation and deletes/updates
-    #// B is the xyz  or xytz data to work upon
-    #// bigmemory operations are faster but do not support arrays .. left her in case read/write speed becomes an issue 
-    #// NaN is used instead of NA as ff converts NA initialised matrices as TRue/FALSe
-
+    #// B is the xyz or xytz data or the function to get the data to work upon
+    #// NaN and Inf are  used instead of NA as ff converts NA initialised matrices as TRue/FALSe
+    #// note:: ff seems to treat is.nan and is.na as the same thing 
     #\\ data extraction layer for user objects created by spacetime
     if ( DS=="spatial.covariance") {
       stats = NULL
@@ -92,7 +91,7 @@
         if (length( bad) > 0) {
           message( "Y range exceeds that specified in p$Y_bounds ... truncating data") 
           message( p$Y_bounds )
-          Yb[ bad] = NA
+          Yb[ bad] = NaN
         }
       } else {
         p$Y_bounds = range( Yb, na.rm=TRUE) # if not present create it: interpolations must not exceed observed bounds
@@ -135,26 +134,30 @@
 
       p = spacetime_db( p=p, DS="filenames" ) 
       
+
       if ( "data.frame" %in% class(B) ) {
         # B = B # nothing to do
       } else if ( "SpatialGridDataFrame" %in% class(B) ) {
         B = slot(B, "data")  
       }
       
+    # prediction covariates i.e., independent variables/ covariates
+      if (exists("COV", p$variables)) {
+        if (is.vector(B$COV) ) {
+          Pcovb = as.matrix( B$COV ) 
+        } else {
+          Pcovb = as.matrix( B$COV[,p$variables$COV ] ) 
+        }
+        p$ff$Pcov = ff::ff( Pcovb, dim=dim(Pcovb), filename=p$ptr$Pcov, overwrite=TRUE )
+        close(p$ff$Pcov)
+      }
+
       # prediction coordinates
       Plocb = as.matrix( B[, p$variables$LOCS ] )
       Ploc = ff::ff( Plocb, dim=dim(Plocb), filename=p$ptr$Ploc, overwrite=TRUE )
       close(Ploc)
       p$ff$Ploc = Ploc  # store pointer
-
-      # prediction covariates i.e., independent variables/ covariates
-      if (exists("COV", p$variables)) {
-        Pcovb = as.matrix( B[ , p$variables$COV ] )
-        Pcov = ff::ff( Pcovb, dim=dim(Pcovb), filename=p$ptr$Pcov, overwrite=TRUE )
-        close(Pcov)
-        p$ff$Pcov = Pcov  # store pointer
-      }
-
+  
       # predictions and associated stats
       Pb = matrix( NaN, nrow=p$nPreds, ncol=3 ) # pred, count, sd
       P = ff::ff( Pb, dim=dim(P), filename=p$ptr$P, overwrite=TRUE )
@@ -173,17 +176,13 @@
       p = spacetime_db( p=p, DS="filenames" ) 
   
       if (exists("COV", p$variables)) {
-        p$ff$Pcov = list()
-        for ( i in p$variables$COV ){
-          if (is.vector(B$COV) ) {
-            Pcovb = as.matrix( B$COV ) 
-          } else {
-            Pcovb = as.matrix( B$COV[,i] ) 
-          }
-          fni = paste(p$ptr$Pcov, i, sep="_")
-          p$ff$Pcov[[i]] = ff::ff( Pcovb, dim=dim(Pcovb), filename=fni, overwrite=TRUE )
-          close(p$ff$Pcov[[i]])
+        if (is.vector(B$COV) ) {
+          Pcovb = as.matrix( B$COV ) 
+        } else {
+          Pcovb = as.matrix( B$COV[,p$variables$COV ] ) 
         }
+        p$ff$Pcov = ff::ff( Pcovb, dim=dim(Pcovb), filename=p$ptr$Pcov, overwrite=TRUE )
+        close(p$ff$Pcov)
       }
           
       # predictions and associated stats
@@ -222,17 +221,13 @@
       p = spacetime_db( p=p, DS="filenames" ) 
       
       if (exists("COV", p$variables)) {
-        p$ff$Pcov = list()
-        for ( i in p$variables$COV ){
-          if (is.vector(B$COV) ) {
-            Pcovb = as.matrix( B$COV ) 
-          } else {
-            Pcovb = as.matrix( B$COV[,i] ) 
-          }
-          fni = paste(p$ptr$Pcov, i, sep="_")
-          p$ff$Pcov[[i]] = ff::ff( Pcovb, dim=dim(Pcovb), filename=fni, overwrite=TRUE )
-          close(p$ff$Pcov[[i]])
+        if (is.vector(B$COV) ) {
+          Pcovb = as.matrix( B$COV ) 
+        } else {
+          Pcovb = as.matrix( B$COV[,p$variables$COV ] ) 
         }
+        p$ff$Pcov = ff::ff( Pcovb, dim=dim(Pcovb), filename=p$ptr$Pcov, overwrite=TRUE )
+        close(p$ff$Pcov)
       }
       
       # predictions and associated stats
@@ -298,7 +293,7 @@
 
       Yloc = p$ff$Yloc 
       locs_noise =  runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise )
-      boundary=list( polygon = non_convex_hull( Yloc[ii,]+locs_noise, alpha=20, plot=FALSE ) )
+      boundary=list( polygon = non_convex_hull( Yloc[ii,]+locs_noise, alpha=p$non_convex_hull_alpha, plot=FALSE ) )
       Sloc = p$ff$Sloc  # statistical output locations
       boundary$inside.polygon = point.in.polygon( Sloc[,1], Sloc[,2],
           boundary$polygon[,1], boundary$polygon[,2], mode.checked=TRUE )
@@ -307,7 +302,9 @@
       plot( Yloc[ii,], pch=".", col="grey" ) # data locations
       points( Sloc[which(boundary$inside.polygon==1),], pch=".", col="orange" )
       lines( boundary$polygon[] , col="green", pch=2 )
-      
+      message( "Check the map of data and boundaries. ")
+      message( "If not suitable, set another value for p$non_convex_hull_alpha value (radius; distance) ")
+      message( "and re-run spacetime() with the flag: overwrite=FALSE " )
       close(Sloc)
       close(Yloc)      
       return( fn )
@@ -359,18 +356,14 @@
           if( !("try-error" %in% class(bnds) ) ) {
             # problematic and/or no data (e.g., land, etc.) and skipped
             to.ignore =  which( bnds$inside.polygon == 0 ) # outside boundary
-            i = which( is.na( S[,1] ) & bnds$inside.polygon != 0 )
-            # not yet completed
-            j = which( is.nan( S[,1] )  & bnds$inside.polygon != 0 )
-            # completed
-            k = which( is.finite (S[,1])  & bnds$inside.polygon != 0 ) # not yet done
+            i = which( is.infinite( S[,1] ) & bnds$inside.polygon != 0 ) # not yet completed (due to a problem)
+            j = which( is.nan( S[,1] )  & bnds$inside.polygon != 0 )     # completed
+            k = which( is.finite (S[,1])  & bnds$inside.polygon != 0 )   # not yet done
         } } else {
             to.ignore = NA
-            i = which( is.na( S[,1] )  )
-            # not yet completed
-            j = which( is.nan( S[,1] )   )
-            # completed
-            k = which( is.finite (S[,1])  ) # not yet done
+            i = which( is.infinite( S[,1] )  )  # not yet completed (due to a failed attempt)
+            j = which( is.nan( S[,1] )   )      # completed
+            k = which( is.finite (S[,1])  )     # not yet done
         }
 
         out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,

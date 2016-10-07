@@ -31,9 +31,9 @@ spacetime_interpolate_xy = function( ip=NULL, p ) {
     Si = p$runs[ iip, "locs" ]
     # print (Si)
     S = p$ff$S  # inside loop to update the results immediately ; read-write
-    if ( is.na( S[Si,1] ) ) next()
+    if ( is.infinite( S[Si,1] ) ) next()
     if ( !is.nan( S[Si,1] ) ) next()
-    S[Si,1] = NA  # flag: if a run fails, do not revisit, over-written below if successful
+    S[Si,1] = Inf  # flag: if a run fails, do not revisit, over-written below if successful
     # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
    
     # find data withing a given distance / number 

@@ -49,9 +49,9 @@ spacetime_interpolate_xyts = function( ip=NULL, p ) {
   for ( iip in ip ) {
     Si = p$runs[ iip, "locs" ]
     S = p$ff$S  # statistical outputs inside loop to safely save data and pass onto other processes
-    if ( is.na( S[Si,1] ) ) next()
+    if ( is.infinite( S[Si,1] ) ) next() 
     if ( !is.nan( S[Si,1] ) ) next() 
-    S[Si,1] = NA   # over-written below if successful else if a run fails it does not get revisited 
+    S[Si,1] = Inf   # over-written below if successful else if a run fails it does not get revisited 
     close(S) # close right away such that other processes can write to S
     
     # find data withing a given distance / number 
@@ -90,7 +90,14 @@ spacetime_interpolate_xyts = function( ip=NULL, p ) {
     if (nrow(pa)< p$n.min) next()
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
- 
+
+    # prediction covariates i.e., independent variables/ covariates
+    if (exists("COV", p$variables)) {
+      for (ci in 1:length(p$variables)) {
+        pa[,p$variables[ci]] = Pcov[ pa$i, ci ]
+      }
+    }
+
 
     if (0) {
       plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data

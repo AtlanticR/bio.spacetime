@@ -66,7 +66,7 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
       gam( p$modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
 
     if ( class(tsmodel) %in% "try-error" ) next()
-   
+    
     out = try( predict( tsmodel, newdata=newdata, type="response", se.fit=T ) ) 
 
     if ( "try-error" %in% class( out ) ) return( NULL )
