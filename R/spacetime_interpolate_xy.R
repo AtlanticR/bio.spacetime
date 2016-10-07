@@ -56,18 +56,130 @@ spacetime_interpolate_xy = function( ip=NULL, p ) {
     res = NULL
     res = spacetime_variogram( Yloc[YiU,], Y[YiU], methods=p$variogram.engine )
 
-   # --- predictions
-   # do localised predictions here 
-    if (p$spacetime_engine=="kernel.density") pred = spacetime_interpolate_xy_simple(  )
-    if (p$spacetime_engine=="LaplacesDemon") pred = spacetime_interpolate_xy_LaplacesDemon(  )
-    if (p$spacetime_engine=="inla") pred = spacetime_interpolate_xy_local_inla()
 
+    #  NOTE:: by default, all areas chosen to predict within the window.. but if covariates are involved,
+    #  this can be done only where covariates exists .. so next step is to determine this and predict
+    #  over the correct area.
+    #  Once all predictions are complete, simple (kernal-based?) interpolation
+    #  for areas without covariates can be completed
     
-   # and then:
-  # copy prediction merging/averaging method from xyts  <<<< ----- NOTE TO DO
+    windowsize.half = floor(dist.cur/p$pres) # convert distance to discretized increments of row/col indices
+    pa_offsets = -windowsize.half : windowsize.half
+    pa = expand.grid( Prow = rcS[Si,1] + pa_offsets, Pcol = rcS[Si,2] + pa_offsets, KEEP.OUT.ATTRS=FALSE) # row,col coords
+    # attr(pa, "out.attrs") = NULL
+    bad = which( (pa$Prow < 1 & pa$Prow > p$nplons) | (pa$Pcol < 1 & pa$Pcol > p$nplats) )
+    if (length(bad) > 0 ) pa = pa[-bad,]
+    if (nrow(pa)< p$n.min) next()
+    pc_rc = paste( pa$Prow, pa$Pcol, sep="~" )
+    pa$i = match( pc_rc, rcP$rc)
+    bad = which( !is.finite(pa$i))
+    if (length(bad) > 0 ) pa = pa[-bad,]
+    if (nrow(pa)< p$n.min) next()
+    pa$plon = Ploc[ pa$i, 1]
+    pa$plat = Ploc[ pa$i, 2]
+ 
+
+    if (0) {
+      plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data
+      points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )  # with covars and no other data issues
+      points( Sloc[Si,1] ~ Sloc[Si,2], col="blue" ) # statistical locations
+      points( p$plons[rcS[Si,1]] ~ p$plats[rcS[Si,2]] , col="purple", pch=25, cex=2 ) # check on rcS indexing
+      points( p$plons[pa$Prow] ~ p$plats[ pa$Pcol] , col="cyan", pch=".", cex=0.01 ) # check on Proc Pcol indexing
+      points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="black", pch=20, cex=0.7 ) # check on pa$i indexing -- prediction locations
+    }
+
+  # ----------------------
+  # prediction .. first check for covariates
+    Pi = 1:nrow( Ploc ) 
+    pa$i = Pi[ pa$i ]  ## flag to ignore
+    kP = na.omit(pa$i)
+    if ( length( kP) < p$n.min ) next()
+    pa = pa[ which(is.finite( pa$i)),] 
+    pa_n = nrow(pa)
+
+    close(Ploc)
+
+    # default output grid .. faster form of expand.grid
+    newdata = cbind( pa[ rep.int(1:pa_n, length(Ptime)), c("plon", "plat", "i")], rep.int(Ptime[], pa_n ))
+    names(newdata) = c("plon", "plat", "i", "tiyr" )
+
+    if ( p$spacetime_engine %in% 
+      c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
+         "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
+      res = spacetime__harmonics ( p, YiU, Si, newdata )
+    }
+
+    if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity(  )
+    if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon(  )
+    if (p$spacetime_engine=="inla") res = spacetime__inla()
 
 
+    if ( is.null(res)) next()
 
+    pa = merge( res$newdata, pa, by="i", all.x=TRUE, all.y=FALSE )
+    
+    spacetime_stats = NULL
+    spacetime_stats = res$stats
+    rm(res)
+
+    if (debugrun) {
+      iii = which(pa$tiyr==2000.05)
+      x11(); levelplot( mean ~ plon+plat, pa[iii,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )
+      x11(); levelplot( sd   ~ plon+plat, pa[iii,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
+    }
+
+    good = which( is.finite( rowSums(pa) ) )
+    if (length(good) < 1) next()
+    pa = pa[good,]
+
+    # ----------------------
+    # update P (predictions)
+    P   = p$ff$P  # predictions
+    Pn  = p$ff$Pn  # predictions
+    Psd = p$ff$Psd  # predictions
+    ii = pa$i
+    test = rowSums( P[ii,] )
+    u = which( is.finite( test ) )  # these have data already .. update
+    if ( length( u ) > 0 ) {
+      ui = ii[u]  # locations of P to modify
+      Pn[ui,] = Pn[ui,] + 1 # update counts
+      # update SD estimates of predictions with those from other locations via the
+      # incremental  method ("online algorithm") of mean estimation after Knuth ;
+      # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+      stdev_update =  Psd[ui,] + ( pa$sd[u] -  Psd[ui,] ) / Pn[ui,]
+      # update means: inverse-variance weighting   https://en.wikipedia.org/wiki/Inverse-variance_weighting
+      means_update = ( P[ui,] / Psd[ui,]^2 + pa$mean[u] / pa$sd[u]^2 ) / ( Psd[ui,]^(-2) + pa$sd[u]^(-2) )
+      mm = which(is.finite( means_update + stdev_update ))
+      if( length(mm)> 0) {
+        # actual updates occur after everything has been computed first
+        iumm = ui[mm]
+        Psd[iumm,] = stdev_update[mm]
+        P  [iumm,] = means_update[mm]
+      }
+    }
+
+    # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
+    test = rowSums( P[ii,] )
+    f = which( !is.finite( test ) ) # first time
+    if ( length(f) > 0 ) {
+      fi = ii[f]
+      Pn [fi,] = 1
+      P  [fi,] = pa$mean[f]
+      Psd[fi,] = pa$sd[f]
+    }
+    rm( pa ) ; gc()
+
+    #########
+
+    if ( any( grepl ("statistics", p$spacetime.outputs))) {
+      print( "Saving summary statisitics" )
+      # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
+      S = p$ff$S  # statistical outputs inside loop to safely save data and pass onto other processes
+      for ( k in 1: length(p$statsvars) ) {
+        S[Si,k] = spacetime_stats[ p$statsvars[k] ]
+      }
+    }
+  
     if (!is.null(res)) {
       if (exists(p$variogram.engine, res) ) {
         print( "Saving summary statisitics" )
@@ -78,8 +190,9 @@ spacetime_interpolate_xy = function( ip=NULL, p ) {
         S[Si,4] = res[[p$variogram.engine]]$range
         S[Si,5] = res[[p$variogram.engine]]$phi
         S[Si,6] = res[[p$variogram.engine]]$nu
-    }}
-
+      }
+      close(S)
+    }
 
     if(0) {
       x11();
@@ -96,6 +209,14 @@ spacetime_interpolate_xy = function( ip=NULL, p ) {
   close(Y)
 
   return( "complete" )
+
+
+    
+   # and then:
+  # copy prediction merging/averaging method from xyts  <<<< ----- NOTE TO DO
+
+
+
 
 }
 
