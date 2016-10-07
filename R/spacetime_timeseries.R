@@ -82,8 +82,8 @@ spacetime_harmonics = function( p, YiU, Si, newdata ) {
     if (exists( "Y_bounds", p)) {
       bad = which( newdata$mean < p$Y_bounds | newdata$mean > p$Y_bounds  )
       if (length( bad) > 0) {
-        newdata$mean[ bad] = NA
-        newdata$sd[ bad] = NA
+        newdata$mean[ bad] = NaN
+        newdata$sd[ bad] = NaN
       }
     }
 
@@ -91,8 +91,8 @@ spacetime_harmonics = function( p, YiU, Si, newdata ) {
       tq = quantile( Y, probs=p$quantile_bounds, na.rm=TRUE  )
       bad = which( newdata$mean < tq[1] | newdata$mean > tq[2]  )
       if (length( bad) > 0) {
-        newdata$mean[ bad] = NA
-        newdata$sd[ bad] = NA
+        newdata$mean[ bad] = NaN
+        newdata$sd[ bad] = NaN
       }
     }
 

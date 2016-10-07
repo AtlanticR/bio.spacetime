@@ -92,9 +92,9 @@
       focal = t(Sloc[Si,])
 
       S = p$ff$S  # statistical outputs
-      if ( is.na( S[Si,1] ) ) next()
+      if ( is.infinite( S[Si,1] ) ) next()
       if ( !is.nan( S[Si,1] ) ) next()
-      S[Si,1] = NA   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
+      S[Si,1] = Inf   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
       # .. it gets over-written below if successful
       # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
       close(S)

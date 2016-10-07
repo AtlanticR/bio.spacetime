@@ -25,12 +25,12 @@ spacetime_reproject = function( Z0, L0, L1, p0, p1, method="fast" ) {
       L1 = lonlat2planar( L1, proj.type=p0$internal.projection )  # convert lon, lat to old projection     
       M[L2M] = Z0
       Z = fields::interp.surface( list( x=p0$plons, y=p0$plats, z=M ), loc=L1[,c("plon","plat")] )
-      ii = which( is.na( Z ) )
+      ii = which( !is.finite( Z ) )
       if ( length( ii) > 0 ) {
         # try again ..
         Z[ii] = fields::interp.surface( list( x=p0$plons, y=p0$plats, z=M ), loc=L1[ ii, c("plon","plat")] )
       }
-      ii = which( is.na( Z ) )
+      ii = which( !is.finite( Z ) )
       if ( length( ii) > 0 ) {
         Zii =  fields::image.smooth( M, dx=p0$pres, dy=p0$pres, wght=p0$wght )$z  
         Z[ii] = Zii[ii]
