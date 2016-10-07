@@ -320,7 +320,7 @@
         # statistics storage matrix ( aggregation window, coords ) .. no inputs required
         # statistics coordinates
         Sloc_ = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
-        Sloc = ff::ff( Sloc_, dim=dim(Sloc_), filename=p$ptr$Sloc_, overwrite=TRUE )
+        Sloc = ff::ff( Sloc_, dim=dim(Sloc_), filename=p$ptr$Sloc, overwrite=TRUE )
         close(Sloc)
         p$ff$Sloc = Sloc
 
