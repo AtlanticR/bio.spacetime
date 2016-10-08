@@ -68,7 +68,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     }
     ndata = length(U)
     if ((ndata < p$n.min) | (ndata > p$n.max) ) next()
-    YiU = Yi[U]
+    
 
     #  NOTE:: by default, all areas chosen to predict within the window.. but if covariates are involved,
     #  this can be done only where covariates exists .. so next step is to determine this and predict
@@ -98,10 +98,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
       }
     }
 
-
     if (0) {
       plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data
-      points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )  # with covars and no other data issues
+      points( Yloc[Yi[U],1] ~ Yloc[Yi[U],2], col="green" )  # with covars and no other data issues
       points( Sloc[Si,1] ~ Sloc[Si,2], col="blue" ) # statistical locations
       points( p$plons[rcS[Si,1]] ~ p$plats[rcS[Si,2]] , col="purple", pch=25, cex=2 ) # check on rcS indexing
       points( p$plons[pa$Prow] ~ p$plats[ pa$Pcol] , col="cyan", pch=".", cex=0.01 ) # check on Proc Pcol indexing
@@ -120,13 +119,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
     close(Ploc)
 
     # default output grid .. faster form of expand.grid
-    newdata = cbind( pa[ rep.int(1:pa_n, length(Ptime)), c("plon", "plat", "i")], rep.int(Ptime[], pa_n ))
+    newdata = cbind( pa[ rep.int(1:pa_n, length(Ptime)), c("plon", "plat", "i")], 
+                     rep.int(Ptime[], pa_n ))
     names(newdata) = c("plon", "plat", "i", "tiyr" )
 
     if ( p$spacetime_engine %in% 
       c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
          "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
-      res = spacetime__harmonics ( p, YiU, Si, newdata )
+      res = spacetime__harmonics ( p, Yi[U], Si, newdata )
     }
 
     if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity(  )
@@ -202,5 +202,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
   
   }  # end for loop
 
+
 }
+
+
 

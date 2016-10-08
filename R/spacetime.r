@@ -40,8 +40,9 @@ spacetime = function( p, DATA, overwrite=NULL ) {
       harmonics.2 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' , 
       harmonics.3 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) ',
       harmonics.1.depth = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) +s(z)  ', 
-      inla = ' -1 + intercept + f( spatial.field, model=SPDE ) ',
-      annual = ' s(yr) '
+      inla = ' -1 + intercept + f( spatial.field, model=SPDE ) ', # not used
+      annual = ' s(yr) ',
+      '+1'  # default, ie. Y~ + 1 , just to catch error
     )
     p$modelformula = as.formula( paste( p$variables$Y, "~", p$modelformula ) )
     message( "Verify that the modelformula is/should be:" )
@@ -53,17 +54,11 @@ spacetime = function( p, DATA, overwrite=NULL ) {
   if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
 
   # require knowledge of size of stats output before create S, which varies with a given type of analysis
-  p$statsvars = switch( p$spacetime_engine, 
-    inla = c("varSpatial", "varObs", "range", "range.sd" ),
-    gam  = c("varZ", "varSpatial", "varObs", "range", "phi", "kappa"),  
-    harmonics.1       = c("sd", "rsquared", "ndata" ), 
-    harmonics.2       = c("sd", "rsquared", "ndata" ), 
-    harmonics.3       = c("sd", "rsquared", "ndata" ), 
-    harmonics.1.depth = c("sd", "rsquared", "ndata" ),
-    seasonal.basic    = c("sd", "rsquared", "ndata" ), 
-    seasonal.smoothed = c("sd", "rsquared", "ndata" ), 
-    annual            = c("sd", "rsquared", "ndata" )  
-  )
+
+  p$statsvars = c("varZ", "varSpatial", "varObs", "range", "phi", "kappa")
+  if (exists("TIME", p)) p$statsvars = c(p$statsvars, "ar")     
+
+  if ( p$spacetime_engine=="inla") p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
 
   if (is.null(overwrite) || overwrite) {
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
@@ -80,47 +75,67 @@ spacetime = function( p, DATA, overwrite=NULL ) {
 
   if (p$spacetime.stats.boundary.redo) {
     message( "Defining boundary polygon for data .. this reduces the number of points to analyse") 
-    message( "but takes a few (~5) minutes to complete ...")
-    spacetime_db( p, DS="boundary.redo" ) # ~ 5 min
+    message( "but takes a few minutes to set up ...")
+    spacetime_db( p, DS="boundary.redo" ) # ~ 5 min on nfs
   }
 
   # -------------------------------------
-  # 2D space and time, eg, temperature
-  # spacetime_engine specific methods are inside of sapcetime_interpolate_xyts 
-  #.. this is req here to identifiy the size of the statistics output dim
-
   # 1. localized space-time interpolation
   o = spacetime_db( p, DS="statistics.status" )
   p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
-  parallel.run( spacetime_interpolate_xyts, p=p ) 
+  parallel.run( spacetime_interpolate, p=p ) 
+
 
   # 2. fast/simple spatial interpolation for anything not yet resolved
   # .. but first, pre-compute a few things 
   Ploc = attach.big.matrix( p$ptr$Ploc )
   p$Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
+  p$wght = setup.image.smooth( nrow=p$nplons[1], ncol=p$nplats, dx=p$pres, dy=p$res, 
     theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
-  p = make.list( list( tiyr_index=1:(p$nw*p$yr)), Y=p ) # random order helps use all cpus
-  parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
 
-  # 3. save to disk
-  P0 = attach.big.matrix( p$ptr$P )
-  P0sd = attach.big.matrix( p$ptr$Psd )
-  for ( r in 1:length(p$tyears) ) {
-    y = p$tyears[r]
-    fn1 = file.path( p$savedir, paste("spacetime.interpolation",  y, "rdata", sep="." ) )
-    fn2 = file.path( p$savedir, paste("spacetime.interpolation.sd",  y, "rdata", sep="." ) )
-    col.ranges = (r-1) * p$nw + (1:p$nw) 
-    P = P0  [,col.ranges]
-    V = P0sd[,col.ranges]
-    save( P, file=fn1, compress=T )
-    save( V, file=fn2, compress=T )
-    print ( paste("Year:", y)  )
+  if (exists("TIME", p)) {
+    p = make.list( list( tiyr_index=1:(p$nw*p$yr)), Y=p ) # random order helps use all cpus
+    parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
+
+    # 3. save to disk
+    P0 = attach.big.matrix( p$ptr$P )
+    P0sd = attach.big.matrix( p$ptr$Psd )
+    for ( r in 1:length(p$tyears) ) {
+      y = p$tyears[r]
+      fn1 = file.path( p$savedir, paste("spacetime.interpolation",  y, "rdata", sep="." ) )
+      fn2 = file.path( p$savedir, paste("spacetime.interpolation.sd",  y, "rdata", sep="." ) )
+      col.ranges = (r-1) * p$nw + (1:p$nw) 
+      P = P0  [,col.ranges]
+      V = P0sd[,col.ranges]
+      save( P, file=fn1, compress=T )
+      save( V, file=fn2, compress=T )
+      print ( paste("Year:", y)  )
+    }
+
+  } else {
+    
+    # do a simple/single interp .. might be ok with above .. test it
+    # this should work ... not sure
+    p = make.list( list( tiyr_index=1), Y=p ) # random order helps use all cpus
+    spacetime_interpolate_xy_simple_multiple( p=p ) 
+# or
+#    spacetime_interpolate_xy_simple(interp.method, data, locsout, 
+#    trimquants=TRUE, trimprobs=c(0.025, 0.975), 
+#    nr=NULL, nc=NULL, theta=NULL, xwidth=theta*10, ywidth=theta*10, 
+#    link=NA )
   }
 
   Sloc = attach.big.matrix( p$ptr$Sloc )
   S = attach.big.matrix( p$ptr$S )
+    # finalize by fast interpolations of predictions and and stats
+
+  stats = spacetime_interpolate_xy_simple_multiple( p=p ) 
+# or
+  stats = spacetime_reproject()
+
   stats = as.data.frame( cbind( Sloc[], S[] ) )
   ## warp this onto prediction grid
+
   save(stats, file=p$fn.stats, compress=TRUE )
 
   ## Here we parse predictions and save in a more useful format
