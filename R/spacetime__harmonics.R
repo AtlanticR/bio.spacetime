@@ -65,7 +65,7 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     tsmodel = try( 
       gam( p$modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
 
-    if ( class(tsmodel) %in% "try-error" ) next()
+    if ( "try-error" %in% class(tsmodel) ) next()
     
     out = try( predict( tsmodel, newdata=newdata, type="response", se.fit=T ) ) 
 
@@ -80,7 +80,7 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     }
 
     if (exists( "Y_bounds", p)) {
-      bad = which( newdata$mean < p$Y_bounds | newdata$mean > p$Y_bounds  )
+      bad = which( newdata$mean < p$Y_bounds[1] | newdata$mean > p$Y_bounds[2]  )
       if (length( bad) > 0) {
         newdata$mean[ bad] = NA
         newdata$sd[ bad] = NA
@@ -95,9 +95,9 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
         newdata$sd[ bad] = NA
       }
     }
+    ss = summary(tsmodel)
+    diagnostics = list( sd=sd(Y[], na.rm=T), rsquared=ss$r.sq, ndata=ss$n ) # must be same order as p$statsvars
 
-    stats = list( stdev=sd(Y, na.rm=T) )
-
-    return( list(newdata=newdata, stats=stats ) )  
+    return( list( predictions=newdata, diagnostics=diagnostics ) )  
 
 }

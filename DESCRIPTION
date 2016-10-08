@@ -15,8 +15,7 @@ Imports:
   gstat,
   fields,
   parallel, 
-  ff, 
-  ffbase,
+  bigmemory,
   devtools, 
   bio.base,
   bio.utilities
