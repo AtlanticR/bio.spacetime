@@ -1,6 +1,6 @@
 
 spacetime_interpolate_xy_simple_multiple = function( ip=NULL, p ) {
-  #// designed to be called from sapcetime_interpolate_xyts 
+  #// designed to be called from sapcetime_interpolate
   #// for the sake of speed and parallelization, the kernel density method is written out again 
   #// within the for loop rather than reusing the spacetime_interpolate_simple
 
