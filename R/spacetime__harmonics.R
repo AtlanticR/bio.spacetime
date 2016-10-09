@@ -3,7 +3,7 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
    #\\ this is the core engine of spacetime .. localised space-time modelling
    #\\ the simplest form is gam/kernel-based 
 
-    #\\ simple GAM with spatial weights (inverse distance squared) and harmonics
+    #\\ simple GAM with spatial weights (inverse distance squared) and ts harmonics
     # forcing sinusoid as a seasonal component: 
     # to add an offset to a trig function (b) must add cos to a sin function
     # y ~ a + c*sin(x+b)
@@ -16,51 +16,51 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     #   c = sqrt(b1^2 + b2^2)
     #   b1/b2 = tan(b)  
     #   b = arctan(b1/b2)
-    Sloc = p$ff$Sloc  # statistical output locations
-    Yloc = p$ff$Yloc  # statistical output locations
-    Y = p$ff$Y
+    
+    Sloc = attach.big.matrix( p$ptr$Sloc )
+    Yloc = attach.big.matrix( p$ptr$Yloc )
+    Y = attach.big.matrix( p$ptr$Y )
 
-    x = data.frame( Y[YiU], p$ff$Ytime[YiU] )
-    names(x) = c(p$variables$Y, p$variables$TIME)
+    x = data.frame( Y[YiU] )
+    names(x) = p$variables$Y
     if ( exists("spacetime.link", p) ) x[, p$variables$Y] = p$spacetime.link ( x[, p$variables$Y] ) 
-
-    x$yr = trunc( x[, p$variables$TIME])
     x$plon = Yloc[YiU,1]
     x$plat = Yloc[YiU,2]
-    if (exists("COV", p$variables)) {
-      x[ p$variables$COV ] = p$ff$Ycov[YiU]
-      close(p$ff$Ycov)
-    }
     Y_wgt = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
     Y_wgt[ which( Y_wgt < 1e-3 ) ] = 1e-3
     Y_wgt[ which( Y_wgt > 1 ) ] = 1
-
-    close(Yloc)
-    close(Ytime)
-    close(Sloc)
-
-    x$cos.w  = cos( 2*pi*x$tiyr )
-    x$sin.w  = sin( 2*pi*x$tiyr )
-
-    newdata$cos.w  = cos( newdata$tiyr )
-    newdata$sin.w  = sin( newdata$tiyr )
     
-    newdata$yr = trunc( newdata[,p$variables$TIME] )
-
-    # compute aSiitional harmonics only if required (to try to speed things up a bit)
-    if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
-      x$cos.w2 = cos( 2*x$tiyr )
-      x$sin.w2 = sin( 2*x$tiyr )
-      newdata$cos.w2 = cos( 2*newdata$tiyr )
-      newdata$sin.w2 = sin( 2*newdata$tiyr )
-    }
-    if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
-      x$cos.w3 = cos( 3*x$tiyr )
-      x$sin.w3 = sin( 3*x$tiyr )
-      newdata$cos.w3 = cos( 3*newdata$tiyr )
-      newdata$sin.w3 = sin( 3*newdata$tiyr )
+    if (exists("COV", p$variables)) {
+      Ycov = attach.big.matrix( p$ptr$Ycov )
+      for (i in 1:length(p$variables$COV )) x[, p$variables$COV[i] ] = Ycov[YiU,i]
     }
     
+    if (exists("TIME", p$variables)) {
+      Ytime = attach.big.matrix( p$ptr$Ytime )
+      x[, p$variables$TIME ] = Ytime[YiU,] 
+      names(x) = c(p$variables$Y, p$variables$TIME)
+      x$yr = trunc( x[, p$variables$TIME])
+      x$cos.w  = cos( 2*pi*x$tiyr )
+      x$sin.w  = sin( 2*pi*x$tiyr )
+      newdata$yr = trunc( newdata[,p$variables$TIME] )
+      newdata$cos.w  = cos( newdata$tiyr )
+      newdata$sin.w  = sin( newdata$tiyr )
+      # compute adiitional harmonics only if required (to try to speed things up a bit)
+      if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
+        x$cos.w2 = cos( 2*x$tiyr )
+        x$sin.w2 = sin( 2*x$tiyr )
+        newdata$cos.w2 = cos( 2*newdata$tiyr )
+        newdata$sin.w2 = sin( 2*newdata$tiyr )
+      }
+      if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
+        x$cos.w3 = cos( 3*x$tiyr )
+        x$sin.w3 = sin( 3*x$tiyr )
+        newdata$cos.w3 = cos( 3*newdata$tiyr )
+        newdata$sin.w3 = sin( 3*newdata$tiyr )
+      }
+    }
+
+ 
     # estimate model parameters
     tsmodel = try( 
       gam( p$modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
@@ -95,9 +95,10 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
         newdata$sd[ bad] = NA
       }
     }
-    ss = summary(tsmodel)
-    diagnostics = list( sd=sd(Y[], na.rm=T), rsquared=ss$r.sq, ndata=ss$n ) # must be same order as p$statsvars
 
-    return( list( predictions=newdata, diagnostics=diagnostics ) )  
+    ss = summary(tsmodel)
+    spacetime_stats = list( sdTotal=sd(Y[], na.rm=T), rsquared=ss$r.sq, ndata=ss$n ) # must be same order as p$statsvars
+
+    return( list( predictions=newdata, spacetime_stats=spacetime_stats ) )  
 
 }

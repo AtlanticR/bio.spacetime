@@ -10,12 +10,14 @@
       if (file.exists( p$fn.stats) ) load( p$fn.stats )
       return(stats)
     }
+
     if ( DS =="predictions" ) {
       preds = NULL
       p = spacetime_db( p=p, DS="filenames" )
       if (file.exists( p$fn.P ) ) load( p$fn.P )
       return( preds )
     }
+    
     if ( DS =="statistics" ) {
       stats = NULL
       p = spacetime_db( p=p, DS="filenames" )  
@@ -33,13 +35,16 @@
       p$fn = list()
       p$fn$P = file.path( p$savedir, paste( "spacetime", "predictions", "rdata", sep=".") )
       p$fn$S = file.path( p$savedir, paste( "spacetime", "statistics",  "rdata", sep=".") )
-      p$fn$results.covar =  file.path( p$project.root, "spacetime", paste( "spatial", "covariance", "rdata", sep=".") )
+      p$fn$stats =  file.path( p$project.root, "spacetime", paste( "spatial", "covariance", "rdata", sep=".") )
+      p$fn$covmodel =  file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", "rdata", sep=".") )
       
       p$ptr =list()
-      p$ptr$Y =     file.path( p$tmp.datadir, "input.Y.bigmemory_description" )
+      p$ptr$Y0 =    file.path( p$tmp.datadir, "input.Y0.bigmemory_description" ) # raw data
+      p$ptr$Y =     file.path( p$tmp.datadir, "input.Y.bigmemory_description" ) # residuals of covar model or raw data if none
       p$ptr$Ycov =  file.path( p$tmp.datadir, "input.Ycov.bigmemory_description"  )
       p$ptr$Yloc =  file.path( p$tmp.datadir, "input.Yloc.bigmemory_description" )
       p$ptr$Ytime = file.path( p$tmp.datadir, "input.Ytime.bigmemory_description" )
+      p$ptr$P0 =    file.path( p$tmp.datadir, "predictions0.bigmemory_description" ) # offsets from covar model
       p$ptr$P =     file.path( p$tmp.datadir, "predictions.bigmemory_description" )
       p$ptr$Psd =   file.path( p$tmp.datadir, "predictions_sd.bigmemory_description" )
       p$ptr$Pn =    file.path( p$tmp.datadir, "predictions_n.bigmemory_description" )
@@ -51,10 +56,12 @@
       p$ptr$Stime = file.path( p$tmp.datadir, "statistics_time.bigmemory_description" )
 
       p$bm =list()
+      p$bm$Y0 =    gsub( "_description", "", basename( p$ptr$Y0 ) ) 
       p$bm$Y =     gsub( "_description", "", basename( p$ptr$Y ) ) 
       p$bm$Ycov =  gsub( "_description", "", basename( p$ptr$Ycov ) ) 
       p$bm$Yloc =  gsub( "_description", "", basename( p$ptr$Yloc ) )
       p$bm$Ytime = gsub( "_description", "", basename( p$ptr$Ytime ) )
+      p$bm$P0 =    gsub( "_description", "", basename( p$ptr$P0 ) )
       p$bm$P =     gsub( "_description", "", basename( p$ptr$P ) )
       p$bm$Psd =   gsub( "_description", "", basename( p$ptr$Psd ) )
       p$bm$Pn =    gsub( "_description", "", basename( p$ptr$Pn ) )
@@ -87,7 +94,6 @@
       return( "done" )
     }
 
-
     # ------------------
     if (DS == "data.initialize" ) {
       p = spacetime_db( p=p, DS="filenames" ) 
@@ -112,9 +118,17 @@
         message( p$Y_bounds )
       }
 
-      Y = bigmemory::as.big.matrix( Y_, type="double", 
-        backingfile=p$bm$Y, descriptorfile=basename(p$ptr$Y), backingpath=p$tmp.datadir )
+      Y0 = bigmemory::as.big.matrix( Y_, type="double", 
+        backingfile=p$bm$Y0, descriptorfile=basename(p$ptr$Y0), backingpath=p$tmp.datadir )
 
+      if (exists( "p$spacetime_covariate_modelformula", p)) {
+        Yresid_ = residuals( spacetime_db( p=p, DS="model.covariates") )
+      } else {
+        Yresid_ = Y_  # if no residual model simply use the raw data
+      }
+
+      Y = bigmemory::as.big.matrix( Yresid_, type="double", 
+        backingfile=p$bm$Y, descriptorfile=basename(p$ptr$Y), backingpath=p$tmp.datadir )
 
      # data coordinates
       Yloc_ = as.matrix( B[, p$variables$LOCS ])
@@ -176,6 +190,27 @@
       Ploc = bigmemory::as.big.matrix( Ploc_, type="double", 
         backingfile=p$bm$Ploc, descriptorfile=basename(p$ptr$Ploc), backingpath=p$tmp.datadir )
 
+      rm(P_);gc()
+
+      # prediction offsets from an additive (global) model of covariates (if any, zero valued otherwise) 
+      if ( exists("COV", p$variables) && exists("spacetime_covariate_modelformula", p ) ) {
+          # assuming model is correct..
+          covmodel = spacetime_db( p=p, DS="model.covariates") 
+          Pcov = predict( covmodel, newdata=B$COV, type="response", se.fit=T ) ) )
+          rm (covmodel);gc()
+          P0_ = bigmemory::as.big.matrix( Pcov$fit, type="double", 
+            backingfile=p$bm$P0, descriptorfile=basename(p$ptr$P0), backingpath=p$tmp.datadir )
+          P0sd = bigmemory::as.big.matrix( Pcov$se.fit, type="double", 
+            backingfile=p$bm$P0sd, descriptorfile=basename(p$ptr$P0sd), backingpath=p$tmp.datadir )
+         }
+      } else {
+        P0_ = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nw*p$ny )
+        P0 = bigmemory::as.big.matrix( P0_, type="double", 
+          backingfile=p$bm$P0, descriptorfile=basename(p$ptr$P0), backingpath=p$tmp.datadir )
+        P0sd = bigmemory::as.big.matrix( P0_, type="double", 
+          backingfile=p$bm$P0sd, descriptorfile=basename(p$ptr$P0sd), backingpath=p$tmp.datadir )
+      }
+      
       return( p )
     }
 
@@ -288,6 +323,29 @@
       }
     }
 
+    # -----
+  
+    if (DS %in% c("model.covariates", "model.covariates.redo") {
+
+      fn = p$fn$covmodel
+      
+      if (DS =="model.covariates") {
+        covmodel = NULL
+        if (file.exists( p$fn$covmodel ))  load(p$fn$covmodel)
+        return(covmodel)
+      }  
+      
+      # as a first pass, model the time-independent factors as a user-defined model
+      if (p$spacetime_covariate_modeltype=="gam") {
+        covmodel = try( 
+          gam( p$spacetime_covariate_modelformula, data=B, optimizer=c("outer","bfgs")  ) ) 
+
+        if ( "try-error" %in% class(tsmodel) ) stop( "The initial covariate model was problematic" )
+        message( summary( covmodel ) )
+        save( covmodel, file= p$fn$covmodel, compress=TRUE )
+      }
+      return ( paste( "Covariate model saved to: ", p$fn$covmodel) )
+    }
 
   }
 

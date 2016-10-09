@@ -55,8 +55,21 @@ spacetime = function( p, DATA, overwrite=NULL ) {
 
   # require knowledge of size of stats output before create S, which varies with a given type of analysis
 
-  p$statsvars = c("varZ", "varSpatial", "varObs", "range", "phi", "kappa")
-  if (exists("TIME", p)) p$statsvars = c(p$statsvars, "ar")     
+
+  if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
+         "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
+    p$statsvars = c( "sdTotal", "rsquared", "ndata" )
+  }
+  
+  if (exists("variogram.engine", p) ) {
+    p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
+  }
+
+  if ( exists("TIME", p$variables) ){
+    if (exists("timeseries.engine", p) ) {
+      p$statsvars = c( p$statsvars, "ar" )
+    }
+  }
 
   if ( p$spacetime_engine=="inla") p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
 
@@ -64,6 +77,9 @@ spacetime = function( p, DATA, overwrite=NULL ) {
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
     message( "These are large files so be patient. ")
     p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
+
+    # first pass to model covars
+    p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input )
     p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
     p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
     rm(DATA); gc()
@@ -85,7 +101,6 @@ spacetime = function( p, DATA, overwrite=NULL ) {
   p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
   parallel.run( spacetime_interpolate, p=p ) 
 
-
   # 2. fast/simple spatial interpolation for anything not yet resolved
   # .. but first, pre-compute a few things 
   Ploc = attach.big.matrix( p$ptr$Ploc )
@@ -98,15 +113,22 @@ spacetime = function( p, DATA, overwrite=NULL ) {
     parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
 
     # 3. save to disk
-    P0 = attach.big.matrix( p$ptr$P )
-    P0sd = attach.big.matrix( p$ptr$Psd )
+    PP = attach.big.matrix( p$ptr$P )
+    PPsd = attach.big.matrix( p$ptr$Psd )
+    P0 = attach.big.matrix( p$ptr$P0 )
+    P0sd = attach.big.matrix( p$ptr$P0sd )
+
+    PP = P0[,col.ranges] + PP[,col.ranges] 
+    V = sqrt( P0sd[,col.ranges]^2 + PPsd[,col.ranges]^2) # simpleadditive independent errors assumed
+
+ 
     for ( r in 1:length(p$tyears) ) {
       y = p$tyears[r]
       fn1 = file.path( p$savedir, paste("spacetime.interpolation",  y, "rdata", sep="." ) )
       fn2 = file.path( p$savedir, paste("spacetime.interpolation.sd",  y, "rdata", sep="." ) )
       col.ranges = (r-1) * p$nw + (1:p$nw) 
-      P = P0  [,col.ranges]
-      V = P0sd[,col.ranges]
+      P = P0  [,col.ranges] + PP[,col.ranges] 
+      V = sqrt( P0sd[,col.ranges]^2 + PPsd[,col.ranges]^2) # simpleadditive independent errors assumed
       save( P, file=fn1, compress=T )
       save( V, file=fn2, compress=T )
       print ( paste("Year:", y)  )
@@ -117,7 +139,10 @@ spacetime = function( p, DATA, overwrite=NULL ) {
     # do a simple/single interp .. might be ok with above .. test it
     # this should work ... not sure
     p = make.list( list( tiyr_index=1), Y=p ) # random order helps use all cpus
+    
     spacetime_interpolate_xy_simple_multiple( p=p ) 
+    # then save to disk
+
 # or
 #    spacetime_interpolate_xy_simple(interp.method, data, locsout, 
 #    trimquants=TRUE, trimprobs=c(0.025, 0.975), 

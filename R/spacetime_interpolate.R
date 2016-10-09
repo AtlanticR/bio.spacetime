@@ -67,7 +67,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ( is.infinite( S[Si,1] ) ) next() 
     if ( !is.nan( S[Si,1] ) ) next() 
     S[Si,1] = Inf   # over-written below if successful else if a run fails it does not get revisited 
-    
+ 
     # find data withing a given distance / number 
     pib = point_in_block( Sloc=Sloc, Si=Si, Yloc=Yloc, Yi=Yi, 
       dist.max=p$dist.max, dist.min=p$dist.min, 
@@ -156,16 +156,37 @@ spacetime_interpolate = function( ip=NULL, p ) {
       }
     }
 
+
     if ( p$spacetime_engine %in% 
       c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
          "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
-      res = spacetime__harmonics ( p, YiU, Si, newdata )
+      res = spacetime__harmonics( p, YiU, Si, newdata )
+      if ( is.null(res)) next()     
+
+      if (exists("variogram.engine", p) ) {
+        sp.stat = spacetime_variogram(  Yloc[YiU,], Y[YiU], methods=p$variogram.engine )
+        spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$variogram.engine]]$varSpatial )
+        spacetime_stats["sdObs"] = sqrt( sp.stat[[p$variogram.engine]]$varObs )
+        spacetime_stats["range"] = sp.stat[[p$variogram.engine]]$range
+        spacetime_stats["phi"] = sp.stat[[p$variogram.engine]]$phi
+        spacetime_stats["nu"] = sp.stat[[p$variogram.engine]]$nu
+      }
+
+      if ( exists("TIME", p$variables) ){
+        if (exists("timeseries.engine", p) ) {
+          ts.stat = spacetime_timeseries( Yloc[YiU,], Y[YiU], methods=p$timeseries.engine )
+          spacetime_stats["ar1"] = ts.stat$ar1
+        }
+      }
     }
     if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity(  )
     if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon(  )
     if (p$spacetime_engine=="inla") res = spacetime__inla()
 
     if ( is.null(res)) next()
+
+    spacetime_stats = NULL
+    spacetime_stats = res$statisitics
 
     pa = merge( res$predictions[,c("i", "mean", "sd")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
     
@@ -185,78 +206,50 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     # ----------------------
     # update P (predictions)
-      # maybe faster to make copy first and then do a rowSums ?
-      test = rowSums( P[pa$i,] ) 
-      u = which( is.finite( test ) )  # these have data already .. update
-      if ( length( u ) > 0 ) {
-        ui = pa$i[u]  # locations of P to modify
-        Pn[ui,] = Pn[ui,] + 1 # update counts
-        # update SD estimates of predictions with those from other locations via the
-        # incremental  method ("online algorithm") of mean estimation after Knuth ;
-        # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-        stdev_update =  Psd[ui,] + ( pa$sd[u] -  Psd[ui,] ) / Pn[ui,]
-        # update means: inverse-variance weighting   https://en.wikipedia.org/wiki/Inverse-variance_weighting
-        means_update = ( P[ui,] / Psd[ui,]^2 + pa$mean[u] / pa$sd[u]^2 ) / ( Psd[ui,]^(-2) + pa$sd[u]^(-2) )
-        mm = which(is.finite( means_update + stdev_update ))
-        if( length(mm)> 0) {
-          # actual updates occur after everything has been computed first
-          iumm = ui[mm]
-          Psd[iumm,] = stdev_update[mm]
-          P  [iumm,] = means_update[mm]
-        }
+    # maybe faster to make copy first and then do a rowSums ?
+    test = rowSums( P[pa$i,] ) 
+    u = which( is.finite( test ) )  # these have data already .. update
+    if ( length( u ) > 0 ) {
+      ui = pa$i[u]  # locations of P to modify
+      Pn[ui,] = Pn[ui,] + 1 # update counts
+      # update SD estimates of predictions with those from other locations via the
+      # incremental  method ("online algorithm") of mean estimation after Knuth ;
+      # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+      stdev_update =  Psd[ui,] + ( pa$sd[u] -  Psd[ui,] ) / Pn[ui,]
+      # update means: inverse-variance weighting   https://en.wikipedia.org/wiki/Inverse-variance_weighting
+      means_update = ( P[ui,] / Psd[ui,]^2 + pa$mean[u] / pa$sd[u]^2 ) / ( Psd[ui,]^(-2) + pa$sd[u]^(-2) )
+      mm = which(is.finite( means_update + stdev_update ))
+      if( length(mm)> 0) {
+        # actual updates occur after everything has been computed first
+        iumm = ui[mm]
+        Psd[iumm,] = stdev_update[mm]
+        P  [iumm,] = means_update[mm]
       }
+    }
 
-      # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
-      test = rowSums( P[pa$i,] )
-      f = which( !is.finite( test ) ) # first time
-      if ( length(f) > 0 ) {
-        fi = pa$i[f]
-        Pn [fi,] = 1
-        P  [fi,] = pa$mean[f]
-        Psd[fi,] = pa$sd[f]
-      }
+    # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
+    test = rowSums( P[pa$i,] )
+    f = which( !is.finite( test ) ) # first time
+    if ( length(f) > 0 ) {
+      fi = pa$i[f]
+      Pn [fi,] = 1
+      P  [fi,] = pa$mean[f]
+      Psd[fi,] = pa$sd[f]
+    }
   
     rm( pa ) ; gc()
 
     #########
 
-      print( "Computing variogram, correlation statisitics" )
-      vgm = NULL
-      vgm = spacetime_variogram( Yloc[YiU,], Y[YiU], methods=p$variogram.engine )
-
-      if (!is.null(vgm)) {
-        if (exists(p$variogram.engine, vgm) ) {
-          print( "Saving summary statisitics" )
-          # save statistics last as this is an indicator of completion of all tasks .. vgmtarts would be broken otherwise
-          spacetime_stats["varZ"] = vgm$varZ
-          spacetime_stats["varSpatial"] = vgm[[p$variogram.engine]]$varSpatial
-          spacetime_stats["varObs"] = vgm[[p$variogram.engine]]$varObs
-          spacetime_stats["range"] = vgm[[p$variogram.engine]]$range
-          spacetime_stats["phi"] = vgm[[p$variogram.engine]]$phi
-          spacetime_stats["nu"] = vgm[[p$variogram.engine]]$nu
-        }
-      }
-
-  if ( exists("TIME", p$variables) ){
-
-  
-      tsstats = temporal.annual.ar(...)
-  }
-
-      print( "Saving summary statisitics" )
-      # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
-      for ( k in 1: length(p$statsvars) ) {
-        S[Si,k] = spacetime_stats[[ k ]]
-      }
-
-      if(0) {
-        x11();
-        levelplot( ( S[,4] ) ~ plon + plat, data=Sloc[,], aspect="iso",
-          labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
-      }
-
+    # print( "Saving summary statisitics" )
+    # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
+    for ( k in 1: length(p$statsvars) ) {
+      S[Si,k] = spacetime_stats[[ p$statsvars[k] ]]
+    }
 
   }  # end for loop
 
 }
+
+
 
