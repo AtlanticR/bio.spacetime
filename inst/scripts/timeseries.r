@@ -25,8 +25,8 @@
 
   x = sunspot.year
   x = sunspots
-  o = timeseries_autocorrelation( x=x, freq=frequency(x) ) # default = spec.pgram
-  o = timeseries_autocorrelation( x=x, method="fft", freq=frequency(x) )
+  o = spacetime_timeseries( x=x, freq=frequency(x) ) # default = spec.pgram
+  o = spacetime_timeseries( x=x, method="fft", freq=frequency(x) )
 
 
 

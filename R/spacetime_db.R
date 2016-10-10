@@ -105,19 +105,6 @@
 
       # dependent variable
       Y_ = B[, p$variables$Y ]
-      if (exists( "Y_bounds", p) ) {
-        bad = which( Y_ < p$Y_bounds[1] | Y_ > p$Y_bounds[2]  )
-        if (length( bad) > 0) {
-          message( "Y range exceeds that specified in p$Y_bounds ... truncating data") 
-          message( p$Y_bounds )
-          Y_[ bad] = NaN
-        }
-      } else {
-        p$Y_bounds = range( Y_, na.rm=TRUE) # if not present create it: interpolations must not exceed observed bounds
-        message( "Observed Y range:")
-        message( p$Y_bounds )
-      }
-
       Y0 = bigmemory::as.big.matrix( Y_, type="double", 
         backingfile=p$bm$Y0, descriptorfile=basename(p$ptr$Y0), backingpath=p$tmp.datadir )
 
@@ -126,7 +113,6 @@
       } else {
         Yresid_ = Y_  # if no residual model simply use the raw data
       }
-
       Y = bigmemory::as.big.matrix( Yresid_, type="double", 
         backingfile=p$bm$Y, descriptorfile=basename(p$ptr$Y), backingpath=p$tmp.datadir )
 
@@ -340,7 +326,7 @@
         covmodel = try( 
           gam( p$spacetime_covariate_modelformula, data=B, optimizer=c("outer","bfgs")  ) ) 
 
-        if ( "try-error" %in% class(tsmodel) ) stop( "The initial covariate model was problematic" )
+        if ( "try-error" %in% class(tsmodel) ) stop( "The covariate model was problematic" )
         message( summary( covmodel ) )
         save( covmodel, file= p$fn$covmodel, compress=TRUE )
       }

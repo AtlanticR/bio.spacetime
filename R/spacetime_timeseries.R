@@ -1,103 +1,99 @@
 
-spacetime_harmonics = function( p, YiU, Si, newdata ) {
-   #\\ this is the core engine of spacetime .. localised space-time modelling
-   #\\ the simplest form is gam/kernel-based 
+spacetime_timeseries  = function( x, method="spec.pgram", quant=0.95, taper=0.05, kernel= kernel("modified.daniell", c(1,1)) , freq=1 ) {
+  #\\ estimate simple time series autocorrelation (serial)
+  # x = sunspot.year
 
-    #\\ simple GAM with spatial weights (inverse distance squared) and harmonics
-    # forcing sinusoid as a seasonal component: 
-    # to add an offset to a trig function (b) must add cos to a sin function
-    # y ~ a + c*sin(x+b)
-    # y ~ a + c*sin(b)*cos(x) + c*cos(b)*sin(x)  
-    #   .. as C*sin(x+b) = C*( cos(b) * sin(x) + sin(b) * cos(x) )
-    # y ~ b0 + b1*x1 + b2*x2
-    # where: 
-    #   a = b0
-    #   c^2 = b1^2 + b2^2 = c^2*(sin^2(b) + cos^2(b))
-    #   c = sqrt(b1^2 + b2^2)
-    #   b1/b2 = tan(b)  
-    #   b = arctan(b1/b2)
-    Sloc = p$ff$Sloc  # statistical output locations
-    Yloc = p$ff$Yloc  # statistical output locations
-    Y = p$ff$Y
+  if (method=="spec.pgram") {
+    # with spec.pgram, default is to taper 0.1 and remove linear trend
+    u = spec.pgram ( x, detrend=TRUE, plot=FALSE, na.action=na.omit, taper=taper  )
+  }
+ 
+  if (method=="spec.ar") {
+    # with spec.ar -- parametric AR fit/smooth via AIC then compute FFT on modeled results .. z must be ts 
+    if (! is.ts(x) ) stop( "Data must be a ts for this to work" )
+    u = spec.ar ( x , plot=FALSE, na.action=na.omit )
+  }
 
-    x = data.frame( Y[YiU], p$ff$Ytime[YiU] )
-    names(x) = c(p$variables$Y, p$variables$TIME)
-    if ( exists("spacetime.link", p) ) x[, p$variables$Y] = p$spacetime.link ( x[, p$variables$Y] ) 
+  if (method=="fft") {
+    # direct with FFT .. no detrending
+    z = spec.taper(scale(x, TRUE, FALSE), p=taper )
+    u = list()
+    nx = length(z)
+    nx2 = floor(nx/2)  # make even
+    I = Mod(fft(z))^2 /nx 
+    I[1L] = 0
+    u$spec = (4/nx)*I[1:nx2]    # "scaled periodogram"
+    u$freq = (0:(nx2-1))*freq/nx
+  }
 
-    x$yr = trunc( x[, p$variables$TIME])
-    x$plon = Yloc[YiU,1]
-    x$plat = Yloc[YiU,2]
-    if (exists("COV", p$variables)) {
-      x[ p$variables$COV ] = p$ff$Ycov[YiU]
-      close(p$ff$Ycov)
+  if (method=="cpgram") {
+    # direct copy from stats::cpgram .. just for reference
+    if (! is.ts(x) ) stop( "Must be ts .. this is just to show method" )
+    z = spec.taper(scale(x, TRUE, FALSE), p=taper )
+    y <- Mod(fft(z))^2/length(z)
+    y[1L] <- 0
+    n <- length(z)
+    z <- (0:(n/2)) * frequency(x)/n  
+    if (length(z)%%2 == 0) {
+        n <- length(z) - 1
+        y <- y[1L:n]
+        z <- z[1L:n]
+    } else {
+      y <- y[seq_along(z)]
     }
-    Y_wgt = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
-    Y_wgt[ which( Y_wgt < 1e-3 ) ] = 1e-3
-    Y_wgt[ which( Y_wgt > 1 ) ] = 1
+    u=list()
+    u$spec = y
+    u$freq = z
+  }
 
-    close(Yloc)
-    close(Ytime)
-    close(Sloc)
 
-    x$cos.w  = cos( 2*pi*x$tiyr )
-    x$sin.w  = sin( 2*pi*x$tiyr )
+  if (method == "inla" ) {
+    # incomplete .. interpolate as a simple AR in INLA and then FFT ...
+    require(INLA)
+    nn = abs( diff( dat[,"x"]  ) )
+    dd = median( nn[nn>0], na.rm=TRUE )
+    dat$xiid = dat$x = jitter( dat$x, amount=dd / 20 ) # add noise as inla seems unhappy with duplicates in x?
+    rsq = 0
+    nw = length( which(is.finite( dat$y)))
+    nw0 = nw + 1
 
-    newdata$cos.w  = cos( newdata$tiyr )
-    newdata$sin.w  = sin( newdata$tiyr )
-    
-    newdata$yr = trunc( newdata[,p$variables$TIME] )
-
-    # compute aSiitional harmonics only if required (to try to speed things up a bit)
-    if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
-      x$cos.w2 = cos( 2*x$tiyr )
-      x$sin.w2 = sin( 2*x$tiyr )
-      newdata$cos.w2 = cos( 2*newdata$tiyr )
-      newdata$sin.w2 = sin( 2*newdata$tiyr )
-    }
-    if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
-      x$cos.w3 = cos( 3*x$tiyr )
-      x$sin.w3 = sin( 3*x$tiyr )
-      newdata$cos.w3 = cos( 3*newdata$tiyr )
-      newdata$sin.w3 = sin( 3*newdata$tiyr )
-    }
-    
-    # estimate model parameters
-    tsmodel = try( 
-      gam( p$modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
-
-    if ( class(tsmodel) %in% "try-error" ) next()
+    #    preds_ydata = list()
+    #       preds_ydata[[ p$variables$Y ]] = NA ## ie. to predict
+    #      PREDS = inla.stack( tag="preds", data=preds_ydata, A=preds_A, effects=preds_eff, remove.unused=FALSE )
+    #DATA = inla.stack(DATA, PREDS )
+    #    preds_stack_index = inla.stack.index( DATA, "preds")$data  # indices of predictions in stacked data
+          
+    r = inla( y ~ 0 + f( x, model="ar1" ), data = dat )
+    dat$predictions =  r$summary.random$x[["mean"]]
+    ar.pred =  r$summary.hyperpar["Rho for x", "mean" ]
+    mm = glm( predictions~y, data=dat )
    
-    out = try( predict( tsmodel, newdata=newdata, type="response", se.fit=T ) ) 
+    # xmean = RES$summary.fitted.values[ stack_index, "mean"]
+   
+  }
 
-    if ( "try-error" %in% class( out ) ) return( NULL )
+  u$powerPr = cumsum( u$spec ) / sum( u$spec )
+  u$quantileFreq = u$freq[ min( which( u$powerPr >= quant ) ) ]
+  u$quantilePeriod = 1 / u$quantileFreq 
+ 
+  plot ( u$powerPr ~ u$freq, type="l" )
+  abline( v=u$quantileFreq )
+  abline( h=quant )
+  legend( "bottomright", legend= paste( "Period =", round( u$quantilePeriod, digits=3 ) )) 
 
-    newdata$mean = as.vector(out$fit)
-    newdata$sd = as.vector(out$se.fit) # this is correct: se.fit== stdev of the mean fit: eg:  https://stat.ethz.ch/pipermail/r-help/2005-July/075856.html
+  if ( 0 & is.ts( x ) ) {
+    xm <- frequency(x)/2
+    mp <- length(x) - 1
+    crit <- 1.358/(sqrt(mp) + 0.12 + 0.11/sqrt(mp))
+    oldpty <- par(pty = "s")
+    on.exit(par(oldpty))
+     ci.col = "blue"
+    plot(z, cumsum(y)/sum(y), type = "s", xlim = c(0, xm), ylim = c(0, 
+        1), xaxs = "i", yaxs = "i", xlab = "frequency", ylab = "")
+    lines(c(0, xm * (1 - crit)), c(crit, 1), col = ci.col, lty = 2)
+    lines(c(xm * crit, xm), c(0, 1 - crit), col = ci.col, lty = 2)
+  }
 
-    if (exists("spacetime.invlink", p)) {
-      newdata$mean = p$spacetime.invlink( newdata$mean )
-      newdata$sd  =  p$spacetime.invlink( newdata$sd )
-    }
-
-    if (exists( "Y_bounds", p)) {
-      bad = which( newdata$mean < p$Y_bounds | newdata$mean > p$Y_bounds  )
-      if (length( bad) > 0) {
-        newdata$mean[ bad] = NaN
-        newdata$sd[ bad] = NaN
-      }
-    }
-
-    if (exists( "quantile_bounds", p)) {
-      tq = quantile( Y, probs=p$quantile_bounds, na.rm=TRUE  )
-      bad = which( newdata$mean < tq[1] | newdata$mean > tq[2]  )
-      if (length( bad) > 0) {
-        newdata$mean[ bad] = NaN
-        newdata$sd[ bad] = NaN
-      }
-    }
-
-    stats = list( stdev=sd(Y, na.rm=T) )
-
-    return( list(newdata=newdata, stats=stats ) )  
+  return (u) 
 
 }

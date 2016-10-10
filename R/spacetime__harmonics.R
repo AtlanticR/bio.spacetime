@@ -62,12 +62,12 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
 
  
     # estimate model parameters
-    tsmodel = try( 
+    hmod = try( 
       gam( p$modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
 
-    if ( "try-error" %in% class(tsmodel) ) next()
+    if ( "try-error" %in% class(hmod) ) next()
     
-    out = try( predict( tsmodel, newdata=newdata, type="response", se.fit=T ) ) 
+    out = try( predict( hmod, newdata=newdata, type="response", se.fit=T ) ) 
 
     if ( "try-error" %in% class( out ) ) return( NULL )
 
@@ -79,14 +79,6 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
       newdata$sd  =  p$spacetime.invlink( newdata$sd )
     }
 
-    if (exists( "Y_bounds", p)) {
-      bad = which( newdata$mean < p$Y_bounds[1] | newdata$mean > p$Y_bounds[2]  )
-      if (length( bad) > 0) {
-        newdata$mean[ bad] = NA
-        newdata$sd[ bad] = NA
-      }
-    }
-
     if (exists( "quantile_bounds", p)) {
       tq = quantile( Y, probs=p$quantile_bounds, na.rm=TRUE  )
       bad = which( newdata$mean < tq[1] | newdata$mean > tq[2]  )
@@ -96,7 +88,7 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
       }
     }
 
-    ss = summary(tsmodel)
+    ss = summary(hmod)
     spacetime_stats = list( sdTotal=sd(Y[], na.rm=T), rsquared=ss$r.sq, ndata=ss$n ) # must be same order as p$statsvars
 
     return( list( predictions=newdata, spacetime_stats=spacetime_stats ) )  

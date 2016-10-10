@@ -121,8 +121,7 @@ spacetime = function( p, DATA, overwrite=NULL ) {
     PP = P0[,col.ranges] + PP[,col.ranges] 
     V = sqrt( P0sd[,col.ranges]^2 + PPsd[,col.ranges]^2) # simpleadditive independent errors assumed
 
- 
-    for ( r in 1:length(p$tyears) ) {
+     for ( r in 1:length(p$tyears) ) {
       y = p$tyears[r]
       fn1 = file.path( p$savedir, paste("spacetime.interpolation",  y, "rdata", sep="." ) )
       fn2 = file.path( p$savedir, paste("spacetime.interpolation.sd",  y, "rdata", sep="." ) )
