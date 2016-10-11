@@ -38,7 +38,6 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     if (exists("TIME", p$variables)) {
       Ytime = attach.big.matrix( p$ptr$Ytime )
       x[, p$variables$TIME ] = Ytime[YiU,] 
-      names(x) = c(p$variables$Y, p$variables$TIME)
       x$yr = trunc( x[, p$variables$TIME])
       x$cos.w  = cos( 2*pi*x$tiyr )
       x$sin.w  = sin( 2*pi*x$tiyr )
@@ -63,7 +62,7 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
  
     # estimate model parameters
     hmod = try( 
-      gam( p$modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
+      gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
 
     if ( "try-error" %in% class(hmod) ) next()
     
@@ -80,7 +79,7 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     }
 
     if (exists( "quantile_bounds", p)) {
-      tq = quantile( Y, probs=p$quantile_bounds, na.rm=TRUE  )
+      tq = quantile( Y[], probs=p$quantile_bounds, na.rm=TRUE  )
       bad = which( newdata$mean < tq[1] | newdata$mean > tq[2]  )
       if (length( bad) > 0) {
         newdata$mean[ bad] = NA

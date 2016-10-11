@@ -261,7 +261,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
     model = ~ RMmatern( nu=NA, var=NA, scale=NA) + RMnugget(var=NA)
     
-    o = RFfit(model, data=rfdata )
+    o = RFfit(model, data=rfdata, allowdistanceZero=TRUE )
     oo=summary(o)
 
     out$RandomFields = list ( fit=o, vgm=o[2], model=oo, range=NA,

@@ -30,10 +30,10 @@ spacetime = function( p, DATA, overwrite=NULL ) {
   	}
 	}
 
-  if (!exists("modelformula", p) ) {
+  if (!exists("spacetime_engine_modelformula", p) ) {
     # these are simple, generic defaults .. 
     # for more complex models (.i.e, with covariates) the formula should be passed directly 
-    p$modelformula = switch( p$spacetime_engine ,
+    p$spacetime_engine_modelformula = switch( p$spacetime_engine ,
       seasonal.basic = ' s(yr) + s(dyear, bs="cc") ', 
       seasonal.smoothed = ' s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ', 
       harmonics.1 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ', 
@@ -44,9 +44,9 @@ spacetime = function( p, DATA, overwrite=NULL ) {
       annual = ' s(yr) ',
       '+1'  # default, ie. Y~ + 1 , just to catch error
     )
-    p$modelformula = as.formula( paste( p$variables$Y, "~", p$modelformula ) )
-    message( "Verify that the modelformula is/should be:" )
-    message( p$modelformula )
+    p$spacetime_engine_modelformula = as.formula( paste( p$variables$Y, "~", p$spacetime_engine_modelformula ) )
+    message( "Verify that the spacetime_engine_modelformula is/should be:" )
+    message( p$spacetime_engine_modelformula )
   }
 
 
@@ -67,24 +67,26 @@ spacetime = function( p, DATA, overwrite=NULL ) {
 
   if ( exists("TIME", p$variables) ){
     if (exists("timeseries.engine", p) ) {
-      p$statsvars = c( p$statsvars, "ar" )
+      p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
     }
   }
 
-  if ( p$spacetime_engine=="inla") p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
+  if ( p$spacetime_engine=="inla") {
+    # not used .. just for posterity
+    p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
+  }
 
   if (is.null(overwrite) || overwrite) {
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
     message( "These are large files so be patient. ")
+    spacetime_db( p=p, DS="cleanup" )
     p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
-
-    # first pass to model covars
-    p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input )
     p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
+    p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars
     p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
-    rm(DATA); gc()
     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     message( "Finshed. Moving onto analysis... ")
+    rm(DATA); gc()
   } else {
     p = spacetime_db( p=p, DS="load.parameters" )
   }
@@ -203,7 +205,7 @@ spacetime = function( p, DATA, overwrite=NULL ) {
       data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=datalink[[i]](ss[,i]) )
       res = spacetime_interpolate_xy_singlepass( interp.method="kernel.density", 
         data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
-        theta=p$dist.mwin, xwidth=p$dist.mwin*10, ywidth=p$dist.mwin*10)
+        theta=p$spacetime.prediction.dist.min, xwidth=p$spacetime.prediction.dist.min*10, ywidth=p$spacetime.prediction.dist.min*10)
       if (!is.null(res)) stats[i,] = revlink[[i]] (res)
     }
     save( stats,  file=p$fn.S, compress=TRUE )
@@ -215,7 +217,7 @@ spacetime = function( p, DATA, overwrite=NULL ) {
       oc = landmask( db="worldHires", regions=c("Canada", "US"), return.value="not.land", tag="predictions" )  
       ## resolution of "predictions" which is the final grid size
       toplot = cbind( locsout, z=(stats[,"range"]) )[oc,]
-      resol = c(p$dist.mwin,p$dist.mwin)
+      resol = c(p$spacetime.prediction.dist.min,p$spacetime.prediction.dist.min)
       levelplot( log(z) ~ plon + plat, toplot, aspect="iso", at=dr, col.regions=color.code( "seis", dr) ,
         contour=FALSE, labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE), cex=2, resol=resol,
         panel = function(x, y, subscripts, ...) {

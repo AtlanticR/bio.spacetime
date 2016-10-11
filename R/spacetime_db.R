@@ -55,22 +55,40 @@
       p$ptr$Sloc =  file.path( p$tmp.datadir, "statistics_loc.bigmemory_description" )
       p$ptr$Stime = file.path( p$tmp.datadir, "statistics_time.bigmemory_description" )
 
+
+      p$ptr_data =list()
+      p$ptr_data$Y0 =    gsub( "_description", "",  p$ptr$Y0 ) 
+      p$ptr_data$Y =     gsub( "_description", "",  p$ptr$Y ) 
+      p$ptr_data$Ycov =  gsub( "_description", "",  p$ptr$Ycov ) 
+      p$ptr_data$Yloc =  gsub( "_description", "",  p$ptr$Yloc )
+      p$ptr_data$Ytime = gsub( "_description", "",  p$ptr$Ytime )
+      p$ptr_data$P0 =    gsub( "_description", "",  p$ptr$P0 )
+      p$ptr_data$P =     gsub( "_description", "",  p$ptr$P )
+      p$ptr_data$Psd =   gsub( "_description", "",  p$ptr$Psd )
+      p$ptr_data$Pn =    gsub( "_description", "",  p$ptr$Pn )
+      p$ptr_data$Pcov =  gsub( "_description", "",  p$ptr$Pcov )
+      p$ptr_data$Ploc =  gsub( "_description", "",  p$ptr$Ploc )
+      p$ptr_data$Ptime = gsub( "_description", "",  p$ptr$Ptime )
+      p$ptr_data$S =     gsub( "_description", "",  p$ptr$S )
+      p$ptr_data$Sloc =  gsub( "_description", "",  p$ptr$Sloc )
+      p$ptr_data$Stime = gsub( "_description", "",  p$ptr$Stime )
+
       p$bm =list()
-      p$bm$Y0 =    gsub( "_description", "", basename( p$ptr$Y0 ) ) 
-      p$bm$Y =     gsub( "_description", "", basename( p$ptr$Y ) ) 
-      p$bm$Ycov =  gsub( "_description", "", basename( p$ptr$Ycov ) ) 
-      p$bm$Yloc =  gsub( "_description", "", basename( p$ptr$Yloc ) )
-      p$bm$Ytime = gsub( "_description", "", basename( p$ptr$Ytime ) )
-      p$bm$P0 =    gsub( "_description", "", basename( p$ptr$P0 ) )
-      p$bm$P =     gsub( "_description", "", basename( p$ptr$P ) )
-      p$bm$Psd =   gsub( "_description", "", basename( p$ptr$Psd ) )
-      p$bm$Pn =    gsub( "_description", "", basename( p$ptr$Pn ) )
-      p$bm$Pcov =  gsub( "_description", "", basename( p$ptr$Pcov ) )
-      p$bm$Ploc =  gsub( "_description", "", basename( p$ptr$Ploc ) )
-      p$bm$Ptime = gsub( "_description", "", basename( p$ptr$Ptime ) )
-      p$bm$S =     gsub( "_description", "", basename( p$ptr$S ) )
-      p$bm$Sloc =  gsub( "_description", "", basename( p$ptr$Sloc ) )
-      p$bm$Stime = gsub( "_description", "", basename( p$ptr$Stime ) )
+      p$bm$Y0 =    basename( p$ptr_data$Y0 ) 
+      p$bm$Y =     basename( p$ptr_data$Y ) 
+      p$bm$Ycov =  basename( p$ptr_data$Ycov ) 
+      p$bm$Yloc =  basename( p$ptr_data$Yloc )
+      p$bm$Ytime = basename( p$ptr_data$Ytime )
+      p$bm$P0 =    basename( p$ptr_data$P0 )
+      p$bm$P =     basename( p$ptr_data$P )
+      p$bm$Psd =   basename( p$ptr_data$Psd )
+      p$bm$Pn =    basename( p$ptr_data$Pn )
+      p$bm$Pcov =  basename( p$ptr_data$Pcov )
+      p$bm$Ploc =  basename( p$ptr_data$Ploc )
+      p$bm$Ptime = basename( p$ptr_data$Ptime )
+      p$bm$S =     basename( p$ptr_data$S )
+      p$bm$Sloc =  basename( p$ptr_data$Sloc )
+      p$bm$Stime = basename( p$ptr_data$Stime )
       
       return(p)
     }
@@ -91,6 +109,7 @@
     if (DS %in% "cleanup" ) {
       p = spacetime_db( p=p, DS="filenames" )
       for (fn in p$ptr ) if (file.exists(fn)) file.remove(fn)
+      for (fn in p$ptr_data ) if (file.exists(fn)) file.remove(fn)
       return( "done" )
     }
 
@@ -108,7 +127,7 @@
       Y0 = bigmemory::as.big.matrix( Y_, type="double", 
         backingfile=p$bm$Y0, descriptorfile=basename(p$ptr$Y0), backingpath=p$tmp.datadir )
 
-      if (exists( "p$spacetime_covariate_modelformula", p)) {
+      if (exists( "spacetime_covariate_spacetime_engine_modelformula", p)) {
         Yresid_ = residuals( spacetime_db( p=p, DS="model.covariates") )
       } else {
         Yresid_ = Y_  # if no residual model simply use the raw data
@@ -128,7 +147,7 @@
           backingfile=p$bm$Ycov, descriptorfile=basename(p$ptr$Ycov), backingpath=p$tmp.datadir )
       }
 
-      # prediction times
+      # data times
       if ( exists("TIME", p$variables) ) {
         Ytime_ = as.matrix( B[, p$variables$TIME ] )
         Ytime = bigmemory::as.big.matrix( Ytime_, type="double", 
@@ -165,10 +184,10 @@
       P = bigmemory::as.big.matrix( P_, type="double", 
         backingfile=p$bm$P, descriptorfile=basename(p$ptr$P), backingpath=p$tmp.datadir )
 
-      Pn = bigmemory::as.big.matrix( Pn_, type="double", 
+      Pn = bigmemory::as.big.matrix( P_, type="double", 
         backingfile=p$bm$Pn, descriptorfile=basename(p$ptr$Pn), backingpath=p$tmp.datadir )
       
-      Psd = bigmemory::as.big.matrix( Psd_, type="double", 
+      Psd = bigmemory::as.big.matrix( P_, type="double", 
         backingfile=p$bm$Psd, descriptorfile=basename(p$ptr$Psd), backingpath=p$tmp.datadir )
 
       # prediction coordinates
@@ -179,7 +198,7 @@
       rm(P_);gc()
 
       # prediction offsets from an additive (global) model of covariates (if any, zero valued otherwise) 
-      if ( exists("COV", p$variables) && exists("spacetime_covariate_modelformula", p ) ) {
+      if ( exists("COV", p$variables) && exists("spacetime_covariate_spacetime_engine_modelformula", p ) ) {
           # assuming model is correct..
           covmodel = spacetime_db( p=p, DS="model.covariates") 
           Pcov = predict( covmodel, newdata=B$COV, type="response", se.fit=T ) 
@@ -272,8 +291,8 @@
       }
       
       if (DS == "statistics.box")  {
-        sbbox = list( plats = seq( p$corners$plat[1], p$corners$plat[2], by=p$dist.mwin ),
-                      plons = seq( p$corners$plon[1], p$corners$plon[2], by=p$dist.mwin ) )
+        sbbox = list( plats = seq( p$corners$plat[1], p$corners$plat[2], by=p$spacetime.prediction.dist.min ),
+                      plons = seq( p$corners$plon[1], p$corners$plon[2], by=p$spacetime.prediction.dist.min ) )
         return(sbbox)
       }
 
@@ -321,9 +340,9 @@
       # as a first pass, model the time-independent factors as a user-defined model
       if (p$spacetime_covariate_modeltype=="gam") {
         covmodel = try( 
-          gam( p$spacetime_covariate_modelformula, data=B, optimizer=c("outer","bfgs") ) ) 
+          gam( p$spacetime_covariate_spacetime_engine_modelformula, data=B, optimizer=c("outer","bfgs") ) ) 
         if ( "try-error" %in% class(covmodel) ) stop( "The covariate model was problematic" )
-        message( summary( covmodel ) )
+        print( summary( covmodel ) )
         save( covmodel, file= p$fn$covmodel, compress=TRUE )
       }
       return ( paste( "Covariate model saved to: ", p$fn$covmodel) )

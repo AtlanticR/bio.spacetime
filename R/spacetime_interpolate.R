@@ -29,7 +29,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
 # data locations
   if (exists("COV", p$variables)) {
     Ycov = attach.big.matrix( p$ptr$Ycov )
-    bad = which( !is.finite( rowSums(Ycov[])))
+    if (length(p$variables$COV)==1) {
+      bad = which( !is.finite( Ycov[] ))
+    } else {
+      bad = which( !is.finite( rowSums(Ycov[])))
+    }
     if (length(bad)> 0 ) Yi[bad] = NA
     Yi = na.omit(Yi)
   }
@@ -37,7 +41,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
   # data locations
   if (exists("TIME", p$variables)) {
     Ytime = attach.big.matrix( p$ptr$Ytime )
-    bad = which( !is.finite( rowSums(Ytime[])))
+    bad = which( !is.finite( Ytime[] ))
     if (length(bad)> 0 ) Yi[bad] = NA
     Yi = na.omit(Yi)
   }
@@ -82,31 +86,31 @@ spacetime_interpolate = function( ip=NULL, p ) {
     }
     ndata = length(U)
     if ((ndata < p$n.min) | (ndata > p$n.max) ) next()
-    YiU = Yi[U]
+    YiU = Yi[U]  
 
-    #  NOTE:: by default, all areas chosen to predict within the window.. but if covariates are involved,
-    #  this can be done only where covariates exists .. so next step is to determine this and predict
-    #  over the correct area.
-    #  Once all predictions are complete, simple (kernal-based?) interpolation
-    #  for areas without covariates can be completed
-    
-    windowsize.half = floor(dist.cur/p$pres) # convert distance to discretized increments of row/col indices
+    # So, YiU and dist.cur determine the data entering into local model construction
+    # but predictions are expensive, esp in space-time and so a smaller spatial raange is selected
+    # this is determined by p$spacetime.prediction.dist.min
+    dist_prediction = min( dist.cur*p$spacetime.prediction.range.proportion,  p$spacetime.prediction.dist.min )
+    windowsize.half = floor(dist_prediction/p$pres) # convert distance to discretized increments of row/col indices
     pa_offsets = -windowsize.half : windowsize.half
     pa_offsets_n = length(pa_offsets)
     pa_prow = rcS[Si,1] + pa_offsets
     pa_pcol = rcS[Si,2] + pa_offsets
-    pa = cbind( pa_prow[ rep.int(1:pa_offsets_n, pa_offsets_n) ], 
-                rep.int( pa_pcol[], pa_offsets_n ) )
-    names(pa) = c("Prow", "Pcol")
+
+    pa = data.frame( Prow = rep.int(pa_prow, pa_offsets_n) , 
+                     Pcol = rep.int(pa_pcol, rep.int(pa_offsets_n,pa_offsets_n)) )
 
     bad = which( (pa$Prow < 1 & pa$Prow > p$nplons) | (pa$Pcol < 1 & pa$Pcol > p$nplats) )
     if (length(bad) > 0 ) pa = pa[-bad,]
-    if (nrow(pa)< p$n.min) next()
+    if (nrow(pa)< 5) next()
+
+    # 
     pc_rc = paste( pa$Prow, pa$Pcol, sep="~" )
     pa$i = match( pc_rc, rcP$rc)
     bad = which( !is.finite(pa$i))
     if (length(bad) > 0 ) pa = pa[-bad,]
-    if (nrow(pa)< p$n.min) next()
+    if (nrow(pa)< 5) next()
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
 
@@ -132,7 +136,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     Pi = 1:nrow( Ploc ) 
     pa$i = Pi[ pa$i ]  ## flag to ignore
     kP = na.omit(pa$i)
-    if ( length( kP) < p$n.min ) next()
+    if ( length( kP) < 5 ) next()
     pa = pa[ which(is.finite( pa$i)), ] 
     pa_n = nrow(pa)
 
@@ -164,40 +168,57 @@ spacetime_interpolate = function( ip=NULL, p ) {
       if ( is.null(res)) next()     
 
       if (exists("variogram.engine", p) ) {
-        sp.stat = spacetime_variogram(  Yloc[YiU,], Y[YiU], methods=p$variogram.engine )
-        spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$variogram.engine]]$varSpatial )
-        spacetime_stats["sdObs"] = sqrt( sp.stat[[p$variogram.engine]]$varObs )
-        spacetime_stats["range"] = sp.stat[[p$variogram.engine]]$range
-        spacetime_stats["phi"] = sp.stat[[p$variogram.engine]]$phi
-        spacetime_stats["nu"] = sp.stat[[p$variogram.engine]]$nu
+        sp.stat = spacetime_variogram(  Yloc[YiU,], Y[YiU], methods=p$spacetime_variogram_engine )
+        res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$variogram.engine]]$varSpatial )
+        res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$variogram.engine]]$varObs )
+        res$spacetime_stats["range"] = sp.stat[[p$variogram.engine]]$range
+        res$spacetime_stats["phi"] = sp.stat[[p$variogram.engine]]$phi
+        res$spacetime_stats["nu"] = sp.stat[[p$variogram.engine]]$nu
       }
 
       if ( exists("TIME", p$variables) ){
         if (exists("timeseries.engine", p) ) {
-          ts.stat = spacetime_timeseries( Yloc[YiU,], Y[YiU], methods=p$timeseries.engine )
-          spacetime_stats["ar1"] = ts.stat$ar1
+           # annual ts, seasonally centered and spatially 
+          pa_S = paste( rcS[Si,1], rcS[Si,2], sep="~" )
+          pa_i = match( pa_S, rcP$rc)
+          if (length(pa_i)==1) {
+
+            pii = which(pa$i== pa_i)
+            pac = pa[pii,]
+            pac$dyr = pac[, p$variables$TIME] - trunc(pac[, p$variables$TIME] )
+            piid = which( zapsmall( pac$dyr - p$dyear_centre) == 00 )
+            pac = pac[ piid, c(p$variables$TIME, "mean")]
+            pac = pac[ order(pac[,p$variables$TIME]),]
+            if (length(pii) > 5 ) {
+              ts.stat = spacetime_timeseries( pac$mean, method="fft" )
+              res$spacetime_stats["ar_timerange"] = ts.stat$quantilePeriod 
+              res$spacetime_stats["ar_1"] = coef( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 
+    0 ) )
+       
+            }
+          }
         }
       }
     }
+
     if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity(  )
     if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon(  )
     if (p$spacetime_engine=="inla") res = spacetime__inla()
 
     if ( is.null(res)) next()
 
-    spacetime_stats = NULL
-    spacetime_stats = res$statisitics
-
     pa = merge( res$predictions[,c("i", "mean", "sd")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
     
-    # diagnostics = NULL
-    # diagnostics = res$diagnostics
+    spacetime_stats = res$spacetime_stats
+    
     rm(res, newdata); gc()
 
     if (debugrun) {
-      it = which(pa$tiyr==2000.05)
+      pa = merge( res$predictions[,c("i", "mean", "sd", "tiyr", "plon","plat")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
+      it = which(pa$tiyr==1990.55)
       x11(); levelplot( mean ~ plon+plat, pa[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )
-      x11(); levelplot( sd   ~ plon+plat, pa[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
+      it = which(pa$tiyr==2010.55)
+      x11(); levelplot( mean   ~ plon+plat, pa[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
     }
 
     good = which( is.finite( rowSums(pa) ) )
@@ -244,7 +265,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # print( "Saving summary statisitics" )
     # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
     for ( k in 1: length(p$statsvars) ) {
-      S[Si,k] = spacetime_stats[[ p$statsvars[k] ]]
+      if (exists( p$statsvars[k], spacetime_stats )) S[Si,k] = spacetime_stats[[ p$statsvars[k] ]]
     }
 
   }  # end for loop

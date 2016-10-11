@@ -242,7 +242,7 @@
       close(Ploc)
 
       RES = NULL
-      RES = spacetime_inla_call( FM=p$modelformula, DATA=DATA, SPDE=SPDE, FAMILY=p$spacetime.family )
+      RES = spacetime_inla_call( FM=p$spacetime_engine_modelformula, DATA=DATA, SPDE=SPDE, FAMILY=p$spacetime.family )
       if ( debugrun && !is.null( RES) ) {
         cat( paste(  Sys.time(), deid, "computations finished \n" ), file=p$debug.file, append=TRUE )
         print(RES)
