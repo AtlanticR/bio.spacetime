@@ -24,7 +24,22 @@
     debug = FALSE
     if(debug) {
 
-      OP$time = lubridate::decimal_date( OP$date) 
+      n=100
+      ar.cor=0.9
+      missing=0.1 
+      x = 1:n
+      y = y0 = arima.sim(n=n, model=list( ar=ar.cor ))
+      missing.values = sample( x, trunc(n * missing ))  
+      y[ missing.values ]  = NA 
+      y  = y + rnorm( n, mean=0 , sd=sd( y0,na.rm=TRUE ) )  # add noise
+      z = data.frame( x=x, y=y, y0=y0 ) 
+
+      z$decimal_date = 1900:(1900+n-1)
+      z$timestamp = lubridate::date_decimal( z$decimal_date  ) 
+
+      OP = z
+      OP$date = OP$timestamp
+      OP$time = lubridate::decimal_date( OP$timestamp) 
       OP = OP[ order( OP$time ) ,]
       
       # STL method

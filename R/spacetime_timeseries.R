@@ -94,6 +94,7 @@ spacetime_timeseries  = function( x, method="spec.pgram", quant=0.95, taper=0.05
     lines(c(xm * crit, xm), c(0, 1 - crit), col = ci.col, lty = 2)
   }
 
+ 
   return (u) 
 
 }
