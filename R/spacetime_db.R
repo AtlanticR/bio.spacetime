@@ -324,9 +324,8 @@
       # as a first pass, model the time-independent factors as a user-defined model
       if (p$spacetime_covariate_modeltype=="gam") {
         covmodel = try( 
-          gam( p$spacetime_covariate_modelformula, data=B, optimizer=c("outer","bfgs")  ) 
-
-        if ( "try-error" %in% class(tsmodel) ) stop( "The covariate model was problematic" )
+          gam( p$spacetime_covariate_modelformula, data=B, optimizer=c("outer","bfgs") ) ) 
+        if ( "try-error" %in% class(covmodel) ) stop( "The covariate model was problematic" )
         message( summary( covmodel ) )
         save( covmodel, file= p$fn$covmodel, compress=TRUE )
       }
