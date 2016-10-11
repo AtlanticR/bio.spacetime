@@ -188,7 +188,6 @@
             backingfile=p$bm$P0, descriptorfile=basename(p$ptr$P0), backingpath=p$tmp.datadir )
           P0sd = bigmemory::as.big.matrix( Pcov$se.fit, type="double", 
             backingfile=p$bm$P0sd, descriptorfile=basename(p$ptr$P0sd), backingpath=p$tmp.datadir )
-         }
       } else {
         P0_ = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nw*p$ny )
         P0 = bigmemory::as.big.matrix( P0_, type="double", 
@@ -312,8 +311,6 @@
     # -----
   
     if (DS %in% c("model.covariates", "model.covariates.redo") ) {
-
-      fn = p$fn$covmodel
       
       if (DS =="model.covariates") {
         covmodel = NULL
