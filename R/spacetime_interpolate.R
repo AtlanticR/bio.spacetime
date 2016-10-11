@@ -71,7 +71,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ( is.infinite( S[Si,1] ) ) next() 
     if ( !is.nan( S[Si,1] ) ) next() 
     S[Si,1] = Inf   # over-written below if successful else if a run fails it does not get revisited 
- 
+    
+    print( iip )
+
     # find data withing a given distance / number 
     pib = point_in_block( Sloc=Sloc, Si=Si, Yloc=Yloc, Yi=Yi, 
       dist.max=p$dist.max, dist.min=p$dist.min, 
@@ -213,7 +215,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     
     rm(res, newdata); gc()
 
-    if (debugrun) {
+    if (0) {
       pa = merge( res$predictions[,c("i", "mean", "sd", "tiyr", "plon","plat")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
       it = which(pa$tiyr==1990.55)
       x11(); levelplot( mean ~ plon+plat, pa[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )

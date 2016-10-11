@@ -26,9 +26,9 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     if ( exists("spacetime.link", p) ) x[, p$variables$Y] = p$spacetime.link ( x[, p$variables$Y] ) 
     x$plon = Yloc[YiU,1]
     x$plat = Yloc[YiU,2]
-    Y_wgt = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
-    Y_wgt[ which( Y_wgt < 1e-3 ) ] = 1e-3
-    Y_wgt[ which( Y_wgt > 1 ) ] = 1
+    x$Y_wgt = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
+    x$Y_wgt[ which( x$Y_wgt < 1e-3 ) ] = 1e-3
+    x$Y_wgt[ which( x$Y_wgt > 1 ) ] = 1
     
     if (exists("COV", p$variables)) {
       Ycov = attach.big.matrix( p$ptr$Ycov )
