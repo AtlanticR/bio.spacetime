@@ -311,7 +311,7 @@
 
     # -----
   
-    if (DS %in% c("model.covariates", "model.covariates.redo") {
+    if (DS %in% c("model.covariates", "model.covariates.redo") ) {
 
       fn = p$fn$covmodel
       
