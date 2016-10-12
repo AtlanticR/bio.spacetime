@@ -70,6 +70,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
     Si = p$runs[ iip, "locs" ]
     if ( is.infinite( S[Si,1] ) ) next() 
     if ( !is.nan( S[Si,1] ) ) next() 
+    
+    # Si = 31133  problem
+
     S[Si,1] = Inf   # over-written below if successful else if a run fails it does not get revisited 
     
     print( iip )
@@ -112,7 +115,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
     pa$i = match( pc_rc, rcP$rc)
     bad = which( !is.finite(pa$i))
     if (length(bad) > 0 ) pa = pa[-bad,]
-    if (nrow(pa)< 5) next()
+
+    pa_n = nrow(pa)
+    if ( pa_n < 5) next()
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
 
@@ -135,13 +140,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
   # ----------------------
   # prediction
-    Pi = 1:nrow( Ploc ) 
-    pa$i = Pi[ pa$i ]  ## flag to ignore
-    kP = na.omit(pa$i)
-    if ( length( kP) < 5 ) next()
-    pa = pa[ which(is.finite( pa$i)), ] 
-    pa_n = nrow(pa)
-
     # construct prediction/output grid 
     if ( ! exists("TIME", p$variables) ) {
       if (  exists("COV", p$variables) ) {
@@ -149,57 +147,57 @@ spacetime_interpolate = function( ip=NULL, p ) {
       } else {
         newdata = pa[ , c("plon", "plat", "i")]
       }
-   } else {
+    } else {
       Ptime = attach.big.matrix( p$ptr$Ptime )
       if ( exists("COV", p$variables) ) {
-        pa_t = pa[ , c("plon", "plat", "i", p$variables$COV)]
-        newdata = cbind( pa_t[ rep.int(1:pa_n, length(Ptime)), ], rep.int(Ptime[], pa_n ))
-        names(newdata) = c("plon", "plat", "i", p$variables$COV, "tiyr" )
+        pvars = c("plon", "plat", "i", p$variables$COV)
       } else {
-        pa_t = pa[ , c("plon", "plat", "i")]
-        newdata = cbind( pa_t[ rep.int(1:pa_n, length(Ptime)), ], rep.int(Ptime[], pa_n ))
-        names(newdata) = c("plon", "plat", "i", "tiyr" )
+        pvars = c("plon", "plat", "i")
       }
+      newdata = cbind( pa[ rep.int(1:pa_n, length(Ptime)), pvars ], rep.int(Ptime[], rep(pa_n,length(Ptime) )) )
+      names(newdata) = c(pvars, "tiyr" )
     }
-
 
     if ( p$spacetime_engine %in% 
       c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
          "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
+      res = NULL
       res = spacetime__harmonics( p, YiU, Si, newdata )
       if ( is.null(res)) next()     
 
-      if (exists("variogram.engine", p) ) {
-        sp.stat = spacetime_variogram(  Yloc[YiU,], Y[YiU], methods=p$spacetime_variogram_engine )
-        res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$variogram.engine]]$varSpatial )
-        res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$variogram.engine]]$varObs )
-        res$spacetime_stats["range"] = sp.stat[[p$variogram.engine]]$range
-        res$spacetime_stats["phi"] = sp.stat[[p$variogram.engine]]$phi
-        res$spacetime_stats["nu"] = sp.stat[[p$variogram.engine]]$nu
+      if (exists("spacetime_variogram_engine", p) ) {
+        sp.stat = NULL
+        sp.stat = try( spacetime_variogram(  Yloc[YiU,], Y[YiU], methods=p$spacetime_variogram_engine ) )
+        if (!is.null(sp.stat) && !("try-error" %in% class(sp.stat)) ){
+          res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
+          res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )
+          res$spacetime_stats["range"] = sp.stat[[p$spacetime_variogram_engine]]$range
+          res$spacetime_stats["phi"] = sp.stat[[p$spacetime_variogram_engine]]$phi
+          res$spacetime_stats["nu"] = sp.stat[[p$spacetime_variogram_engine]]$nu
+        }
       }
 
       if ( exists("TIME", p$variables) ){
-        if (exists("timeseries.engine", p) ) {
-           # annual ts, seasonally centered and spatially 
-          pa_S = paste( rcS[Si,1], rcS[Si,2], sep="~" )
-          pa_i = match( pa_S, rcP$rc)
-          if (length(pa_i)==1) {
-
-            pii = which(pa$i== pa_i)
-            pac = pa[pii,]
-            pac$dyr = pac[, p$variables$TIME] - trunc(pac[, p$variables$TIME] )
-            piid = which( zapsmall( pac$dyr - p$dyear_centre) == 00 )
-            pac = pac[ piid, c(p$variables$TIME, "mean")]
-            pac = pac[ order(pac[,p$variables$TIME]),]
-            if (length(pii) > 5 ) {
-              ts.stat = spacetime_timeseries( pac$mean, method="fft" )
+        # annual ts, seasonally centered and spatially 
+        # pa_i = which( Sloc[Si,1]==Ploc[,1] & Sloc[Si,2]==Ploc[,2] )
+        pac_i = which( res$predictions$plon==Sloc[Si,1] & res$predictions$plat==Sloc[Si,2] )
+        if (length(pac_i) > 5) {
+          pac = res$predictions[ pac_i, ]
+          pac$dyr = pac[, p$variables$TIME] - trunc(pac[, p$variables$TIME] )
+          piid = which( zapsmall( pac$dyr - p$dyear_centre) == 0 )
+          pac = pac[ piid, c(p$variables$TIME, "mean")]
+          pac = pac[ order(pac[,p$variables$TIME]),]
+          if (length(piid) > 5 ) {
+            ts.stat = NULL
+            ts.stat = try( spacetime_timeseries( pac$mean, method="fft" ) )
+            if (!is.null(ts.stat) && !("try-error" %in% class(ts.stat)) ){
               res$spacetime_stats["ar_timerange"] = ts.stat$quantilePeriod 
               res$spacetime_stats["ar_1"] = coef( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 
-    0 ) )
-       
+  0 ) )
             }
-          }
+          }          
         }
+
       }
     }
 
@@ -211,17 +209,20 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     pa = merge( res$predictions[,c("i", "mean", "sd")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
     
+
+    if (0) {
+      papl = merge( res$predictions[,c("i", "mean", "sd", "tiyr", "plon","plat")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
+      it = which(papl$tiyr==1990.55)
+      require(lattice)
+      x11(); levelplot( mean ~ plon+plat, papl[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )
+      it = which(papl$tiyr==2010.55)
+      x11(); levelplot( mean   ~ plon+plat, papl[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
+    }
+
     spacetime_stats = res$spacetime_stats
     
     rm(res, newdata); gc()
 
-    if (0) {
-      pa = merge( res$predictions[,c("i", "mean", "sd", "tiyr", "plon","plat")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
-      it = which(pa$tiyr==1990.55)
-      x11(); levelplot( mean ~ plon+plat, pa[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )
-      it = which(pa$tiyr==2010.55)
-      x11(); levelplot( mean   ~ plon+plat, pa[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
-    }
 
     good = which( is.finite( rowSums(pa) ) )
     if (length(good) < 1) next()
@@ -229,37 +230,56 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     # ----------------------
     # update P (predictions)
-    # maybe faster to make copy first and then do a rowSums ?
-    test = rowSums( P[pa$i,] ) 
-    u = which( is.finite( test ) )  # these have data already .. update
-    if ( length( u ) > 0 ) {
-      ui = pa$i[u]  # locations of P to modify
-      Pn[ui,] = Pn[ui,] + 1 # update counts
-      # update SD estimates of predictions with those from other locations via the
-      # incremental  method ("online algorithm") of mean estimation after Knuth ;
-      # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-      stdev_update =  Psd[ui,] + ( pa$sd[u] -  Psd[ui,] ) / Pn[ui,]
-      # update means: inverse-variance weighting   https://en.wikipedia.org/wiki/Inverse-variance_weighting
-      means_update = ( P[ui,] / Psd[ui,]^2 + pa$mean[u] / pa$sd[u]^2 ) / ( Psd[ui,]^(-2) + pa$sd[u]^(-2) )
-      mm = which(is.finite( means_update + stdev_update ))
-      if( length(mm)> 0) {
-        # actual updates occur after everything has been computed first
-        iumm = ui[mm]
-        Psd[iumm,] = stdev_update[mm]
-        P  [iumm,] = means_update[mm]
+    # update SD estimates of predictions with those from other locations via the
+    # incremental  method ("online algorithm") of mean estimation after Knuth ;
+    # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+    # update means: inverse-variance weighting   https://en.wikipedia.org/wiki/Inverse-variance_weighting
+
+    if ( exists("TIME", p$variables) ){
+      u = which( is.finite( rowSums( P[pa$i,] ) ) )  # these have data already .. update
+      if ( length( u ) > 0 ) {
+        ui = pa$i[u]  # locations of P to modify
+        Pn[ui,] = Pn[ui,] + 1 # update counts
+        stdev_update =  Psd[ui,] + ( pa$sd[u] -  Psd[ui,] ) / Pn[ui,]
+        means_update = ( P[ui,] / Psd[ui,]^2 + pa$mean[u] / pa$sd[u]^2 ) / ( Psd[ui,]^(-2) + pa$sd[u]^(-2) )
+        mm = which(is.finite( rowSums(means_update + stdev_update )))
+        if( length(mm)> 0) {
+          iumm = ui[mm]
+          Psd[iumm,] = stdev_update[mm]
+          P  [iumm,] = means_update[mm]
+        }
+      }
+      # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
+      f = which( !is.finite( rowSums( P[pa$i,] ) ) ) # first time
+      if ( length(f) > 0 ) {
+        fi = pa$i[f]
+        Pn [fi,] = 1
+        P  [fi,] = pa$mean[f]
+        Psd[fi,] = pa$sd[f]
+      }
+    } else {
+      u = which( is.finite( P[pa$i] ) )  # these have data already .. update
+      if ( length( u ) > 0 ) {
+        ui = pa$i[u]  # locations of P to modify
+        Pn[ui] = Pn[ui] + 1 # update counts
+        stdev_update =  Psd[ui] + ( pa$sd[u] -  Psd[ui] ) / Pn[ui]
+        means_update = ( P[ui] / Psd[ui]^2 + pa$mean[u] / pa$sd[u]^2 ) / ( Psd[ui]^(-2) + pa$sd[u]^(-2) )
+        mm = which(is.finite( means_update + stdev_update ))
+        if( length(mm)> 0) {
+          iumm = ui[mm]
+          Psd[iumm] = stdev_update[mm]
+          P  [iumm] = means_update[mm]
+        }
+      }
+      f = which( !is.finite( P[pa$i,] ) ) # first time
+      if ( length(f) > 0 ) {
+        fi = pa$i[f]
+        Pn [fi] = 1
+        P  [fi] = pa$mean[f]
+        Psd[fi] = pa$sd[f]
       }
     }
 
-    # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
-    test = rowSums( P[pa$i,] )
-    f = which( !is.finite( test ) ) # first time
-    if ( length(f) > 0 ) {
-      fi = pa$i[f]
-      Pn [fi,] = 1
-      P  [fi,] = pa$mean[f]
-      Psd[fi,] = pa$sd[f]
-    }
-  
     rm( pa ) ; gc()
 
     #########

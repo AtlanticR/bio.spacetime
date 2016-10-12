@@ -59,7 +59,6 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
       }
     }
 
- 
     # estimate model parameters
     hmod = try( 
       gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
@@ -79,7 +78,7 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     }
 
     if (exists( "quantile_bounds", p)) {
-      tq = quantile( Y[], probs=p$quantile_bounds, na.rm=TRUE  )
+      tq = quantile( x[,p$variables$Y], probs=p$quantile_bounds, na.rm=TRUE  )
       bad = which( newdata$mean < tq[1] | newdata$mean > tq[2]  )
       if (length( bad) > 0) {
         newdata$mean[ bad] = NA

@@ -86,6 +86,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   xy = as.data.frame(xy)
   names(xy) =  c("plon", "plat" ) # arbitrary
+  xy_n = nrow(xy)
 
   out = list()
   out$varZ = var( z, na.rm=TRUE )  # this is the scaling factor for semivariance .. diving by sd, below reduces numerical floating point issues
@@ -109,9 +110,10 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   out$drange = drange
   out$maxdist = maxdist
 
-  # positions and distances are scaled to max dist ..
-  xy$plon = ( xy$plon - out$minX ) / maxdist
-  xy$plat = ( xy$plat - out$minY ) / maxdist
+  # positions and distances are scaled to max dist .. with a small error term
+  derr = maxdist / 10^4
+  xy$plon = ( xy$plon - out$minX ) / maxdist + runif(xy_n, -derr, derr)
+  xy$plat = ( xy$plat - out$minY ) / maxdist + runif(xy_n, -derr, derr)
 
 
   # ------------------------

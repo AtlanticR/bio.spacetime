@@ -1,8 +1,8 @@
 
-spacetime_timeseries  = function( x, method="spec.pgram", quant=0.95, taper=0.05, kernel= kernel("modified.daniell", c(1,1)) , freq=1 ) {
+spacetime_timeseries  = function( x, method="spec.pgram", quant=0.95, taper=0.05, kernel= kernel("modified.daniell", c(1,1)) , freq=1, plotdata=FALSE ) {
   #\\ estimate simple time series autocorrelation (serial)
   # x = sunspot.year
-
+  u = NULL
   if (method=="spec.pgram") {
     # with spec.pgram, default is to taper 0.1 and remove linear trend
     u = spec.pgram ( x, detrend=TRUE, plot=FALSE, na.action=na.omit, taper=taper  )
@@ -75,11 +75,13 @@ spacetime_timeseries  = function( x, method="spec.pgram", quant=0.95, taper=0.05
   u$powerPr = cumsum( u$spec ) / sum( u$spec )
   u$quantileFreq = u$freq[ min( which( u$powerPr >= quant ) ) ]
   u$quantilePeriod = 1 / u$quantileFreq 
- 
-  plot ( u$powerPr ~ u$freq, type="l" )
-  abline( v=u$quantileFreq )
-  abline( h=quant )
-  legend( "bottomright", legend= paste( "Period =", round( u$quantilePeriod, digits=3 ) )) 
+
+  if (plotdata) { 
+    plot ( u$powerPr ~ u$freq, type="l" )
+    abline( v=u$quantileFreq )
+    abline( h=quant )
+    legend( "bottomright", legend= paste( "Period =", round( u$quantilePeriod, digits=3 ) )) 
+  }
 
   if ( 0 & is.ts( x ) ) {
     xm <- frequency(x)/2
@@ -93,7 +95,6 @@ spacetime_timeseries  = function( x, method="spec.pgram", quant=0.95, taper=0.05
     lines(c(0, xm * (1 - crit)), c(crit, 1), col = ci.col, lty = 2)
     lines(c(xm * crit, xm), c(0, 1 - crit), col = ci.col, lty = 2)
   }
-
  
   return (u) 
 

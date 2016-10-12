@@ -1,5 +1,5 @@
 
-  spacetime_db = function( DS, p, B=NULL, grp=NULL, yr=NULL ) {
+  spacetime_db = function( DS, p, B=NULL, yr=NULL, ret="mean"  ) {
     #// usage: low level function to convert data into file-based data obects to permit parallel
     #// data access and manipulation and deletes/updates
     #// B is the xyz or xytz data or the function to get the data to work upon
@@ -7,21 +7,21 @@
     if ( DS=="spatial.covariance") {
       stats = NULL
       p = spacetime_db( p=p, DS="filenames" )
-      if (file.exists( p$fn.stats) ) load( p$fn.stats )
+      if (file.exists( p$fn$stats) ) load( p$fn.stats )
       return(stats)
     }
 
     if ( DS =="predictions" ) {
       preds = NULL
       p = spacetime_db( p=p, DS="filenames" )
-      if (file.exists( p$fn.P ) ) load( p$fn.P )
+      if (file.exists( p$fn$P ) ) load( p$fn.P )
       return( preds )
     }
     
     if ( DS =="statistics" ) {
       stats = NULL
       p = spacetime_db( p=p, DS="filenames" )  
-      if (file.exists( p$fn.S) ) load( p$fn.S )
+      if (file.exists( p$fn$S) ) load( p$fn.S )
       return( stats )
     }
 
@@ -298,7 +298,6 @@
         return(sbbox)
       }
 
-
       if ( DS=="statistics.status" ) {
         # find locations for statistic computation and trim area based on availability of data
         # stats:
@@ -350,5 +349,100 @@
       return ( paste( "Covariate model saved to: ", p$fn$covmodel) )
     }
 
-  }
+    # -----
+    
+    if (DS %in% c("spacetime.prediction.redo", "spacetime.prediction") )  {
 
+      if (DS=="spacetime.prediction")  {
+        if (! exists("TIME", p)) yr = "0000"
+        if (!is.null(yr) ) {
+          if (ret=="mean") {
+            fn = file.path( p$savedir, paste("spacetime.prediction.mean", yr, "rdata", sep="." ) )
+            if (file.exists(fn) ) load(fn)
+            return (P)
+          }
+          if (ret=="sd") {
+            fn = file.path( p$savedir, paste("spacetime.prediction.sd", yr, "rdata", sep="." ) )
+            if (file.exists(fn) ) load( fn )
+            return( Psd)
+          }
+        }
+      }
+
+      PP = attach.big.matrix( p$ptr$P )
+      PPsd = attach.big.matrix( p$ptr$Psd )
+      P0 = attach.big.matrix( p$ptr$P0 )
+      P0sd = attach.big.matrix( p$ptr$P0sd )
+
+      PP = P0 + PP 
+      PPsd = sqrt( P0sd^2 + PPsd^2) # simpleadditive independent errors assumed
+
+      if ( exists("TIME", p)) {
+        for ( r in 1:length(p$tyears) ) {
+          y = p$tyears[r]
+          fn1 = file.path( p$savedir, paste("spacetime.prediction.mean",  y, "rdata", sep="." ) )
+          fn2 = file.path( p$savedir, paste("spacetime.prediction.sd",  y, "rdata", sep="." ) )
+          if (exists("nw", p)) {
+            col.ranges = (r-1) * p$nw + (1:p$nw) 
+            P = PP  [,col.ranges]
+            V = PPsd[,col.ranges] # simpleadditive independent errors assumed
+          } else {
+            P = PP[,r]
+            V = PPsd[,r]
+          }
+          save( P, file=fn1, compress=T )
+          save( V, file=fn2, compress=T )
+          print ( paste("Year:", y)  )
+        } 
+      } else {
+          y = "0000"
+          fn1 = file.path( p$savedir, paste("spacetime.prediction.mean",  y, "rdata", sep="." ) )
+          fn2 = file.path( p$savedir, paste("spacetime.prediction.sd",  y, "rdata", sep="." ) )
+          save( P, file=fn1, compress=T )
+          save( V, file=fn2, compress=T )
+      }
+    }
+  
+    # ----------------
+
+    if (DS %in% c("stats_to_prediction_grid.redo", "stats_to_prediction_grid") ) {
+
+      if (DS=="stats_to_prediction_grid") {
+        stats = NULL
+        if (file.exists(p$fn.S)) {}
+      }
+
+      S = attach.big.matrix( p$ptr$S )
+      Sloc = attach.big.matrix( p$ptr$Sloc )
+    
+      ss = as.data.frame( cbind( Sloc[], S[] ) )
+      names(ss) = c( p$variables$LOCS, p$statsvars )
+      locsout = expand.grid( p$plons, p$plats ) # final output grid
+      attr( locsout , "out.attrs") = NULL
+      names( locsout ) = p$variables$LOCS
+      stats = matrix( NaN, ncol=nstatvars, nrow=nrow( locsout) )  # output data
+      colnames(stats)=p$statsvars
+    
+      for ( i in 1:nstatvars ) {
+        data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=S[,i] )
+        res = spacetime_interpolate_xy_simple( interp.method="kernel.density", 
+          data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
+          theta=p$spacetime.prediction.dist.min, xwidth=p$spacetime.prediction.dist.min*10, ywidth=p$spacetime.prediction.dist.min*10 )
+        if (!is.null(res)) stats[i,] = res
+      }
+    
+      # subset to match to Ploc
+      locsout_rc = paste( locsout$plon, locsout$plat, sep="~" )
+      Ploc = attach.big.matrix (p$ptr$Ploc)
+      
+      bad = which( !is.finite(pa$i))
+      if (length(bad) > 0 ) pa = pa[-bad,]
+      if (nrow(pa)< 5) next()
+      pa$plon = Ploc[ pa$i, 1]
+      pa$plat = Ploc[ pa$i, 2]
+
+      save( stats,  file=p$fn.S, compress=TRUE )
+
+    }
+
+  }

@@ -1,5 +1,5 @@
 
-spacetime = function( p, DATA, overwrite=NULL ) {
+spacetime = function( p, DATA, overwrite=NULL) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
 
   p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "bigmemory", "fields" ) )
@@ -11,6 +11,7 @@ spacetime = function( p, DATA, overwrite=NULL ) {
   if( !file.exists(p$tmp.datadir)) dir.create( p$tmp.datadir, recursive=TRUE, showWarnings=FALSE )
 
   p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
+  
   message( paste( "Final outputs will be palced at:", p$savedir ) )
   if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
     
@@ -61,14 +62,12 @@ spacetime = function( p, DATA, overwrite=NULL ) {
     p$statsvars = c( "sdTotal", "rsquared", "ndata" )
   }
   
-  if (exists("variogram.engine", p) ) {
+  if (exists("spacetime_variogram_engine", p) ) {
     p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
   }
 
   if ( exists("TIME", p$variables) ){
-    if (exists("timeseries.engine", p) ) {
-      p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
-    }
+    p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
   }
 
   if ( p$spacetime_engine=="inla") {
@@ -107,70 +106,32 @@ spacetime = function( p, DATA, overwrite=NULL ) {
   # .. but first, pre-compute a few things 
   Ploc = attach.big.matrix( p$ptr$Ploc )
   p$Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
-  p$wght = setup.image.smooth( nrow=p$nplons[1], ncol=p$nplats, dx=p$pres, dy=p$res, 
+  p$wght = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$res, 
     theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
 
+  # a little more interpolation
   if (exists("TIME", p)) {
-    p = make.list( list( tiyr_index=1:(p$nw*p$yr)), Y=p ) # random order helps use all cpus
-    parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
-
-    # 3. save to disk
-    PP = attach.big.matrix( p$ptr$P )
-    PPsd = attach.big.matrix( p$ptr$Psd )
-    P0 = attach.big.matrix( p$ptr$P0 )
-    P0sd = attach.big.matrix( p$ptr$P0sd )
-
-    PP = P0[,col.ranges] + PP[,col.ranges] 
-    V = sqrt( P0sd[,col.ranges]^2 + PPsd[,col.ranges]^2) # simpleadditive independent errors assumed
-
-     for ( r in 1:length(p$tyears) ) {
-      y = p$tyears[r]
-      fn1 = file.path( p$savedir, paste("spacetime.interpolation",  y, "rdata", sep="." ) )
-      fn2 = file.path( p$savedir, paste("spacetime.interpolation.sd",  y, "rdata", sep="." ) )
-      col.ranges = (r-1) * p$nw + (1:p$nw) 
-      P = P0  [,col.ranges] + PP[,col.ranges] 
-      V = sqrt( P0sd[,col.ranges]^2 + PPsd[,col.ranges]^2) # simpleadditive independent errors assumed
-      save( P, file=fn1, compress=T )
-      save( V, file=fn2, compress=T )
-      print ( paste("Year:", y)  )
+    if (exists("nw", p)) {
+      p = make.list( list( tiyr_index=1:(p$nw*p$yr)), Y=p ) 
+    } else {
+      p = make.list( list( tiyr_index=1:p$yr), Y=p ) 
     }
-
+    parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
   } else {
-    
-    # do a simple/single interp .. might be ok with above .. test it
-    # this should work ... not sure
     p = make.list( list( tiyr_index=1), Y=p ) # random order helps use all cpus
-    
-    spacetime_interpolate_xy_simple_multiple( p=p ) 
-    # then save to disk
-
-# or
-#    spacetime_interpolate_xy_simple(interp.method, data, locsout, 
-#    trimquants=TRUE, trimprobs=c(0.025, 0.975), 
-#    nr=NULL, nc=NULL, theta=NULL, xwidth=theta*10, ywidth=theta*10, 
-#    link=NA )
+    spacetime_interpolate_xy_simple_multiple( p=p )
   }
 
-  Sloc = attach.big.matrix( p$ptr$Sloc )
-  S = attach.big.matrix( p$ptr$S )
-    # finalize by fast interpolations of predictions and and stats
-
-  stats = spacetime_interpolate_xy_simple_multiple( p=p ) 
-# or
-  stats = spacetime_reproject()
-
-  stats = as.data.frame( cbind( Sloc[], S[] ) )
-  ## warp this onto prediction grid
-
-  save(stats, file=p$fn.stats, compress=TRUE )
-
-  ## Here we parse predictions and save in a more useful format
+  spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk
+  spacetime_db( p, DS="stats_to_prediction_grid.redo")
 
   print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
-  spacetime_db( p=p, DS="cleanup" )
+  
+  pause( "stop here and check results before cleanuP ...")
+  #spacetime_db( p=p, DS="cleanup" )
+
 
   return( p )
-
 
 
   ## -- finished -- rest kept for historical reasons

@@ -33,19 +33,19 @@
     #---------------------
     # data for modelling
     # dependent vars # already link-transformed in spacetime_db("dependent")
-    Y =  p$ff$Y  # readonly
+    Y =  attach.big.matrix( p$ptr$Y )   # readonly
     Yi = 1:length(Y)
     bad = which( !is.finite( Y[]))
     if (length(bad)> 0 ) Yi[bad] = NA
 
    # data locations
-    Yloc =  p$ff$Yloc
+    Yloc =  attach.big.matrix( p$ptr$Yloc ) 
     bad = which( !is.finite( rowSums(Yloc[])))
     if (length(bad)> 0 ) Yi[bad] = NA
 
     # covariates (independent vars)
     if ( exists( "COV", p$variables) ) {
-      Ycov =  p$ff$Ycov
+      Ycov = attach.big.matrix( p$ptr$Ycov ) 
       if ( length( p$variables$COV ) == 1 ) {
         bad = which( !is.finite( Ycov[]) )
       } else {
@@ -58,19 +58,18 @@
 
     #---------------------
     # prediction locations and covariates
-    Ploc =  p$ff$Ploc # read only
+    Ploc = attach.big.matrix( p$ptr$Ploc ) # read only
     Pi = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
     if (length(pbad)> 0 ) Pi[ pbad ] = NA
     if ( exists( "COV", p$variables) ) {
-      Pcov =  p$ff$Pcov  # covariates at prediction locations; read only
+      Pcov =  attach.big.matrix( p$ptr$Pcov )   # covariates at prediction locations; read only
       if ( length( p$variables$COV ) == 1 ) {
         pbad = which( !is.finite( Pcov[]) )
       } else {
         pbad = which( !is.finite( rowSums(Pcov[])) )
       }
       if (length(pbad)> 0 ) Pi[pbad] = NA
-      close(Pcov)
     }
     rcP = data.frame( cbind( Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1))
     # rcP$i =1:nrow(rcP) # row index
@@ -80,8 +79,10 @@
 
     #-----------------
     # row, col indices
-    Sloc =  p$ff$Sloc  # statistical output locations
+    Sloc =  attach.big.matrix( p$ptr$Sloc )  # statistical output locations
     rcS = data.frame( cbind( Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
+
+    S =  attach.big.matrix( p$ptr$S )  # statistical output locations
 
     # main loop over each output location in S (stats output locations)
     for ( iip in ip ) {
@@ -91,13 +92,12 @@
       if (debugrun) cat( paste( Sys.time(), deid, "start \n" ), file=p$debug.file, append=TRUE )
       focal = t(Sloc[Si,])
 
-      S = p$ff$S  # statistical outputs
+
       if ( is.infinite( S[Si,1] ) ) next()
       if ( !is.nan( S[Si,1] ) ) next()
       S[Si,1] = Inf   # this is a flag such that if a run fails (e.g. in mesh generation), it does not get revisited
       # .. it gets over-written below if successful
       # choose a distance <= p$dist.max where n is within range of reasonable limits to permit a numerical solution
-      close(S)
 
       # find data withing a given distance / number 
       pib = point_in_block( Sloc=Sloc, Si=Si, Yloc=Yloc, Yi=Yi, 
@@ -217,7 +217,7 @@
         preds_eff = list()
         preds_eff[["spde"]] = c( preds_index, list(intercept=1) )
         if ( exists( "COV", p$variables) ) {
-          Pcov =  p$ff$Pcov  # covariates at prediction locations; read only
+          Pcov =  attach.big.matrix( p$ptr$Pcov)  # covariates at prediction locations; read only
           if ( length(p$variables$COV) == 1 ) {
             pcovars = as.data.frame(Pcov[ kP ])
           } else {
@@ -226,7 +226,6 @@
           colnames( pcovars ) = p$variables$COV
           preds_eff[["covar"]] = as.list( pcovars )
           preds_A = list( inla.spde.make.A(MESH, loc=preds_locs ), 1)
-          close(Pcov)
         } else {
           preds_A = list( inla.spde.make.A(MESH, loc=preds_locs ) )
         }
@@ -237,9 +236,6 @@
         preds_stack_index = inla.stack.index( DATA, "preds")$data  # indices of predictions in stacked data
         rm ( preds_eff, preds_ydata, preds_A, PREDS, preds_index, preds_locs, pcovars, kP ); gc()
       }
-
-      close(Yloc)
-      close(Ploc)
 
       RES = NULL
       RES = spacetime_inla_call( FM=p$spacetime_engine_modelformula, DATA=DATA, SPDE=SPDE, FAMILY=p$spacetime.family )
@@ -332,7 +328,7 @@
         stdevs = 3
         ii = pa$i
 
-        P =  p$ff$P # predictions
+        P =   attach.big.matrix( p$ptr$P ) # predictions
         test = rowSums( P[ii,] )
         u = which( is.finite( test ) )  # these have data already .. update
         if ( length( u ) > 0 ) {
@@ -361,8 +357,7 @@
           P[ fi, means ] = pa$xmean[f]
           P[ fi, stdevs ] = pa$xsd[f]
         }
-        close(P)
-
+      
       }
       rm(MESH); gc()
 
@@ -374,7 +369,7 @@
         inla.summary = spacetime_summary_inla_spde2 ( RES, SPDE )
         # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
 
-        S = p$ff$S  # statistical outputs
+        S =   attach.big.matrix( p$ptr$S )  # statistical outputs
         S[Si,1] = inla.summary["spatial error", "mode"]
         S[Si,2] = inla.summary["observation error", "mode"]
         S[Si,3] = inla.summary["range", "mode"]
@@ -383,19 +378,16 @@
           print( inla.summary )
           cat( paste( Sys.time(), deid, "statistics saved  \n" ), file=p$debug.file, append=TRUE )
         }
-        close(S)
       }
 
       if(debugrun) {
-        P = p$ff$P
+        P =   attach.big.matrix( p$ptr$P )
         pps = expand.grid( plon=p$plons, plat=p$plats)
         # zz = which(pps$plon > -50 & pps$plon < 50 & pps$plats < 50 & pps$plats > -50 ) # & P[,2] > 0   )
         zz = which(pps$plon > min(pa$plon) & pps$plon < max(pa$plon) & pps$plat < max(pa$plat) & pps$plat > min(pa$plat) )
         x11(); levelplot( ( P[zz,means] ) ~ plon + plat, pps[zz,], aspect="iso", labels=FALSE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
-        close(P)
       }
 
-      close(Y)
 
       rm( SPDE, RES) ; gc()
 
