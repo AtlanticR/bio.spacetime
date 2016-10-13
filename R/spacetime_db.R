@@ -196,7 +196,7 @@
       if ( exists("COV", p$variables) && exists("spacetime_covariate_modelformula", p ) ) {
           # assuming model is correct..
           covmodel = spacetime_db( p=p, DS="model.covariates") 
-          Pcov = predict( covmodel, newdata=B$COV, type="response", se.fit=T ) ) )
+          Pcov = predict( covmodel, newdata=B$COV, type="response", se.fit=T )
           rm (covmodel);gc()
           P0_ = bigmemory::as.big.matrix( Pcov$fit, type="double", 
             backingfile=p$bm$P0, descriptorfile=basename(p$ptr$P0), backingpath=p$tmp.datadir )
