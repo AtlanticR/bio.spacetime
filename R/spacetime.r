@@ -102,7 +102,7 @@ spacetime = function( p, DATA, overwrite=NULL) {
   p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
   parallel.run( spacetime_interpolate, p=p ) 
 
-  # 2. fast/simple spatial interpolation for anything not yet resolved
+  # 2. fast/simple spatial interpolation for anything not resolved by the local analysis
   # .. but first, pre-compute a few things 
   Ploc = attach.big.matrix( p$ptr$Ploc )
   p$Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
@@ -110,18 +110,11 @@ spacetime = function( p, DATA, overwrite=NULL) {
     theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
 
   # a little more interpolation
-  if (exists("TIME", p)) {
-    if (exists("nw", p)) {
-      p = make.list( list( tiyr_index=1:(p$nw*p$yr)), Y=p ) 
-    } else {
-      p = make.list( list( tiyr_index=1:p$yr), Y=p ) 
-    }
-    parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
-  } else {
-    p = make.list( list( tiyr_index=1), Y=p ) # random order helps use all cpus
-    spacetime_interpolate_xy_simple_multiple( p=p )
-  }
-
+  P = attach.big.matrix( p$ptr$P )
+  ncP = ncol( P )
+  p = make.list( list( tiyr_index=ncP ), Y=p ) 
+  parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
+  
   spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk
   spacetime_db( p, DS="stats_to_prediction_grid.redo")
 
