@@ -10,13 +10,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Y = ( p$ptr$Y )
   Yloc = ( p$ptr$Yloc )
 
-  P = ( p$ptr$P )
-  Pn = ( p$ptr$Pn )
-  Psd = ( p$ptr$Psd )
   Ploc = ( p$ptr$Ploc )
   
   Sloc = ( p$ptr$Sloc ) # statistical output locations
-  S = ( p$ptr$S )  # statistical outputs inside loop to safely save data and pass onto other processes
 
   Yi = 1:length(Y)
   bad = which( !is.finite( Y[]))
@@ -68,13 +64,15 @@ spacetime_interpolate = function( ip=NULL, p ) {
   # main loop over each output location in S (stats output locations)
   for ( iip in ip ) {
     Si = p$runs[ iip, "locs" ]
+    S = ( p$ptr$S )  # statistical outputs inside loop to safely save data and pass onto other processes
     if ( is.infinite( S[Si,1] ) ) next() 
     if ( !is.nan( S[Si,1] ) ) next() 
     
     # Si = 31133  problem
 
     S[Si,1] = Inf   # over-written below if successful else if a run fails it does not get revisited 
-    
+    close(S)
+
     print( iip )
 
     # find data withing a given distance / number 
@@ -235,6 +233,10 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
     # update means: inverse-variance weighting   https://en.wikipedia.org/wiki/Inverse-variance_weighting
 
+    P = ( p$ptr$P )
+    Pn = ( p$ptr$Pn )
+    Psd = ( p$ptr$Psd )
+
     if ( exists("TIME", p$variables) ){
       u = which( is.finite( rowSums( P[pa$i,] ) ) )  # these have data already .. update
       if ( length( u ) > 0 ) {
@@ -279,16 +281,22 @@ spacetime_interpolate = function( ip=NULL, p ) {
         Psd[fi] = pa$sd[f]
       }
     }
-
+    close(P)
+    close(Pn )
+    close(Psd )
+    
     rm( pa ) ; gc()
 
     #########
 
     # print( "Saving summary statisitics" )
     # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
+      # statistical outputs inside loop to safely save data and pass onto other processes
+    S = ( p$ptr$S )
     for ( k in 1: length(p$statsvars) ) {
       if (exists( p$statsvars[k], spacetime_stats )) S[Si,k] = spacetime_stats[[ p$statsvars[k] ]]
     }
+    close(S)
 
   }  # end for loop
 
