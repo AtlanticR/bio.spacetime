@@ -7,16 +7,16 @@ spacetime_interpolate = function( ip=NULL, p ) {
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime_db("dependent")
-  Y = attach.big.matrix( p$ptr$Y )
-  Yloc = attach.big.matrix( p$ptr$Yloc )
+  Y = ( p$ptr$Y )
+  Yloc = ( p$ptr$Yloc )
 
-  P = attach.big.matrix( p$ptr$P )
-  Pn = attach.big.matrix( p$ptr$Pn )
-  Psd = attach.big.matrix( p$ptr$Psd )
-  Ploc = attach.big.matrix( p$ptr$Ploc )
+  P = ( p$ptr$P )
+  Pn = ( p$ptr$Pn )
+  Psd = ( p$ptr$Psd )
+  Ploc = ( p$ptr$Ploc )
   
-  Sloc = attach.big.matrix( p$ptr$Sloc ) # statistical output locations
-  S = attach.big.matrix( p$ptr$S )  # statistical outputs inside loop to safely save data and pass onto other processes
+  Sloc = ( p$ptr$Sloc ) # statistical output locations
+  S = ( p$ptr$S )  # statistical outputs inside loop to safely save data and pass onto other processes
 
   Yi = 1:length(Y)
   bad = which( !is.finite( Y[]))
@@ -28,7 +28,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
 # data locations
   if (exists("COV", p$variables)) {
-    Ycov = attach.big.matrix( p$ptr$Ycov )
+    Ycov = ( p$ptr$Ycov )
     if (length(p$variables$COV)==1) {
       bad = which( !is.finite( Ycov[] ))
     } else {
@@ -40,7 +40,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
   
   # data locations
   if (exists("TIME", p$variables)) {
-    Ytime = attach.big.matrix( p$ptr$Ytime )
+    Ytime = ( p$ptr$Ytime )
     bad = which( !is.finite( Ytime[] ))
     if (length(bad)> 0 ) Yi[bad] = NA
     Yi = na.omit(Yi)
@@ -123,7 +123,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     # prediction covariates i.e., independent variables/ covariates
     if (exists("COV", p$variables)) {
-      Pcov = attach.big.matrix( p$ptr$Pcov )
+      Pcov = ( p$ptr$Pcov )
       for (ci in 1:length(p$variables$COV)) {
         pa[,p$variables$COV[ci]] = Pcov[ pa$i, ci ]
       }
@@ -148,7 +148,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
         newdata = pa[ , c("plon", "plat", "i")]
       }
     } else {
-      Ptime = attach.big.matrix( p$ptr$Ptime )
+      Ptime = ( p$ptr$Ptime )
       if ( exists("COV", p$variables) ) {
         pvars = c("plon", "plat", "i", p$variables$COV)
       } else {

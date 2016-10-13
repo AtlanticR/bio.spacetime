@@ -17,9 +17,9 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     #   b1/b2 = tan(b)  
     #   b = arctan(b1/b2)
     
-    Sloc = attach.big.matrix( p$ptr$Sloc )
-    Yloc = attach.big.matrix( p$ptr$Yloc )
-    Y = attach.big.matrix( p$ptr$Y )
+    Sloc = ( p$ptr$Sloc )
+    Yloc = ( p$ptr$Yloc )
+    Y = ( p$ptr$Y )
 
     x = data.frame( Y[YiU] )
     names(x) = p$variables$Y
@@ -31,12 +31,12 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     x$Y_wgt[ which( x$Y_wgt > 1 ) ] = 1
     
     if (exists("COV", p$variables)) {
-      Ycov = attach.big.matrix( p$ptr$Ycov )
+      Ycov = ( p$ptr$Ycov )
       for (i in 1:length(p$variables$COV )) x[, p$variables$COV[i] ] = Ycov[YiU,i]
     }
     
     if (exists("TIME", p$variables)) {
-      Ytime = attach.big.matrix( p$ptr$Ytime )
+      Ytime = ( p$ptr$Ytime )
       x[, p$variables$TIME ] = Ytime[YiU,] 
       x$yr = trunc( x[, p$variables$TIME])
       x$cos.w  = cos( 2*pi*x$tiyr )

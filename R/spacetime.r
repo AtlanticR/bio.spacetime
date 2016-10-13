@@ -2,7 +2,7 @@
 spacetime = function( p, DATA, overwrite=NULL) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
 
-  p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "bigmemory", "fields" ) )
+  p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "ff", "ffbase", "fields" ) )
 
   if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
   
@@ -104,13 +104,13 @@ spacetime = function( p, DATA, overwrite=NULL) {
 
   # 2. fast/simple spatial interpolation for anything not resolved by the local analysis
   # .. but first, pre-compute a few things 
-  Ploc = attach.big.matrix( p$ptr$Ploc )
+  Ploc = ( p$ptr$Ploc )
   p$Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
   p$wght = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$res, 
     theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
 
   # a little more interpolation
-  P = attach.big.matrix( p$ptr$P )
+  P = ( p$ptr$P )
   ncP = ncol( P )
   p = make.list( list( tiyr_index=ncP ), Y=p ) 
   parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
@@ -137,8 +137,8 @@ spacetime = function( p, DATA, overwrite=NULL) {
     p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime_interpolate_xy_local_inla, p=p ) # no more GMT dependency! :)
     # save to file
-    P = attach.big.matrix( p$ptr$P )
-    Ploc = attach.big.matrix( p$ptr$Ploc )
+    P = ( p$ptr$P )
+    Ploc = ( p$ptr$Ploc )
     preds = as.data.frame( cbind ( Ploc[], P[] ) )
     names(preds) = c( "plon", "plat", "ndata", "mean", "sdev" )
     save( preds, file=p$fn.P, compress=TRUE )
@@ -146,8 +146,8 @@ spacetime = function( p, DATA, overwrite=NULL) {
     # this also rescales results to the full domain
     datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
     revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
-    S = attach.big.matrix( p$ptr$S )
-    Sloc = attach.big.matrix( p$ptr$Sloc )
+    S = ( p$ptr$S )
+    Sloc = ( p$ptr$Sloc )
     ss = as.data.frame( cbind( Sloc[], S[] ) )
     names(ss) = c( p$variables$LOCS, p$statsvars )
     locsout = expand.grid( p$plons, p$plats ) # final output grid

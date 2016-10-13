@@ -15,7 +15,7 @@ spacetime_interpolate_xy_simple_multiple = function( ip=NULL, p ) {
 
     # mean estimates    
     Z = Z0
-    P = attach.big.matrix( p$ptr$P )  # predictions
+    P = ( p$ptr$P )  # predictions
     
     tofill = which( ! is.finite( P[,ww] ) )
     if (length( tofill) == 0 ) next()
@@ -34,7 +34,7 @@ spacetime_interpolate_xy_simple_multiple = function( ip=NULL, p ) {
 
     ## SD estimates
     Z = Z0
-    Psd = attach.big.matrix( p$ptr$Psd )   # predictions
+    Psd = ( p$ptr$Psd )   # predictions
 
     tofill = which( ! is.finite( Psd[,ww] ) )
     if (length( tofill) == 0 ) next()

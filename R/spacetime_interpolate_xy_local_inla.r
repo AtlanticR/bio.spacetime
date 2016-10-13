@@ -33,19 +33,19 @@
     #---------------------
     # data for modelling
     # dependent vars # already link-transformed in spacetime_db("dependent")
-    Y =  attach.big.matrix( p$ptr$Y )   # readonly
+    Y =  ( p$ptr$Y )   # readonly
     Yi = 1:length(Y)
     bad = which( !is.finite( Y[]))
     if (length(bad)> 0 ) Yi[bad] = NA
 
    # data locations
-    Yloc =  attach.big.matrix( p$ptr$Yloc ) 
+    Yloc =  ( p$ptr$Yloc ) 
     bad = which( !is.finite( rowSums(Yloc[])))
     if (length(bad)> 0 ) Yi[bad] = NA
 
     # covariates (independent vars)
     if ( exists( "COV", p$variables) ) {
-      Ycov = attach.big.matrix( p$ptr$Ycov ) 
+      Ycov = ( p$ptr$Ycov ) 
       if ( length( p$variables$COV ) == 1 ) {
         bad = which( !is.finite( Ycov[]) )
       } else {
@@ -58,12 +58,12 @@
 
     #---------------------
     # prediction locations and covariates
-    Ploc = attach.big.matrix( p$ptr$Ploc ) # read only
+    Ploc = ( p$ptr$Ploc ) # read only
     Pi = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
     if (length(pbad)> 0 ) Pi[ pbad ] = NA
     if ( exists( "COV", p$variables) ) {
-      Pcov =  attach.big.matrix( p$ptr$Pcov )   # covariates at prediction locations; read only
+      Pcov =  ( p$ptr$Pcov )   # covariates at prediction locations; read only
       if ( length( p$variables$COV ) == 1 ) {
         pbad = which( !is.finite( Pcov[]) )
       } else {
@@ -79,10 +79,10 @@
 
     #-----------------
     # row, col indices
-    Sloc =  attach.big.matrix( p$ptr$Sloc )  # statistical output locations
+    Sloc =  ( p$ptr$Sloc )  # statistical output locations
     rcS = data.frame( cbind( Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
 
-    S =  attach.big.matrix( p$ptr$S )  # statistical output locations
+    S =  ( p$ptr$S )  # statistical output locations
 
     # main loop over each output location in S (stats output locations)
     for ( iip in ip ) {
@@ -217,7 +217,7 @@
         preds_eff = list()
         preds_eff[["spde"]] = c( preds_index, list(intercept=1) )
         if ( exists( "COV", p$variables) ) {
-          Pcov =  attach.big.matrix( p$ptr$Pcov)  # covariates at prediction locations; read only
+          Pcov =  ( p$ptr$Pcov)  # covariates at prediction locations; read only
           if ( length(p$variables$COV) == 1 ) {
             pcovars = as.data.frame(Pcov[ kP ])
           } else {
@@ -328,7 +328,7 @@
         stdevs = 3
         ii = pa$i
 
-        P =   attach.big.matrix( p$ptr$P ) # predictions
+        P =   ( p$ptr$P ) # predictions
         test = rowSums( P[ii,] )
         u = which( is.finite( test ) )  # these have data already .. update
         if ( length( u ) > 0 ) {
@@ -369,7 +369,7 @@
         inla.summary = spacetime_summary_inla_spde2 ( RES, SPDE )
         # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
 
-        S =   attach.big.matrix( p$ptr$S )  # statistical outputs
+        S =   ( p$ptr$S )  # statistical outputs
         S[Si,1] = inla.summary["spatial error", "mode"]
         S[Si,2] = inla.summary["observation error", "mode"]
         S[Si,3] = inla.summary["range", "mode"]
@@ -381,7 +381,7 @@
       }
 
       if(debugrun) {
-        P =   attach.big.matrix( p$ptr$P )
+        P =   ( p$ptr$P )
         pps = expand.grid( plon=p$plons, plat=p$plats)
         # zz = which(pps$plon > -50 & pps$plon < 50 & pps$plats < 50 & pps$plats > -50 ) # & P[,2] > 0   )
         zz = which(pps$plon > min(pa$plon) & pps$plon < max(pa$plon) & pps$plat < max(pa$plat) & pps$plat > min(pa$plat) )
