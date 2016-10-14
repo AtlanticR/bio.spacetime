@@ -2,19 +2,10 @@
 spacetime = function( p, DATA, overwrite=NULL) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
 
-  p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "ff", "ffbase", "fields" ) )
+  p$libs = RLibrary( unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "ff", "ffbase", "fields" ) ) )
 
   if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
   
-  p$tmp.datadir = file.path( p$project.root, "tmp" )
-  message( paste( "Temporary files are being created at:", p$tmp.datadir ) )
-  if( !file.exists(p$tmp.datadir)) dir.create( p$tmp.datadir, recursive=TRUE, showWarnings=FALSE )
-
-  p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
-  
-  message( paste( "Final outputs will be palced at:", p$savedir ) )
-  if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
-    
   p = spacetime_db( p=p, DS="filenames" )
   
   # set up the data and problem using data objects

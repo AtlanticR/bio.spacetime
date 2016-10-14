@@ -31,6 +31,15 @@
       # input data stored as a bigmemory file to permit operations with min memory usage
       # split into separate components to reduce filelocking conflicts
 
+      p$tmp.datadir = file.path( p$project.root, "tmp" )
+      # message( paste( "Temporary files are being created at:", p$tmp.datadir ) )
+      if( !file.exists(p$tmp.datadir)) dir.create( p$tmp.datadir, recursive=TRUE, showWarnings=FALSE )
+
+      p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
+      
+      # message( paste( "Final outputs will be palced at:", p$savedir ) )
+      if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
+        
       # storage locations for finalized data 
       p$fn = list()
       p$fn$P = file.path( p$savedir, paste( "spacetime", "predictions", "rdata", sep=".") )
@@ -327,7 +336,7 @@
         print( summary( covmodel ) )
         save( covmodel, file= p$fn$covmodel, compress=TRUE )
       }
-      return ( paste( "Covariate model saved to: ", p$fn$covmodel) )
+      return ( p )
     }
 
     # -----
