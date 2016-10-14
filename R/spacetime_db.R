@@ -133,29 +133,29 @@
 
       # dependent variable
       Y_ = B[, p$variables$Y ]
-      Y0 = ff( Y_, dim=dim(Y_), file=p$ptr$Y0, overwrite=TRUE )
+      p$ptr$Y0 = ff( Y_, dim=dim(Y_), file=p$ptr_data$Y0, overwrite=TRUE )
 
       if (exists( "spacetime_covariate_spacetime_engine_modelformula", p)) {
         Yresid_ = residuals( spacetime_db( p=p, DS="model.covariates") )
       } else {
         Yresid_ = Y_  # if no residual model simply use the raw data
       }
-      Y = ff( Yresid_, dim=dim(Yresid_), file=p$ptr$Y, overwrite=TRUE )
+      p$ptr$Y = ff( Yresid_, dim=dim(Yresid_), file=p$ptr_data$Y, overwrite=TRUE )
 
      # data coordinates
       Yloc_ = as.matrix( B[, p$variables$LOCS ])
-      Yloc = ff( Yloc_, dim=dim(Yloc_), file=p$ptr$Yloc, overwrite=TRUE )
+      p$ptr$Yloc = ff( Yloc_, dim=dim(Yloc_), file=p$ptr_data$Yloc, overwrite=TRUE )
 
       # independent variables/ covariate
       if (exists("COV", p$variables)) {
         Ycov_ = as.matrix( B[ , p$variables$COV ] )
-        Ycov = ff( Ycov_, dim=dim(Ycov_), file=p$ptr$Ycov, overwrite=TRUE )
+        p$ptr$Ycov = ff( Ycov_, dim=dim(Ycov_), file=p$ptr_data$Ycov, overwrite=TRUE )
       }
 
       # data times
       if ( exists("TIME", p$variables) ) {
         Ytime_ = as.matrix( B[, p$variables$TIME ] )
-        Ytime = ff( Ytime_, dim=dim(Ytime_), file=p$ptr$Ytime, overwrite=TRUE )
+        p$ptr$Ytime = ff( Ytime_, dim=dim(Ytime_), file=p$ptr_data$Ytime, overwrite=TRUE )
       }
 
       return( p ) #return pointers to data
@@ -172,24 +172,24 @@
         } else {
           Pcov_ = as.matrix( B$COV[,p$variables$COV ] ) 
         }
-        Pcov = ff( Pcov_, dim=dim(Pcov_), file=p$ptr$Pcov, overwrite=TRUE )
+        p$ptr$Pcov = ff( Pcov_, dim=dim(Pcov_), file=p$ptr_data$Pcov, overwrite=TRUE )
       }
       
       # prediction times
       if (exists("TIME", p$variables)) {
         Ptime_ = as.matrix( B$TIME )
-        Ptime = ff( Ptime_, dim=dim(Ptime_), file=p$ptr$Ptime, overwrite=TRUE )
+        p$ptr$Ptime = ff( Ptime_, dim=dim(Ptime_), file=p$ptr_data$Ptime, overwrite=TRUE )
       }
       
       # predictions and associated stats
       P_ = matrix( NaN, nrow=nrow(B$LOCS), ncol=p$nw*p$ny )
-      P = ff( P_, dim=dim(P_), file=p$ptr$P, overwrite=TRUE )
-      Pn = ff( P_, dim=dim(P_), file=p$ptr$Pn, overwrite=TRUE )
-      Psd = ff( P_, dim=dim(P_), file=p$ptr$Psd, overwrite=TRUE )
+      p$ptr$P = ff( P_, dim=dim(P_), file=p$ptr_data$P, overwrite=TRUE )
+      p$ptr$Pn = ff( P_, dim=dim(P_), file=p$ptr_data$Pn, overwrite=TRUE )
+      p$ptr$Psd = ff( P_, dim=dim(P_), file=p$ptr_data$Psd, overwrite=TRUE )
 
       # prediction coordinates
       Ploc_ = as.matrix( B$LOCS )
-      Ploc = ff( Ploc_, dim=dim(Ploc_), file=p$ptr$Ploc, overwrite=TRUE )
+      p$ptr$Ploc = ff( Ploc_, dim=dim(Ploc_), file=p$ptr_data$Ploc, overwrite=TRUE )
 
       rm(P_);gc()
 
@@ -201,12 +201,12 @@
         names(covars) = p$variables$COV
         Pcov = predict( covmodel, newdata=covars, type="response", se.fit=T ) 
         rm (covmodel, covars);gc()
-        P0_ = ff( Pcov$fit, dim=dim(Pcov$fit), file=p$ptr$P0, overwrite=TRUE )
-        P0sd_ = ff( Pcov$se.fit, dim=dim(Pcov$se.fit), file=p$ptr$P0sd, overwrite=TRUE )
+        p$ptr$P0_ = ff( Pcov$fit, dim=dim(Pcov$fit), file=p$ptr_data$P0, overwrite=TRUE )
+        p$ptr$P0sd_ = ff( Pcov$se.fit, dim=dim(Pcov$se.fit), file=p$ptr_data$P0sd, overwrite=TRUE )
       } else {
         P0_ = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nw*p$ny )
-        P0 = ff( P0_, dim=dim(P0_), file=p$ptr$P0, overwrite=TRUE )
-        P0sd = ff( P0sd_, dim=dim(P0sd_), file=p$ptr$P0sd, overwrite=TRUE )
+        p$ptr$P0 = ff( P0_, dim=dim(P0_), file=p$ptr_data$P0, overwrite=TRUE )
+        p$ptr$P0sd = ff( P0sd_, dim=dim(P0sd_), file=p$ptr_data$P0sd, overwrite=TRUE )
       }
       
       return( p )
@@ -224,14 +224,14 @@
       }
 
       # data:
-      Y = ( p$ptr$Y )
+      Y = p$ptr$Y 
       hasdata = 1:length(Y)
       bad = which( !is.finite( Y[]))
       if (length(bad)> 0 ) hasdata[bad] = NA
 
       # covariates (independent vars)
       if ( exists( "COV", p$variables) ) {
-        Ycov = ( p$ptr$Ycov ) 
+        Ycov = p$ptr$Ycov 
         if ( length( p$variables$COV ) == 1 ) {
           bad = which( !is.finite( Ycov[]) )
         } else {
@@ -242,11 +242,11 @@
 
       ii = na.omit(hasdata)
       ndata = length(ii)
-      Yloc = ( p$ptr$Yloc )
+      Yloc = p$ptr$Yloc
       locs_noise =  runif( ndata*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise )
       if (!exists("non_convex_hull_alpha", p)) p$non_convex_hull_alpha=20
       boundary=list( polygon = non_convex_hull( Yloc[ii,]+locs_noise, alpha=p$non_convex_hull_alpha, plot=FALSE ) )
-      Sloc = ( p$ptr$Sloc ) # statistical output locations
+      Sloc = p$ptr$Sloc # statistical output locations
       boundary$inside.polygon = point.in.polygon( Sloc[,1], Sloc[,2],
           boundary$polygon[,1], boundary$polygon[,2], mode.checked=TRUE )
       
@@ -269,15 +269,15 @@
         # statistics storage matrix ( aggregation window, coords ) .. no inputs required
         # statistics coordinates
         Sloc_ = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
-        Sloc = ff( Sloc_, dim=dim(Sloc_), file=p$ptr$Sloc, overwrite=TRUE )
+        p$ptr$Sloc = ff( Sloc_, dim=dim(Sloc_), filename=p$ptr_data$Sloc, overwrite=TRUE )
 
         S_ = matrix( NaN, nrow=nrow(Sloc_), ncol=length( p$statsvars ) ) # NA forces into logical
-        S = ff( S_, dim=dim(S_), file=p$ptr$S, overwrite=TRUE )
+        p$ptr$S = ff( S_, dim=dim(S_), file=p$ptr_data$S, overwrite=TRUE )
         return( p )
       }
 
       if ( DS=="statistics.size" ) {
-        S = ( p$ptr$S )
+        S = p$ptr$S 
         nS = nrow(S) 
         return(nS)
       }
@@ -291,7 +291,7 @@
       if ( DS=="statistics.status" ) {
         # find locations for statistic computation and trim area based on availability of data
         # stats:
-        S = ( p$ptr$S )
+        S = p$ptr$S 
         bnds = try( spacetime_db( p, DS="boundary" ) )
 
         if (!is.null(bnds)) {
@@ -359,10 +359,10 @@
         }
       }
 
-      PP = ( p$ptr$P )
-      PPsd = ( p$ptr$Psd )
-      P0 = ( p$ptr$P0 )
-      P0sd = ( p$ptr$P0sd )
+      PP =  p$ptr$P 
+      PPsd =  p$ptr$Psd 
+      P0 =  p$ptr$P0 
+      P0sd =  p$ptr$P0sd 
 
       PP = P0 + PP 
       PPsd = sqrt( P0sd^2 + PPsd^2) # simpleadditive independent errors assumed
@@ -402,8 +402,8 @@
         if (file.exists(p$fn.S)) {}
       }
 
-      S = ( p$ptr$S )
-      Sloc = ( p$ptr$Sloc )
+      S =  p$ptr$S 
+      Sloc =  p$ptr$Sloc 
     
       ss = as.data.frame( cbind( Sloc[], S[] ) )
       names(ss) = c( p$variables$LOCS, p$statsvars )
@@ -423,7 +423,7 @@
     
       # subset to match to Ploc
       locsout_rc = paste( locsout$plon, locsout$plat, sep="~" )
-      Ploc =  (p$ptr$Ploc)
+      Ploc =  p$ptr$Ploc
       
       bad = which( !is.finite(pa$i))
       if (length(bad) > 0 ) pa = pa[-bad,]

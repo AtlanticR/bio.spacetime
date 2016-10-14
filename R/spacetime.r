@@ -68,11 +68,11 @@ spacetime = function( p, DATA, overwrite=NULL) {
 
   if (is.null(overwrite) || overwrite) {
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
-    message( "These are large files so be patient. ")
+    message( "These are large files (4GB each), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
     spacetime_db( p=p, DS="cleanup" )
     p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
     p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
-    p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars
+    p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
     p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     message( "Finshed. Moving onto analysis... ")
