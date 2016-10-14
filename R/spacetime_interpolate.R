@@ -7,16 +7,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime_db("dependent")
-  Y = attach.big.matrix( p$ptr$Y )
-  Yloc = attach.big.matrix( p$ptr$Yloc )
+  Y =  p$ptr$Y 
+  Yloc = p$ptr$Yloc 
 
-  P = attach.big.matrix( p$ptr$P )
-  Pn = attach.big.matrix( p$ptr$Pn )
-  Psd = attach.big.matrix( p$ptr$Psd )
-  Ploc = attach.big.matrix( p$ptr$Ploc )
+  Ploc = p$ptr$Ploc 
   
-  Sloc = attach.big.matrix( p$ptr$Sloc ) # statistical output locations
-  S = attach.big.matrix( p$ptr$S )  # statistical outputs inside loop to safely save data and pass onto other processes
+  Sloc = p$ptr$Sloc  # statistical output locations
 
   Yi = 1:length(Y)
   bad = which( !is.finite( Y[]))
@@ -28,7 +24,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
 # data locations
   if (exists("COV", p$variables)) {
-    Ycov = attach.big.matrix( p$ptr$Ycov )
+    Ycov = ( p$ptr$Ycov )
     if (length(p$variables$COV)==1) {
       bad = which( !is.finite( Ycov[] ))
     } else {
@@ -40,7 +36,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
   
   # data locations
   if (exists("TIME", p$variables)) {
-    Ytime = attach.big.matrix( p$ptr$Ytime )
+    Ytime = ( p$ptr$Ytime )
     bad = which( !is.finite( Ytime[] ))
     if (length(bad)> 0 ) Yi[bad] = NA
     Yi = na.omit(Yi)
@@ -68,13 +64,15 @@ spacetime_interpolate = function( ip=NULL, p ) {
   # main loop over each output location in S (stats output locations)
   for ( iip in ip ) {
     Si = p$runs[ iip, "locs" ]
+    S = ( p$ptr$S )  # statistical outputs inside loop to safely save data and pass onto other processes
     if ( is.infinite( S[Si,1] ) ) next() 
     if ( !is.nan( S[Si,1] ) ) next() 
     
     # Si = 31133  problem
 
     S[Si,1] = Inf   # over-written below if successful else if a run fails it does not get revisited 
-    
+    close(S)
+
     print( iip )
 
     # find data withing a given distance / number 
@@ -123,7 +121,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     # prediction covariates i.e., independent variables/ covariates
     if (exists("COV", p$variables)) {
-      Pcov = attach.big.matrix( p$ptr$Pcov )
+      Pcov = ( p$ptr$Pcov )
       for (ci in 1:length(p$variables$COV)) {
         pa[,p$variables$COV[ci]] = Pcov[ pa$i, ci ]
       }
@@ -148,7 +146,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
         newdata = pa[ , c("plon", "plat", "i")]
       }
     } else {
-      Ptime = attach.big.matrix( p$ptr$Ptime )
+      Ptime = ( p$ptr$Ptime )
       if ( exists("COV", p$variables) ) {
         pvars = c("plon", "plat", "i", p$variables$COV)
       } else {
@@ -197,7 +195,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
             }
           }          
         }
-
       }
     }
 
@@ -207,26 +204,27 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     if ( is.null(res)) next()
 
-    pa = merge( res$predictions[,c("i", "mean", "sd")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
-    
 
-    if (0) {
-      papl = merge( res$predictions[,c("i", "mean", "sd", "tiyr", "plon","plat")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
-      it = which(papl$tiyr==1990.55)
-      require(lattice)
-      x11(); levelplot( mean ~ plon+plat, papl[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )
-      it = which(papl$tiyr==2010.55)
-      x11(); levelplot( mean   ~ plon+plat, papl[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
+    if ( exists("TIME", p$variables) ){
+      paP = merge( res$predictions[,c("i", "mean", "sd", p$variables$TIME)], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
+
+      if (0) {
+        paP0 = merge( res$predictions[,c("i", "mean", "sd", "tiyr", "plon","plat")], pa[,c("i", "Prow", "Pcol")], by="i", all.x=TRUE, all.y=FALSE, sort=FALSE )
+        it = which(paP0$tiyr==1990.55)
+        require(lattice)
+        x11(); levelplot( mean ~ plon+plat, paP0[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )
+        it = which(paP0$tiyr==2010.55)
+        x11(); levelplot( mean   ~ plon+plat, paP0[it,], aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=FALSE) )
+      }
     }
 
     spacetime_stats = res$spacetime_stats
     
     rm(res, newdata); gc()
 
-
-    good = which( is.finite( rowSums(pa) ) )
+    good = which( is.finite( rowSums(paP) ) )
     if (length(good) < 1) next()
-    pa = pa[good,]
+    paP = paP[good,]
 
     # ----------------------
     # update P (predictions)
@@ -235,10 +233,19 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
     # update means: inverse-variance weighting   https://en.wikipedia.org/wiki/Inverse-variance_weighting
 
+    P =  p$ptr$P 
+    Pn =  p$ptr$Pn 
+    Psd =  p$ptr$Psd 
+
     if ( exists("TIME", p$variables) ){
-      u = which( is.finite( rowSums( P[pa$i,] ) ) )  # these have data already .. update
-      if ( length( u ) > 0 ) {
+      c_n = ncol(P)
+      icol = 1:c_n
+      u = which( is.finite( P[pa$i,1] ) )  # these have data already .. update
+      u_n = length( u ) 
+      if ( u_n > 0 ) {
         ui = pa$i[u]  # locations of P to modify
+        ui.hi = cbind( ui[ rep.int(1:u_n, c_n)], rep.int(icol, rep(ui, u_n )) )
+
         Pn[ui,] = Pn[ui,] + 1 # update counts
         stdev_update =  Psd[ui,] + ( pa$sd[u] -  Psd[ui,] ) / Pn[ui,]
         means_update = ( P[ui,] / Psd[ui,]^2 + pa$mean[u] / pa$sd[u]^2 ) / ( Psd[ui,]^(-2) + pa$sd[u]^(-2) )
@@ -250,7 +257,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
         }
       }
       # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
-      f = which( !is.finite( rowSums( P[pa$i,] ) ) ) # first time
+      f = which( !is.finite( P[pa$i,1] ) ) # first time
       if ( length(f) > 0 ) {
         fi = pa$i[f]
         Pn [fi,] = 1
@@ -279,16 +286,22 @@ spacetime_interpolate = function( ip=NULL, p ) {
         Psd[fi] = pa$sd[f]
       }
     }
-
+    close(P)
+    close(Pn )
+    close(Psd )
+    
     rm( pa ) ; gc()
 
     #########
 
     # print( "Saving summary statisitics" )
     # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
+      # statistical outputs inside loop to safely save data and pass onto other processes
+    S = ( p$ptr$S )
     for ( k in 1: length(p$statsvars) ) {
       if (exists( p$statsvars[k], spacetime_stats )) S[Si,k] = spacetime_stats[[ p$statsvars[k] ]]
     }
+    close(S)
 
   }  # end for loop
 

@@ -2,20 +2,12 @@
 spacetime = function( p, DATA, overwrite=NULL) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
 
-  p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "bigmemory", "fields" ) )
+  p$libs = RLibrary( unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "ff", "ffbase", "fields" ) ) )
 
   if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
-  
-  p$tmp.datadir = file.path( p$project.root, "tmp" )
-  message( paste( "Temporary files are being created at:", p$tmp.datadir ) )
-  if( !file.exists(p$tmp.datadir)) dir.create( p$tmp.datadir, recursive=TRUE, showWarnings=FALSE )
 
-  p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
-  
-  message( paste( "Final outputs will be palced at:", p$savedir ) )
-  if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
-    
   p = spacetime_db( p=p, DS="filenames" )
+  p$ptr = list() # location for ff pointers
   
   # set up the data and problem using data objects
   if (is.null(overwrite)) {
@@ -55,8 +47,6 @@ spacetime = function( p, DATA, overwrite=NULL) {
   if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
 
   # require knowledge of size of stats output before create S, which varies with a given type of analysis
-
-
   if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
          "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
     p$statsvars = c( "sdTotal", "rsquared", "ndata" )
@@ -76,11 +66,11 @@ spacetime = function( p, DATA, overwrite=NULL) {
 
   if (is.null(overwrite) || overwrite) {
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
-    message( "These are large files so be patient. ")
+    message( "These are large files (4GB each), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
     spacetime_db( p=p, DS="cleanup" )
     p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
     p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
-    p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars
+    p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
     p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     message( "Finshed. Moving onto analysis... ")
@@ -103,13 +93,13 @@ spacetime = function( p, DATA, overwrite=NULL) {
 
   # 2. fast/simple spatial interpolation for anything not resolved by the local analysis
   # .. but first, pre-compute a few things 
-  Ploc = attach.big.matrix( p$ptr$Ploc )
+  Ploc = ( p$ptr$Ploc )
   p$Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
   p$wght = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$res, 
     theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
 
   # a little more interpolation
-  P = attach.big.matrix( p$ptr$P )
+  P = ( p$ptr$P )
   ncP = ncol( P )
   p = make.list( list( tiyr_index=ncP ), Y=p ) 
   parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
@@ -139,8 +129,8 @@ spacetime = function( p, DATA, overwrite=NULL) {
     p = make.list( list( locs=sample(  o$incomplete )) , Y=p ) # random order helps use all cpus
     parallel.run( spacetime_interpolate_xy_local_inla, p=p ) # no more GMT dependency! :)
     # save to file
-    P = attach.big.matrix( p$ptr$P )
-    Ploc = attach.big.matrix( p$ptr$Ploc )
+    P = ( p$ptr$P )
+    Ploc = ( p$ptr$Ploc )
     preds = as.data.frame( cbind ( Ploc[], P[] ) )
     names(preds) = c( "plon", "plat", "ndata", "mean", "sdev" )
     save( preds, file=p$fn.P, compress=TRUE )
@@ -148,8 +138,8 @@ spacetime = function( p, DATA, overwrite=NULL) {
     # this also rescales results to the full domain
     datalink   = c( I(log), I(log), I(log), I(log))   # a log-link seems appropriate for these data
     revlink   = c( I(exp), I(exp), I(exp), I(exp))   # a log-link seems appropriate for these data
-    S = attach.big.matrix( p$ptr$S )
-    Sloc = attach.big.matrix( p$ptr$Sloc )
+    S = ( p$ptr$S )
+    Sloc = ( p$ptr$Sloc )
     ss = as.data.frame( cbind( Sloc[], S[] ) )
     names(ss) = c( p$variables$LOCS, p$statsvars )
     locsout = expand.grid( p$plons, p$plats ) # final output grid

@@ -10,7 +10,7 @@ point_in_block = function( Sloc, Si, Yloc, Yi, dist.max, dist.min, n.min=30, n.m
   ndat = length(U)
   dist.cur = dist.max
   
-  if ( !resize )  returnreturn(list(U=U, dist=dist.cur))
+  if ( !resize )  return(list(U=U, dist=dist.cur))
 
   # find data nearest S[Si,] and with sufficient data
   if ( ndat < n.min )  {
