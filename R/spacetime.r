@@ -71,8 +71,7 @@ spacetime = function( p, DATA, overwrite=NULL) {
   }
 
   if ( p$spacetime_engine=="inla") {
-    # not used .. just for posterity
-    p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )
+    p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
   }
 
   if (is.null(overwrite) || overwrite) {
@@ -117,13 +116,16 @@ spacetime = function( p, DATA, overwrite=NULL) {
   
   spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk
   spacetime_db( p, DS="stats_to_prediction_grid.redo")
-
-  print( paste( "Temporary files are being deleted at:", p$tmp.datadir, "tmp" ) )
   
-  pause( "stop here and check results before cleanuP ...")
-  #spacetime_db( p=p, DS="cleanup" )
-
-
+  message ("Finished! \n")
+  resp = readline( "To delete temporary files, type <Yes>:  ")
+  if (resp=="Yes") {
+    spacetime_db( p=p, DS="cleanup" )
+  } else {
+    message( "Leaving temporary files alone in case you need to examine them or restart a process.")
+    message( "You can delete them by running: spacetime_db( p=p, DS='cleanup' ), once you are done.") 
+  }
+  
   return( p )
 
 
