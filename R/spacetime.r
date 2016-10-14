@@ -5,8 +5,9 @@ spacetime = function( p, DATA, overwrite=NULL) {
   p$libs = RLibrary( unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "ff", "ffbase", "fields" ) ) )
 
   if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
-  
+
   p = spacetime_db( p=p, DS="filenames" )
+  p$ptr = list() # location for ff pointers
   
   # set up the data and problem using data objects
   if (is.null(overwrite)) {
@@ -46,8 +47,6 @@ spacetime = function( p, DATA, overwrite=NULL) {
   if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
 
   # require knowledge of size of stats output before create S, which varies with a given type of analysis
-
-
   if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
          "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
     p$statsvars = c( "sdTotal", "rsquared", "ndata" )

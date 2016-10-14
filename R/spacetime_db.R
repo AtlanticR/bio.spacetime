@@ -47,22 +47,22 @@
       p$fn$stats =  file.path( p$project.root, "spacetime", paste( "spatial", "covariance", "rdata", sep=".") )
       p$fn$covmodel =  file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", "rdata", sep=".") )
       
-      p$ptr =list()
-      p$ptr$Y0 =    file.path( p$tmp.datadir, "input.Y0.bigmemory_description" ) # raw data
-      p$ptr$Y =     file.path( p$tmp.datadir, "input.Y.bigmemory_description" ) # residuals of covar model or raw data if none
-      p$ptr$Ycov =  file.path( p$tmp.datadir, "input.Ycov.bigmemory_description"  )
-      p$ptr$Yloc =  file.path( p$tmp.datadir, "input.Yloc.bigmemory_description" )
-      p$ptr$Ytime = file.path( p$tmp.datadir, "input.Ytime.bigmemory_description" )
-      p$ptr$P0 =    file.path( p$tmp.datadir, "predictions0.bigmemory_description" ) # offsets from covar model
-      p$ptr$P =     file.path( p$tmp.datadir, "predictions.bigmemory_description" )
-      p$ptr$Psd =   file.path( p$tmp.datadir, "predictions_sd.bigmemory_description" )
-      p$ptr$Pn =    file.path( p$tmp.datadir, "predictions_n.bigmemory_description" )
-      p$ptr$Pcov =  file.path( p$tmp.datadir, "predictions_cov.bigmemory_description" )
-      p$ptr$Ploc =  file.path( p$tmp.datadir, "predictions_loc.bigmemory_description" )
-      p$ptr$Ptime = file.path( p$tmp.datadir, "predictions_time.bigmemory_description" )
-      p$ptr$S =     file.path( p$tmp.datadir, "statistics.bigmemory_description" )
-      p$ptr$Sloc =  file.path( p$tmp.datadir, "statistics_loc.bigmemory_description" )
-      p$ptr$Stime = file.path( p$tmp.datadir, "statistics_time.bigmemory_description" )
+      # p$ptr =list()
+      # p$ptr$Y0 =    file.path( p$tmp.datadir, "input.Y0.bigmemory_description" ) # raw data
+      # p$ptr$Y =     file.path( p$tmp.datadir, "input.Y.bigmemory_description" ) # residuals of covar model or raw data if none
+      # p$ptr$Ycov =  file.path( p$tmp.datadir, "input.Ycov.bigmemory_description"  )
+      # p$ptr$Yloc =  file.path( p$tmp.datadir, "input.Yloc.bigmemory_description" )
+      # p$ptr$Ytime = file.path( p$tmp.datadir, "input.Ytime.bigmemory_description" )
+      # p$ptr$P0 =    file.path( p$tmp.datadir, "predictions0.bigmemory_description" ) # offsets from covar model
+      # p$ptr$P =     file.path( p$tmp.datadir, "predictions.bigmemory_description" )
+      # p$ptr$Psd =   file.path( p$tmp.datadir, "predictions_sd.bigmemory_description" )
+      # p$ptr$Pn =    file.path( p$tmp.datadir, "predictions_n.bigmemory_description" )
+      # p$ptr$Pcov =  file.path( p$tmp.datadir, "predictions_cov.bigmemory_description" )
+      # p$ptr$Ploc =  file.path( p$tmp.datadir, "predictions_loc.bigmemory_description" )
+      # p$ptr$Ptime = file.path( p$tmp.datadir, "predictions_time.bigmemory_description" )
+      # p$ptr$S =     file.path( p$tmp.datadir, "statistics.bigmemory_description" )
+      # p$ptr$Sloc =  file.path( p$tmp.datadir, "statistics_loc.bigmemory_description" )
+      # p$ptr$Stime = file.path( p$tmp.datadir, "statistics_time.bigmemory_description" )
 
 
       p$ptr_data =list()
