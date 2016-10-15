@@ -71,12 +71,15 @@
     # --------------------------
 
     if (DS=="save.parameters")  {
+      p = spacetime_db( p=p, DS="filenames" )  
       save(p, file=file.path( p$tmp.datadir, "p.rdata") )
       message( "Saved parameters:")
       message( file.path( p$tmp.datadir, "p.rdata") )
     }
     if (DS=="load.parameters")  {
+      p = spacetime_db( p=p, DS="filenames" )  
       load(file.path( p$tmp.datadir, "p.rdata") )
+      RLibrary( p$libs )
       return(p)
     }
 
@@ -146,7 +149,12 @@
         Ptime_ = as.matrix( B$TIME )
         p$ptr$Ptime = ff( Ptime_, dim=dim(Ptime_), file=p$ff$Ptime, overwrite=TRUE )
       }
-      
+    
+      # - getOption("ffcaching")=="mmnoflush"  -- consider "ffeachflush" if your system stalls on large writes
+      # - getOption("ffbatchbytes")==16777216 -- consider a different value for tuning your system
+      # - getOption("ffmaxbytes")==536870912 -- consider a different value for tuning your system
+      # options(ffbatchbytes=16777216*2) 
+
       # predictions and associated stats
       P_ = matrix( NaN, nrow=nrow(B$LOCS), ncol=p$nw*p$ny )
       p$ptr$P = ff( P_, dim=dim(P_), file=p$ff$P, overwrite=TRUE )
@@ -315,7 +323,7 @@
         Yi = na.omit(Yi)
       }
 
-      p$ptr$Yi = ff( Yi, dim=dim(Yi), filename=p$ff$Yi, overwrite=TRUE )
+      p$ptr$Yi = ff( Yi, filename=p$ff$Yi, overwrite=TRUE )
 
 
       #---------------------

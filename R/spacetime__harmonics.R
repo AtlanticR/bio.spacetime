@@ -65,7 +65,7 @@ spacetime__harmonics = function( p, YiU, Si, pa ) {
 
     if ( "try-error" %in% class(hmod) ) next()
     
-    out = try( predict( hmod, pa=pa, type="response", se.fit=T ) ) 
+    out = try( predict( hmod, newdata=pa, type="response", se.fit=T ) ) 
 
     if ( "try-error" %in% class( out ) ) return( NULL )
 

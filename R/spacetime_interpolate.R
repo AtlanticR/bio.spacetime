@@ -7,7 +7,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime_db("dependent")
-  Yi = p$ptr$Yi
+  Yi = p$ptr$Yi[] # force copy as a vector
   Y =  p$ptr$Y 
   Yloc = p$ptr$Yloc 
   Sloc = p$ptr$Sloc 
@@ -43,6 +43,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     pa = spacetime_prediction_area( p, Si, dist_cur ) 
     res = spacetime_model_predict( p, Si, YiU, pa )     # model and prediction
     if ( is.null(res)) next()
+    rm(pa); gc()
     spacetime_predictions_save( p, res$predictions ) # update P (predictions) .. slow!! .. try diff cache size for P, Pn Psd
 
       if (0) {
@@ -53,8 +54,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
         require(lattice)
         levelplot( mean ~ plon+plat, v, aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )
       }
-    rm(res, pa); gc()
 
+   
     # ----------------------
     # save statistics: do last. it is an indicator of completion of all tasks 
     # .. restarts would be broken otherwise
