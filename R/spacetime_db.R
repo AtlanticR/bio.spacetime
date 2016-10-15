@@ -53,6 +53,7 @@
       p$ff$Ycov =  file.path( p$tmp.datadir, "input.Ycov.ff"  )
       p$ff$Yloc =  file.path( p$tmp.datadir, "input.Yloc.ff" )
       p$ff$Ytime = file.path( p$tmp.datadir, "input.Ytime.ff" )
+      p$ff$Yi = file.path( p$tmp.datadir, "input.Yi.ff" ) # index of useable data
       p$ff$P0 =    file.path( p$tmp.datadir, "predictions0.ff" ) # offsets from covar model
       p$ff$P =     file.path( p$tmp.datadir, "predictions.ff" )
       p$ff$Psd =   file.path( p$tmp.datadir, "predictions_sd.ff" )
@@ -253,35 +254,91 @@
         return(sbbox)
       }
 
+
       if ( DS=="statistics.status" ) {
         # find locations for statistic computation and trim area based on availability of data
         # stats:
         S = p$ptr$S 
-        bnds = try( spacetime_db( p, DS="boundary" ) )
-
-        if (!is.null(bnds)) {
-          if( !("try-error" %in% class(bnds) ) ) {
-            # problematic and/or no data (e.g., land, etc.) and skipped
-            to.ignore =  which( bnds$inside.polygon == 0 ) # outside boundary
-            i = which( is.infinite( S[,1] ) & bnds$inside.polygon != 0 ) # not yet completed (due to a problem)
-            j = which( is.nan( S[,1] )  & bnds$inside.polygon != 0 )     # completed
-            k = which( is.finite (S[,1])  & bnds$inside.polygon != 0 )   # not yet done
-        } } else {
-            to.ignore = NA
-            i = which( is.infinite( S[,1] )  )  # not yet completed (due to a failed attempt)
-            j = which( is.nan( S[,1] )   )      # completed
-            k = which( is.finite (S[,1])  )     # not yet done
-        }
-
+        i = which( is.infinite( S[,1] )  )  # not yet completed (due to a failed attempt)
+        j = which( is.nan( S[,1] )   )      # completed
+        k = which( is.finite (S[,1])  )     # not yet done
         out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
                      n.incomplete=length(j), n.problematic=length(i), 
-                     n.complete=length(k), to.ignore=to.ignore )
+                     n.complete=length(k) )
         out$prop_incomp=out$n.incomplete / ( out$n.problematic + out$n.incomplete + out$n.complete)
-    
         message( paste("Proportion incomplete:", round(out$prop_incomp,5), "\n" )) 
         return( out )
       }
     }
+
+    # -----
+
+    if (DS=="data.filter") {
+      # last set of filters to reduce problem size
+      S = p$ptr$S 
+      bnds = try( spacetime_db( p, DS="boundary" ) )
+      if (!is.null(bnds)) {
+        if( !("try-error" %in% class(bnds) ) ) {
+          # problematic and/or no data (e.g., land, etc.) and skipped
+          to.ignore =  which( bnds$inside.polygon == 0 ) # outside boundary
+          if (length(to.ignore)>0) S[to.ignore,] = Inf
+      }}
+
+      Y =  p$ptr$Y 
+      Yloc = p$ptr$Yloc 
+
+      Yi = 1:length(Y) # index with useable data
+      bad = which( !is.finite( Y[]))
+      if (length(bad)> 0 ) Yi[bad] = NA
+
+      # data locations
+      bad = which( !is.finite( rowSums(Yloc[])))
+      if (length(bad)> 0 ) Yi[bad] = NA
+
+    # data locations
+      if (exists("COV", p$variables)) {
+        Ycov = ( p$ptr$Ycov )
+        if (length(p$variables$COV)==1) {
+          bad = which( !is.finite( Ycov[] ))
+        } else {
+          bad = which( !is.finite( rowSums(Ycov[])))
+        }
+        if (length(bad)> 0 ) Yi[bad] = NA
+        Yi = na.omit(Yi)
+      }
+      
+      # data locations
+      if (exists("TIME", p$variables)) {
+        Ytime = ( p$ptr$Ytime )
+        bad = which( !is.finite( Ytime[] ))
+        if (length(bad)> 0 ) Yi[bad] = NA
+        Yi = na.omit(Yi)
+      }
+
+      p$ptr$Yi = ff( Yi, dim=dim(Yi), filename=p$ff$Yi, overwrite=TRUE )
+
+
+      #---------------------
+      # prediction locations and covariates
+      Ploc = p$ptr$Ploc 
+      rcP = data.frame( cbind( 
+        Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  
+        Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1) )
+      rcP$rc = paste( rcP$Prow, rcP$Pcol, sep="~")
+      rcP$Prow = rcP$Pcol = NULL
+      p$rcP = rcP
+
+      #-----------------
+      # row, col indices
+      Sloc = p$ptr$Sloc  # statistical output locations
+      rcS = data.frame( cbind( 
+        Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
+        Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
+      p$rcS = rcS
+      return(p)
+
+    }
+
 
     # -----
   

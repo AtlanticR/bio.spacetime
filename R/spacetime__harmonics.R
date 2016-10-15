@@ -1,5 +1,5 @@
 
-spacetime__harmonics = function( p, YiU, Si, newdata ) {
+spacetime__harmonics = function( p, YiU, Si, pa ) {
    #\\ this is the core engine of spacetime .. localised space-time modelling
    #\\ the simplest form is gam/kernel-based 
 
@@ -17,9 +17,9 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
     #   b1/b2 = tan(b)  
     #   b = arctan(b1/b2)
     
-    Sloc = ( p$ptr$Sloc )
-    Yloc = ( p$ptr$Yloc )
-    Y = ( p$ptr$Y )
+    Sloc =  p$ptr$Sloc 
+    Yloc =  p$ptr$Yloc 
+    Y =  p$ptr$Y 
 
     x = data.frame( Y[YiU] )
     names(x) = p$variables$Y
@@ -41,21 +41,21 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
       x$yr = trunc( x[, p$variables$TIME])
       x$cos.w  = cos( 2*pi*x$tiyr )
       x$sin.w  = sin( 2*pi*x$tiyr )
-      newdata$yr = trunc( newdata[,p$variables$TIME] )
-      newdata$cos.w  = cos( newdata$tiyr )
-      newdata$sin.w  = sin( newdata$tiyr )
+      pa$yr = trunc( pa[,p$variables$TIME] )
+      pa$cos.w  = cos( pa$tiyr )
+      pa$sin.w  = sin( pa$tiyr )
       # compute adiitional harmonics only if required (to try to speed things up a bit)
       if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
         x$cos.w2 = cos( 2*x$tiyr )
         x$sin.w2 = sin( 2*x$tiyr )
-        newdata$cos.w2 = cos( 2*newdata$tiyr )
-        newdata$sin.w2 = sin( 2*newdata$tiyr )
+        pa$cos.w2 = cos( 2*pa$tiyr )
+        pa$sin.w2 = sin( 2*pa$tiyr )
       }
       if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
         x$cos.w3 = cos( 3*x$tiyr )
         x$sin.w3 = sin( 3*x$tiyr )
-        newdata$cos.w3 = cos( 3*newdata$tiyr )
-        newdata$sin.w3 = sin( 3*newdata$tiyr )
+        pa$cos.w3 = cos( 3*pa$tiyr )
+        pa$sin.w3 = sin( 3*pa$tiyr )
       }
     }
 
@@ -65,30 +65,30 @@ spacetime__harmonics = function( p, YiU, Si, newdata ) {
 
     if ( "try-error" %in% class(hmod) ) next()
     
-    out = try( predict( hmod, newdata=newdata, type="response", se.fit=T ) ) 
+    out = try( predict( hmod, pa=pa, type="response", se.fit=T ) ) 
 
     if ( "try-error" %in% class( out ) ) return( NULL )
 
-    newdata$mean = as.vector(out$fit)
-    newdata$sd = as.vector(out$se.fit) # this is correct: se.fit== stdev of the mean fit: eg:  https://stat.ethz.ch/pipermail/r-help/2005-July/075856.html
+    pa$mean = as.vector(out$fit)
+    pa$sd = as.vector(out$se.fit) # this is correct: se.fit== stdev of the mean fit: eg:  https://stat.ethz.ch/pipermail/r-help/2005-July/075856.html
 
     if (exists("spacetime.invlink", p)) {
-      newdata$mean = p$spacetime.invlink( newdata$mean )
-      newdata$sd  =  p$spacetime.invlink( newdata$sd )
+      pa$mean = p$spacetime.invlink( pa$mean )
+      pa$sd  =  p$spacetime.invlink( pa$sd )
     }
 
     if (exists( "quantile_bounds", p)) {
       tq = quantile( x[,p$variables$Y], probs=p$quantile_bounds, na.rm=TRUE  )
-      bad = which( newdata$mean < tq[1] | newdata$mean > tq[2]  )
+      bad = which( pa$mean < tq[1] | pa$mean > tq[2]  )
       if (length( bad) > 0) {
-        newdata$mean[ bad] = NA
-        newdata$sd[ bad] = NA
+        pa$mean[ bad] = NA
+        pa$sd[ bad] = NA
       }
     }
 
     ss = summary(hmod)
     spacetime_stats = list( sdTotal=sd(Y[], na.rm=T), rsquared=ss$r.sq, ndata=ss$n ) # must be same order as p$statsvars
 
-    return( list( predictions=newdata, spacetime_stats=spacetime_stats ) )  
+    return( list( predictions=pa, spacetime_stats=spacetime_stats ) )  
 
 }

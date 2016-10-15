@@ -23,48 +23,48 @@ spacetime = function( p, DATA, overwrite=NULL) {
   	}
 	}
 
-  if (!exists("spacetime_engine_modelformula", p) ) {
+  if (is.null(overwrite) || overwrite) {
+  
+    if (!exists("spacetime_engine_modelformula", p) ) {
     # these are simple, generic defaults .. 
     # for more complex models (.i.e, with covariates) the formula should be passed directly 
-    p$spacetime_engine_modelformula = switch( p$spacetime_engine ,
-      seasonal.basic = ' s(yr) + s(dyear, bs="cc") ', 
-      seasonal.smoothed = ' s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ', 
-      harmonics.1 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ', 
-      harmonics.2 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' , 
-      harmonics.3 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) ',
-      harmonics.1.depth = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) +s(z)  ', 
-      inla = ' -1 + intercept + f( spatial.field, model=SPDE ) ', # not used
-      annual = ' s(yr) ',
-      '+1'  # default, ie. Y~ + 1 , just to catch error
-    )
-    p$spacetime_engine_modelformula = as.formula( paste( p$variables$Y, "~", p$spacetime_engine_modelformula ) )
-    message( "Verify that the spacetime_engine_modelformula is/should be:" )
-    message( p$spacetime_engine_modelformula )
-  }
+      p$spacetime_engine_modelformula = switch( p$spacetime_engine ,
+        seasonal.basic = ' s(yr) + s(dyear, bs="cc") ', 
+        seasonal.smoothed = ' s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ', 
+        harmonics.1 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ', 
+        harmonics.2 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' , 
+        harmonics.3 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) ',
+        harmonics.1.depth = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) +s(z)  ', 
+        inla = ' -1 + intercept + f( spatial.field, model=SPDE ) ', # not used
+        annual = ' s(yr) ',
+        '+1'  # default, ie. Y~ + 1 , just to catch error
+      )
+      p$spacetime_engine_modelformula = as.formula( paste( p$variables$Y, "~", p$spacetime_engine_modelformula ) )
+      message( "Verify that the spacetime_engine_modelformula is/should be:" )
+      message( p$spacetime_engine_modelformula )
+    }
 
+    # permit passing a function rather than data directly .. less RAM usage
+    if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
 
-  # permit passing a function rather than data directly .. less RAM usage
-  if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
+    # require knowledge of size of stats output before create S, which varies with a given type of analysis
+    if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
+           "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
+      p$statsvars = c( "sdTotal", "rsquared", "ndata" )
+    }
+    
+    if (exists("spacetime_variogram_engine", p) ) {
+      p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
+    }
 
-  # require knowledge of size of stats output before create S, which varies with a given type of analysis
-  if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
-         "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
-    p$statsvars = c( "sdTotal", "rsquared", "ndata" )
-  }
-  
-  if (exists("spacetime_variogram_engine", p) ) {
-    p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
-  }
+    if ( exists("TIME", p$variables) ){
+      p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
+    }
 
-  if ( exists("TIME", p$variables) ){
-    p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
-  }
+    if ( p$spacetime_engine=="inla") {
+      p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
+    }
 
-  if ( p$spacetime_engine=="inla") {
-    p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
-  }
-
-  if (is.null(overwrite) || overwrite) {
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
     message( "These are large files (4GB each), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
     spacetime_db( p=p, DS="cleanup" )
@@ -72,21 +72,25 @@ spacetime = function( p, DATA, overwrite=NULL) {
     p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
     p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
     p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
-    spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
-    message( "Finshed. Moving onto analysis... ")
     rm(DATA); gc()
-  } else {
-    p = spacetime_db( p=p, DS="load.parameters" )
-  }
 
-  if (p$spacetime.stats.boundary.redo) {
     message( "Defining boundary polygon for data .. this reduces the number of points to analyse") 
     message( "but takes a few minutes to set up ...")
     spacetime_db( p, DS="boundary.redo" ) # ~ 5 min on nfs
+    p = spacetime_db( p, DS="data.filter" )
+
+    spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
+    message( "Finished. Moving onto analysis... ")
+
+  } else {
+
+    p = spacetime_db( p=p, DS="load.parameters" )  # ie. restart with saved parameters
+
   }
 
   # -------------------------------------
   # 1. localized space-time interpolation
+  
   o = spacetime_db( p, DS="statistics.status" )
   p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
   parallel.run( spacetime_interpolate, p=p ) 
