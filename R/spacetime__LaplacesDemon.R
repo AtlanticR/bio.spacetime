@@ -1,27 +1,27 @@
 
 spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
-    
+
     Sloc = attach.big.matrix( p$ptr$Sloc )
     Yloc = attach.big.matrix( p$ptr$Yloc )
     Y = attach.big.matrix( p$ptr$Y )
 
     x = data.frame( Y[YiU] )
     names(x) = p$variables$Y
-    if ( exists("spacetime.link", p) ) x[, p$variables$Y] = p$spacetime.link ( x[, p$variables$Y] ) 
+    if ( exists("spacetime.link", p) ) x[, p$variables$Y] = p$spacetime.link ( x[, p$variables$Y] )
     x$plon = Yloc[YiU,1]
     x$plat = Yloc[YiU,2]
     x$Y_wgt = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
     x$Y_wgt[ which( x$Y_wgt < 1e-3 ) ] = 1e-3
     x$Y_wgt[ which( x$Y_wgt > 1 ) ] = 1
-    
+
     if (exists("COV", p$variables)) {
       Ycov = attach.big.matrix( p$ptr$Ycov )
       for (i in 1:length(p$variables$COV )) x[, p$variables$COV[i] ] = Ycov[YiU,i]
     }
-    
+
     if (exists("TIME", p$variables)) {
       Ytime = attach.big.matrix( p$ptr$Ytime )
-      x[, p$variables$TIME ] = Ytime[YiU,] 
+      x[, p$variables$TIME ] = Ytime[YiU,]
       x$yr = trunc( x[, p$variables$TIME])
       x$cos.w  = cos( 2*pi*x$tiyr )
       x$sin.w  = sin( 2*pi*x$tiyr )
@@ -44,12 +44,12 @@ spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
     }
 
     # estimate model parameters
-    hmod = try( 
-      gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
+    hmod = try(
+      gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) )
 
     if ( "try-error" %in% class(hmod) ) next()
-    
-    out = try( predict( hmod, newdata=newdata, type="response", se.fit=T ) ) 
+
+    out = try( predict( hmod, newdata=newdata, type="response", se.fit=T ) )
 
     if ( "try-error" %in% class( out ) ) return( NULL )
 
@@ -73,18 +73,18 @@ spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
     ss = summary(hmod)
     spacetime_stats = list( sdTotal=sd(Y[], na.rm=T), rsquared=ss$r.sq, ndata=ss$n ) # must be same order as p$statsvars
 
-    return( list( predictions=newdata, spacetime_stats=spacetime_stats ) )  
+    return( list( predictions=newdata, spacetime_stats=spacetime_stats ) )
 
 
     if(0) {
-      
+
         require(LaplacesDemonCpp)
-        
+
         Data = list(
           eps = 1e-6,
           N = length(z),  # required for LaplacesDemon
           DIST=as.matrix(dist( xy, diag=TRUE, upper=TRUE)), # distance matrix between knots
-          y=z  
+          y=z
         )
         Data$mon.names = c( "LP", paste0("yhat[",1:Data$N,"]" ) )
         Data$parm.names = as.parm.names(list(tausq=0, sigmasq=0, phi=0, nu=0 ))
@@ -110,17 +110,17 @@ spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
           nu = parm[Data$pos$nu] = LaplacesDemonCpp::interval_random(parm[Data$pos$nu], 0.1, 15.0, 0.01 )
           # corSpatial = exp(-Data$DIST/phi)^nu   ## spatial correlation .. simple exponential model
           # corSpatial = geoR::matern( Data$DIST, phi=1/phi, kappa=nu )   ## spatial correlation .. matern from geoR
-          # wikipedia Matern parameterization: 
-          # C_{\nu }(d) = \sigma ^{2}{\frac {2^{1-\nu }}{\Gamma (\nu )}} 
+          # wikipedia Matern parameterization:
+          # C_{\nu }(d) = \sigma ^{2}{\frac {2^{1-\nu }}{\Gamma (\nu )}}
           #  {\Bigg (}{\sqrt {2\nu }}{\frac {d}{\rho }}{\Bigg )}^{\nu } K_{\nu }
           #  {\Bigg (}{\sqrt {2\nu }}{\frac {d}{\rho }}{\Bigg )}
           e <- sqrt(2*nu) * Data$DIST / phi
-          corSpatial = {2^{1-nu}}/gamma(nu) * (e^nu) * besselK(x=e, nu=nu) 
+          corSpatial = {2^{1-nu}}/gamma(nu) * (e^nu) * besselK(x=e, nu=nu)
           diag(corSpatial) = 1
           # corSpatial = zapsmall(corSpatial)
           if ( !is.positive.definite(corSpatial)) {
             cat("correlation matrix is not positive definite, adding a bit of noise ...\n")
-            corSpatial = as.positive.definite(corSpatial) 
+            corSpatial = as.positive.definite(corSpatial)
           # browser()
           }
 
@@ -137,9 +137,9 @@ spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
           return(Modelout)
         }
         Data$Model = compiler::cmpfun(Data$Model) #  byte-compiling for more speed .. use RCPP if you want more speed
-        
+
         parm0=Data$PGF(Data)
-      
+
         f = LaplaceApproximation(Data$Model, Data=Data, parm=parm0, Method="BFGS", Iterations=1000, CPUs=4, Stop.Tolerance=1.0E-9 )
 
 
@@ -152,7 +152,7 @@ spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
           f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=parm0, CPUs=8 )
           mu = f$Summary1[,1]
           f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Fit.LA=f,
-            Iterations=5000, Thinning=1, Status=1000, Algorithm="IM", Specs=list(mu=mu), 
+            Iterations=5000, Thinning=1, Status=1000, Algorithm="IM", Specs=list(mu=mu),
             Covar=f$Covar, CPUs=8 )
 
           f0 = LaplacesDemon(Data$Model, Data=Data, Initial.Values=as.initial.values(f), Fit.LA=f,
@@ -169,14 +169,14 @@ spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
         }
 
         out$LaplacesDemon = list( fit=f, vgm=NA, model=Data$Model, range=NA,
-          varSpatial=f$Summary2["sigmasq", "Mean"] *out$varZ, 
-          varObs=f$Summary2["tausq", "Mean"]*out$varZ, 
-          nu=f$Summary2["nu", "Mean"],  
-          phi = out$maxdist * ( f$Summary2["phi", "Mean"]  / sqrt(2*f$Summary2["nu", "Mean"] ) ) 
+          varSpatial=f$Summary2["sigmasq", "Mean"] *out$varZ,
+          varObs=f$Summary2["tausq", "Mean"]*out$varZ,
+          nu=f$Summary2["nu", "Mean"],
+          phi = out$maxdist * ( f$Summary2["phi", "Mean"]  / sqrt(2*f$Summary2["nu", "Mean"] ) )
         )   ## need to check parameterization...
-     
+
         out$LaplacesDemon$range = geoR::practicalRange("matern", phi=out$LaplacesDemon$phi, kappa=out$LaplacesDemon$nu)
-     
+
        # print( out$LaplacesDemon )
 
 
@@ -189,11 +189,9 @@ spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
           abline( h=out$LaplacesDemon$varObs )
           abline( v=out$LaplacesDemon$range, col="red"  )
         }
-      
-      return(out)
-      
-      }
 
-    }
+      return(out)
+
+      }
 
 }
