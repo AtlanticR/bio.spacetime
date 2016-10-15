@@ -1,5 +1,5 @@
 
-spacetime_prediction_area = function(p, Si, dist_cur ){
+spacetime_prediction_area = function(p, Si, dist.cur ){
   # So, YiU and dist.cur determine the data entering into local model construction
   # but predictions are expensive, esp in space-time and so a smaller spatial raange is selected
   # this is determined by p$spacetime.prediction.dist.min
