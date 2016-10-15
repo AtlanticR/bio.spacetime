@@ -273,7 +273,7 @@
         out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
                      n.incomplete=length(j), n.problematic=length(i), 
                      n.complete=length(k) )
-        out$prop_incomp=out$n.incomplete / ( out$n.problematic + out$n.incomplete + out$n.complete)
+        out$prop_incomp=out$n.incomplete / ( out$n.incomplete + out$n.complete)
         message( paste("Proportion incomplete:", round(out$prop_incomp,5), "\n" )) 
         return( out )
       }

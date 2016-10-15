@@ -40,7 +40,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     YiU = Yi[U]  
     
     # construct prediction/output grid area ('pa')
-    pa = spacetime_prediction_area( p, Si, dist_cur ) 
+    pa = spacetime_prediction_area( p, Si, dist.cur ) 
     res = spacetime_model_predict( p, Si, YiU, pa )     # model and prediction
     if ( is.null(res)) next()
     rm(pa); gc()
