@@ -8,7 +8,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
   # data for modelling
   # dependent vars # already link-transformed in spacetime_db("dependent")
   Yi = p$ptr$Yi[] # force copy as a vector
-  Y =  p$ptr$Y 
   Yloc = p$ptr$Yloc 
   Sloc = p$ptr$Sloc 
 
@@ -40,10 +39,15 @@ spacetime_interpolate = function( ip=NULL, p ) {
     YiU = Yi[U]  
     
     # construct prediction/output grid area ('pa')
+    pa = NULL
     pa = spacetime_prediction_area( p, Si, dist.cur ) 
+    if (is.null(pa)) next()
+    
+    res = NULL
     res = spacetime_model_predict( p, Si, YiU, pa )     # model and prediction
     if ( is.null(res)) next()
     rm(pa); gc()
+
     spacetime_predictions_save( p, res$predictions ) # update P (predictions) .. slow!! .. try diff cache size for P, Pn Psd
 
       if (0) {

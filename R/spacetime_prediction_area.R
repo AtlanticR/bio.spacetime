@@ -15,7 +15,7 @@ spacetime_prediction_area = function(p, Si, dist.cur ){
 
   bad = which( (pa$iplon < 1 & pa$iplon > p$nplons) | (pa$iplat < 1 & pa$iplat > p$nplats) )
   if (length(bad) > 0 ) pa = pa[-bad,]
-  if (nrow(pa)< 5) next()
+  if (nrow(pa)< 5) return(NULL)
 
   pc_rc = paste( pa$iplon, pa$iplat, sep="~" )
   pa$i = match( pc_rc, p$rcP$rc)
@@ -23,7 +23,7 @@ spacetime_prediction_area = function(p, Si, dist.cur ){
   if (length(bad) > 0 ) pa = pa[-bad,]
 
   pa_n = nrow(pa)
-  if ( pa_n < 5) next()
+  if ( pa_n < 5) return(NULL)
 
   Ploc = p$ptr$Ploc
   pa$plon = Ploc[ pa$i, 1]
