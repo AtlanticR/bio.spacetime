@@ -2,6 +2,7 @@ spacetime_model_predict = function( p, Si, YiU, pa ) {
 
   res =NULL
   Yloc = p$ptr$Yloc
+  Y = p$ptr$Y
 
   if ( p$spacetime_engine %in% 
     c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
