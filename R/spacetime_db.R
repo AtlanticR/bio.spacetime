@@ -47,23 +47,23 @@
       p$fn$stats =  file.path( p$project.root, "spacetime", paste( "spatial", "covariance", "rdata", sep=".") )
       p$fn$covmodel =  file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", "rdata", sep=".") )
       
-      p$ff =list()
-      p$ff$Y0 =    file.path( p$tmp.datadir, "input.Y0.ff" ) # raw data
-      p$ff$Y =     file.path( p$tmp.datadir, "input.Y.ff" ) # residuals of covar model or raw data if none
-      p$ff$Ycov =  file.path( p$tmp.datadir, "input.Ycov.ff"  )
-      p$ff$Yloc =  file.path( p$tmp.datadir, "input.Yloc.ff" )
-      p$ff$Ytime = file.path( p$tmp.datadir, "input.Ytime.ff" )
-      p$ff$Yi = file.path( p$tmp.datadir, "input.Yi.ff" ) # index of useable data
-      p$ff$P0 =    file.path( p$tmp.datadir, "predictions0.ff" ) # offsets from covar model
-      p$ff$P =     file.path( p$tmp.datadir, "predictions.ff" )
-      p$ff$Psd =   file.path( p$tmp.datadir, "predictions_sd.ff" )
-      p$ff$Pn =    file.path( p$tmp.datadir, "predictions_n.ff" )
-      p$ff$Pcov =  file.path( p$tmp.datadir, "predictions_cov.ff" )
-      p$ff$Ploc =  file.path( p$tmp.datadir, "predictions_loc.ff" )
-      p$ff$Ptime = file.path( p$tmp.datadir, "predictions_time.ff" )
-      p$ff$S =     file.path( p$tmp.datadir, "statistics.ff" )
-      p$ff$Sloc =  file.path( p$tmp.datadir, "statistics_loc.ff" )
-      p$ff$Stime = file.path( p$tmp.datadir, "statistics_time.ff" )
+      p$diskcache =list()
+      p$diskcache$Y0 =    file.path( p$tmp.datadir, "input.Y0.diskcache" ) # raw data
+      p$diskcache$Y =     file.path( p$tmp.datadir, "input.Y.diskcache" ) # residuals of covar model or raw data if none
+      p$diskcache$Ycov =  file.path( p$tmp.datadir, "input.Ycov.diskcache"  )
+      p$diskcache$Yloc =  file.path( p$tmp.datadir, "input.Yloc.diskcache" )
+      p$diskcache$Ytime = file.path( p$tmp.datadir, "input.Ytime.diskcache" )
+      p$diskcache$Yi =    file.path( p$tmp.datadir, "input.Yi.diskcache" ) # index of useable data
+      p$diskcache$P0 =    file.path( p$tmp.datadir, "predictions0.diskcache" ) # offsets from covar model
+      p$diskcache$P =     file.path( p$tmp.datadir, "predictions.diskcache" )
+      p$diskcache$Psd =   file.path( p$tmp.datadir, "predictions_sd.diskcache" )
+      p$diskcache$Pn =    file.path( p$tmp.datadir, "predictions_n.diskcache" )
+      p$diskcache$Pcov =  file.path( p$tmp.datadir, "predictions_cov.diskcache" )
+      p$diskcache$Ploc =  file.path( p$tmp.datadir, "predictions_loc.diskcache" )
+      p$diskcache$Ptime = file.path( p$tmp.datadir, "predictions_time.diskcache" )
+      p$diskcache$S =     file.path( p$tmp.datadir, "statistics.diskcache" )
+      p$diskcache$Sloc =  file.path( p$tmp.datadir, "statistics_loc.diskcache" )
+      p$diskcache$Stime = file.path( p$tmp.datadir, "statistics_time.diskcache" )
 
       return(p)
     }
@@ -87,7 +87,7 @@
     if (DS %in% "cleanup" ) {
       p = spacetime_db( p=p, DS="filenames" )
       # for (fn in p$ptr ) if (file.exists(fn)) file.remove(fn)
-      for (fn in p$ff ) if (file.exists(fn)) file.remove(fn)
+      for (fn in p$diskcache ) if (file.exists(fn)) file.remove(fn)
       return( "done" )
     }
 
@@ -102,29 +102,29 @@
 
       # dependent variable
       Y_ = B[, p$variables$Y ]
-      p$ptr$Y0 = ff( Y_, dim=dim(Y_), file=p$ff$Y0, overwrite=TRUE )
+      p$ptr$Y0 = ff( Y_, dim=dim(Y_), file=p$diskcache$Y0, overwrite=TRUE )
 
       if (exists( "spacetime_covariate_spacetime_engine_modelformula", p)) {
         Yresid_ = residuals( spacetime_db( p=p, DS="model.covariates") )
       } else {
         Yresid_ = Y_  # if no residual model simply use the raw data
       }
-      p$ptr$Y = ff( Yresid_, dim=dim(Yresid_), file=p$ff$Y, overwrite=TRUE )
+      p$ptr$Y = ff( Yresid_, dim=dim(Yresid_), file=p$diskcache$Y, overwrite=TRUE )
 
      # data coordinates
       Yloc_ = as.matrix( B[, p$variables$LOCS ])
-      p$ptr$Yloc = ff( Yloc_, dim=dim(Yloc_), file=p$ff$Yloc, overwrite=TRUE )
+      p$ptr$Yloc = ff( Yloc_, dim=dim(Yloc_), file=p$diskcache$Yloc, overwrite=TRUE )
 
       # independent variables/ covariate
       if (exists("COV", p$variables)) {
         Ycov_ = as.matrix( B[ , p$variables$COV ] )
-        p$ptr$Ycov = ff( Ycov_, dim=dim(Ycov_), file=p$ff$Ycov, overwrite=TRUE )
+        p$ptr$Ycov = ff( Ycov_, dim=dim(Ycov_), file=p$diskcache$Ycov, overwrite=TRUE )
       }
 
       # data times
       if ( exists("TIME", p$variables) ) {
         Ytime_ = as.matrix( B[, p$variables$TIME ] )
-        p$ptr$Ytime = ff( Ytime_, dim=dim(Ytime_), file=p$ff$Ytime, overwrite=TRUE )
+        p$ptr$Ytime = ff( Ytime_, dim=dim(Ytime_), file=p$diskcache$Ytime, overwrite=TRUE )
       }
 
       return( p ) #return pointers to data
@@ -141,15 +141,10 @@
         } else {
           Pcov_ = as.matrix( B$COV[,p$variables$COV ] ) 
         }
-        p$ptr$Pcov = ff( Pcov_, dim=dim(Pcov_), file=p$ff$Pcov, overwrite=TRUE )
+        p$ptr$Pcov = ff( Pcov_, dim=dim(Pcov_), file=p$diskcache$Pcov, overwrite=TRUE )
       }
       
-      # prediction times
-      if (exists("TIME", p$variables)) {
-        Ptime_ = as.matrix( B$TIME )
-        p$ptr$Ptime = ff( Ptime_, dim=dim(Ptime_), file=p$ff$Ptime, overwrite=TRUE )
-      }
-    
+
       # - getOption("ffcaching")=="mmnoflush"  -- consider "ffeachflush" if your system stalls on large writes
       # - getOption("ffbatchbytes")==16777216 -- consider a different value for tuning your system
       # - getOption("ffmaxbytes")==536870912 -- consider a different value for tuning your system
@@ -157,15 +152,29 @@
 
       # predictions and associated stats
       P_ = matrix( NaN, nrow=nrow(B$LOCS), ncol=p$nw*p$ny )
-      p$ptr$P = ff( P_, dim=dim(P_), file=p$ff$P, overwrite=TRUE )
-      p$ptr$Pn = ff( P_, dim=dim(P_), file=p$ff$Pn, overwrite=TRUE )
-      p$ptr$Psd = ff( P_, dim=dim(P_), file=p$ff$Psd, overwrite=TRUE )
+      p$ptr$P = ff( P_, dim=dim(P_), file=p$diskcache$P, overwrite=TRUE )
+      p$ptr$Pn = ff( P_, dim=dim(P_), file=p$diskcache$Pn, overwrite=TRUE )
+      p$ptr$Psd = ff( P_, dim=dim(P_), file=p$diskcache$Psd, overwrite=TRUE )
 
       # prediction coordinates
       Ploc_ = as.matrix( B$LOCS )
-      p$ptr$Ploc = ff( Ploc_, dim=dim(Ploc_), file=p$ff$Ploc, overwrite=TRUE )
+      p$ptr$Ploc = ff( Ploc_, dim=dim(Ploc_), file=p$diskcache$Ploc, overwrite=TRUE )
 
-      rm(P_);gc()
+      # pre-compute a few things for spacetime_interpolate_xy_simple_multiple  
+      Ploc = ( p$ptr$Ploc )
+
+      p$Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
+      p$wght = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$res, 
+        theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
+
+      # prediction times
+      if (exists("TIME", p$variables)) {
+        Ptime_ = as.matrix( B$TIME )
+        p$ptr$Ptime = ff( Ptime_, dim=dim(Ptime_), file=p$diskcache$Ptime, overwrite=TRUE )
+        
+        p$ncP = ncol( P )
+      }
+
 
       # prediction offsets from an additive (global) model of covariates (if any, zero valued otherwise) 
       if ( exists("COV", p$variables) && exists("spacetime_covariate_spacetime_engine_modelformula", p ) ) {
@@ -175,12 +184,12 @@
         names(covars) = p$variables$COV
         Pcov = predict( covmodel, newdata=covars, type="response", se.fit=T ) 
         rm (covmodel, covars);gc()
-        p$ptr$P0_ = ff( Pcov$fit, dim=dim(Pcov$fit), file=p$ff$P0, overwrite=TRUE )
-        p$ptr$P0sd_ = ff( Pcov$se.fit, dim=dim(Pcov$se.fit), file=p$ff$P0sd, overwrite=TRUE )
+        p$ptr$P0_ = ff( Pcov$fit, dim=dim(Pcov$fit), file=p$diskcache$P0, overwrite=TRUE )
+        p$ptr$P0sd_ = ff( Pcov$se.fit, dim=dim(Pcov$se.fit), file=p$diskcache$P0sd, overwrite=TRUE )
       } else {
         P0_ = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nw*p$ny )
-        p$ptr$P0 = ff( P0_, dim=dim(P0_), file=p$ff$P0, overwrite=TRUE )
-        p$ptr$P0sd = ff( P0sd_, dim=dim(P0sd_), file=p$ff$P0sd, overwrite=TRUE )
+        p$ptr$P0 = ff( P0_, dim=dim(P0_), file=p$diskcache$P0, overwrite=TRUE )
+        p$ptr$P0sd = ff( P0sd_, dim=dim(P0sd_), file=p$diskcache$P0sd, overwrite=TRUE )
       }
       
       return( p )
@@ -243,10 +252,10 @@
         # statistics storage matrix ( aggregation window, coords ) .. no inputs required
         # statistics coordinates
         Sloc_ = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
-        p$ptr$Sloc = ff( Sloc_, dim=dim(Sloc_), filename=p$ff$Sloc, overwrite=TRUE )
+        p$ptr$Sloc = ff( Sloc_, dim=dim(Sloc_), filename=p$diskcache$Sloc, overwrite=TRUE )
 
         S_ = matrix( NaN, nrow=nrow(Sloc_), ncol=length( p$statsvars ) ) # NA forces into logical
-        p$ptr$S = ff( S_, dim=dim(S_), file=p$ff$S, overwrite=TRUE )
+        p$ptr$S = ff( S_, dim=dim(S_), file=p$diskcache$S, overwrite=TRUE )
         return( p )
       }
 
@@ -323,7 +332,7 @@
         Yi = na.omit(Yi)
       }
 
-      p$ptr$Yi = ff( Yi, filename=p$ff$Yi, overwrite=TRUE )
+      p$ptr$Yi = ff( Yi, filename=p$diskcache$Yi, overwrite=TRUE )
 
 
       #---------------------

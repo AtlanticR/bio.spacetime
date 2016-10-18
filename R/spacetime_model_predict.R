@@ -39,8 +39,10 @@ spacetime_model_predict = function( p, Si, YiU, pa ) {
           ts.stat = try( spacetime_timeseries( pac$mean, method="fft" ) )
           if (!is.null(ts.stat) && !("try-error" %in% class(ts.stat)) ){
             res$spacetime_stats["ar_timerange"] = ts.stat$quantilePeriod 
-            res$spacetime_stats["ar_1"] = coef( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 
-0 ) )
+            if (length(which (is.finite(pac$mean))) > 5 ) {
+              ar1 = try( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 0, na.action="na.omit") )
+              res$spacetime_stats["ar_1"] = coef( ar1 )
+            }
           }
         }          
       }
