@@ -9,46 +9,59 @@ spacetime_interpolate_xy_simple_multiple = function( ip=NULL, p ) {
 
   # spatial interpolation by finest time scale 
   Z0 = matrix( NaN, nrow=p$nplons, ncol=p$nplats)
+  P = switch( p$storage.backend, 
+    bigmemory.ram=attach.big.matrix(p$ptr$P), 
+    bigmemory.filebacked=attach.big.matrix(p$ptr$P), 
+    ff=p$ptr$P )
+  Psd = switch( p$storage.backend, 
+    bigmemory.ram=attach.big.matrix(p$ptr$Psd), 
+    bigmemory.filebacked=attach.big.matrix(p$ptr$Psd), 
+    ff=p$ptr$Psd )
+  Mat2Ploc = switch( p$storage.backend, 
+    bigmemory.ram=attach.big.matrix(p$ptr$Mat2Ploc), 
+    bigmemory.filebacked=attach.big.matrix(p$ptr$Mat2Ploc), 
+    ff=p$ptr$Mat2Ploc )
+  spatial_weights = switch( p$storage.backend, 
+    bigmemory.ram=attach.big.matrix(p$ptr$spatial_weights), 
+    bigmemory.filebacked=attach.big.matrix(p$ptr$spatial_weights), 
+    ff=p$ptr$spatial_weights )
 
   for ( iip in ip ) {
     ww = p$runs[ iip, "tiyr_index" ]
 
     # mean estimates    
     Z = Z0
-    P = ( p$ptr$P )  # predictions
-    
+   
     tofill = which( ! is.finite( P[,ww] ) )
     if (length( tofill) == 0 ) next()
 
-    Z[p$Mat2Ploc] = P[,ww]
-    Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=p$wgts )$z 
-    P[,ww][tofill] = Zp[p$Mat2Ploc][ tofill]
+    Z[Mat2Ploc] = P[,ww]
+    Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=spatial_weights )$z 
+    P[,ww][tofill] = Zp[Mat2Ploc][ tofill]
 
     # update and repeat --- check if required ..
     tofill = which( ! is.finite( P[,ww] ) )
     if (length( tofill) > 0 ) {
-      Z[p$Mat2Ploc] = P[,ww] # update matrix
-      Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=p$wgts )$z 
-      P[,ww][tofill] = Zp[p$Mat2Ploc][ tofill]
+      Z[Mat2Ploc] = P[,ww] # update matrix
+      Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=spatial_weights )$z 
+      P[,ww][tofill] = Zp[Mat2Ploc][ tofill]
     }
 
     ## SD estimates
     Z = Z0
-    Psd = ( p$ptr$Psd )   # predictions
-
     tofill = which( ! is.finite( Psd[,ww] ) )
     if (length( tofill) == 0 ) next()
 
-    Z[p$Mat2Ploc] = Psd[,ww]
-    Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=p$wgts )$z 
-    Psd[,ww][tofill] = Zp[p$Mat2Ploc][ tofill]
+    Z[Mat2Ploc] = Psd[,ww]
+    Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=spatial_weights )$z 
+    Psd[,ww][tofill] = Zp[Mat2Ploc][ tofill]
 
     # update and repeat --- check if required ..
     tofill = which( ! is.finite( Psd[,ww] ) )
     if (length( tofill) > 0 ) {
-      Z[p$Mat2Ploc] = Psd[,ww] # update matrix
-      Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=p$wgts )$z 
-      Psd[,ww][tofill] = Zp[p$Mat2Ploc][ tofill]
+      Z[Mat2Ploc] = Psd[,ww] # update matrix
+      Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=spatial_weights )$z 
+      Psd[,ww][tofill] = Zp[Mat2Ploc][ tofill]
     }
   }
 

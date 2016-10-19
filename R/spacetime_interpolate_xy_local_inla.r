@@ -33,37 +33,48 @@
     #---------------------
     # data for modelling
     # dependent vars # already link-transformed in spacetime_db("dependent")
-    Y =  ( p$ptr$Y )   # readonly
-    Yi = 1:length(Y)
-    bad = which( !is.finite( Y[]))
-    if (length(bad)> 0 ) Yi[bad] = NA
+ 
+    Y = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Y), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Y), 
+      ff=p$ptr$Y )
+    P = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$P), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$P), 
+      ff=p$ptr$P )
+    S = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$S), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$S), 
+      ff=p$ptr$S )
+    Sloc = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
+      ff=p$ptr$Sloc )
+    Yloc = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
+      ff=p$ptr$Yloc )
+    Ploc = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Ploc), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Ploc), 
+      ff=p$ptr$Ploc )
+    Yi = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Yi), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Yi), 
+      ff=p$ptr$Yi )
 
-   # data locations
-    Yloc =  ( p$ptr$Yloc ) 
-    bad = which( !is.finite( rowSums(Yloc[])))
-    if (length(bad)> 0 ) Yi[bad] = NA
-
-    # covariates (independent vars)
-    if ( exists( "COV", p$variables) ) {
-      Ycov = ( p$ptr$Ycov ) 
-      if ( length( p$variables$COV ) == 1 ) {
-        bad = which( !is.finite( Ycov[]) )
-      } else {
-        bad = which( !is.finite( rowSums(Ycov[])) )
-      }
-      if (length(bad)> 0 ) Yi[bad] = NA
-    }
-
-    Yi = na.omit( Yi )
+    Yi = Yi[]
 
     #---------------------
     # prediction locations and covariates
-    Ploc = ( p$ptr$Ploc ) # read only
     Pi = 1:nrow( Ploc ) # index of locs with no covariate data
     pbad = which( !is.finite( rowSums(Ploc[])))
     if (length(pbad)> 0 ) Pi[ pbad ] = NA
     if ( exists( "COV", p$variables) ) {
-      Pcov =  ( p$ptr$Pcov )   # covariates at prediction locations; read only
+      Pcov = switch( p$storage.backend, 
+        bigmemory.ram=attach.big.matrix(p$ptr$Pcov), 
+        bigmemory.filebacked=attach.big.matrix(p$ptr$Pcov), 
+        ff=p$ptr$Pcov )
       if ( length( p$variables$COV ) == 1 ) {
         pbad = which( !is.finite( Pcov[]) )
       } else {
@@ -71,18 +82,9 @@
       }
       if (length(pbad)> 0 ) Pi[pbad] = NA
     }
-    rcP = data.frame( cbind( Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1))
-    # rcP$i =1:nrow(rcP) # row index
-    rcP$rc = paste( rcP$Prow, rcP$Pcol, sep="~")
-    rcP$Prow = rcP$Pcol = NULL
-    gc()
-
+  
     #-----------------
     # row, col indices
-    Sloc =  ( p$ptr$Sloc )  # statistical output locations
-    rcS = data.frame( cbind( Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
-
-    S =  ( p$ptr$S )  # statistical output locations
 
     # main loop over each output location in S (stats output locations)
     for ( iip in ip ) {
@@ -91,7 +93,6 @@
       if (debugrun) deid = paste( Sys.info()["nodename"], "index=", Si )
       if (debugrun) cat( paste( Sys.time(), deid, "start \n" ), file=p$debug.file, append=TRUE )
       focal = t(Sloc[Si,])
-
 
       if ( is.infinite( S[Si,1] ) ) next()
       if ( !is.nan( S[Si,1] ) ) next()
@@ -184,13 +185,13 @@
       #        for areas without covariates can be completed
       windowsize.half = floor(dist.cur/p$pres)# covert distance to discretized increments of row/col indices
       pa_offsets = -windowsize.half : windowsize.half
-      pa = expand.grid( Prow = rcS[Si,1] + pa_offsets, Pcol = rcS[Si,2] + pa_offsets, KEEP.OUT.ATTRS=FALSE ) # row,col coords
+      pa = expand.grid( Prow = p$rcS[Si,1] + pa_offsets, Pcol = p$rcS[Si,2] + pa_offsets, KEEP.OUT.ATTRS=FALSE ) # row,col coords
       # attr(pa, "out.attrs") = NULL
       bad = which( (pa$Prow < 1 & pa$Prow > p$nplons) | (pa$Pcol < 1 & pa$Pcol > p$nplats) )
       if (length(bad) > 0 ) pa = pa[-bad,]
       if (nrow(pa)< p$n.min) next()
       pc_rc = paste( pa$Prow, pa$Pcol, sep="~" )
-      pa$i = match( pc_rc, rcP$rc)
+      pa$i = match( pc_rc, p$rcP$rc)
       bad = which( !is.finite(pa$i))
       if (length(bad) > 0 ) pa = pa[-bad,]
       if (nrow(pa)< p$n.min) next()
@@ -201,7 +202,7 @@
         plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".")
         points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )
         points( focal[1,1] ~ focal[1,2], col="blue" )
-        points( p$plons[rcS[Si,1]] ~ p$plats[rcS[Si,2]] , col="purple", pch=25, cex=2 )
+        points( p$plons[p$rcS[Si,1]] ~ p$plats[p$rcS[Si,2]] , col="purple", pch=25, cex=2 )
         points( p$plons[pa$Prow] ~ p$plats[ pa$Pcol] , col="cyan", pch=".", cex=0.01 )
         points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="yellow", pch=".", cex=0.7 )
       }
@@ -217,7 +218,6 @@
         preds_eff = list()
         preds_eff[["spde"]] = c( preds_index, list(intercept=1) )
         if ( exists( "COV", p$variables) ) {
-          Pcov =  ( p$ptr$Pcov)  # covariates at prediction locations; read only
           if ( length(p$variables$COV) == 1 ) {
             pcovars = as.data.frame(Pcov[ kP ])
           } else {
@@ -328,7 +328,6 @@
         stdevs = 3
         ii = pa$i
 
-        P =   ( p$ptr$P ) # predictions
         test = rowSums( P[ii,] )
         u = which( is.finite( test ) )  # these have data already .. update
         if ( length( u ) > 0 ) {
@@ -369,7 +368,6 @@
         inla.summary = spacetime_summary_inla_spde2 ( RES, SPDE )
         # save statistics last as this is an indicator of completion of all tasks .. restarts would be broken otherwise
 
-        S =   ( p$ptr$S )  # statistical outputs
         S[Si,1] = inla.summary["spatial error", "mode"]
         S[Si,2] = inla.summary["observation error", "mode"]
         S[Si,3] = inla.summary["range", "mode"]
@@ -381,7 +379,6 @@
       }
 
       if(debugrun) {
-        P =   ( p$ptr$P )
         pps = expand.grid( plon=p$plons, plat=p$plats)
         # zz = which(pps$plon > -50 & pps$plon < 50 & pps$plats < 50 & pps$plats > -50 ) # & P[,2] > 0   )
         zz = which(pps$plon > min(pa$plon) & pps$plon < max(pa$plon) & pps$plat < max(pa$plat) & pps$plat > min(pa$plat) )

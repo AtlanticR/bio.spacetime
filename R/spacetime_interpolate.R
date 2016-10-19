@@ -7,19 +7,31 @@ spacetime_interpolate = function( ip=NULL, p ) {
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime_db("dependent")
-  Yi = p$ptr$Yi[] # force copy as a vector
-  Yloc = p$ptr$Yloc 
-  Sloc = p$ptr$Sloc 
+    S = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$S), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$S), 
+      ff=p$ptr$S )
+    Sloc = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
+      ff=p$ptr$Sloc )
+    Yloc = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
+      ff=p$ptr$Yloc )
+    Yi = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Yi), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Yi), 
+      ff=p$ptr$Yi )
+    Yi = Yi[]  #force copy
 
   # main loop over each output location in S (stats output locations)
   for ( iip in ip ) {
     Si = p$runs[ iip, "locs" ]
-    S = p$ptr$S  # statistical outputs inside loop to safely save data and pass onto other processes
     if ( is.infinite( S[Si,1] ) ) next() 
     if ( !is.nan( S[Si,1] ) ) next() 
     # Si = 31133  problem
     S[Si,1] = Inf   # over-written below if successful else if a run fails it does not get revisited 
-    close(S)
     print( iip )
 
     # find data withing a given distance / number 
@@ -63,13 +75,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # ----------------------
     # save statistics: do last. it is an indicator of completion of all tasks 
     # .. restarts would be broken otherwise
-    S = ( p$ptr$S )
     for ( k in 1: length(p$statsvars) ) {
       if (exists( p$statsvars[k], res$spacetime_stats )) {
         S[Si,k] = res$spacetime_stats[[ p$statsvars[k] ]]
       }
     }
-    close(S)
 
   }  # end for loop
 

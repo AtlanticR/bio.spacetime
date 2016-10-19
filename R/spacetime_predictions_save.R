@@ -5,11 +5,21 @@ spacetime_predictions_save = function( p, pred ) {
   # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
   # update means: inverse-variance weighting   
   # see https://en.wikipedia.org/wiki/Inverse-variance_weighting
-  
-  P =  p$ptr$P 
-  Pn =  p$ptr$Pn 
-  Psd =  p$ptr$Psd 
+ 
   npred = nrow(pred)
+
+  P = switch( p$storage.backend, 
+    bigmemory.ram=attach.big.matrix(p$ptr$P), 
+    bigmemory.filebacked=attach.big.matrix(p$ptr$P), 
+    ff=p$ptr$P )
+  Pn = switch( p$storage.backend, 
+    bigmemory.ram=attach.big.matrix(p$ptr$Pn), 
+    bigmemory.filebacked=attach.big.matrix(p$ptr$Pn), 
+    ff=p$ptr$Pn )
+  Psd = switch( p$storage.backend, 
+    bigmemory.ram=attach.big.matrix(p$ptr$Psd), 
+    bigmemory.filebacked=attach.big.matrix(p$ptr$Psd), 
+    ff=p$ptr$Psd )
 
   if ( ! exists("TIME", p$variables) ) {
 

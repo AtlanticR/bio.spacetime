@@ -54,6 +54,13 @@ spacetime = function( p, DATA, overwrite=NULL, storage.backend="bigmemory.ram") 
     # permit passing a function rather than data directly .. less RAM usage
     if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
 
+    # number of time slices
+    if (!exists("nt", p)) {
+      p$nt = 1  
+      if (exists( "ny", p)) p$nt = p$nt * p$ny  # annual time slices
+      if (exists( "nw", p)) p$nt = p$nt * p$nw  # sub-annual time slices
+    } 
+
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
     if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
            "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {

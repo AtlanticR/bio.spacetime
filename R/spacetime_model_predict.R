@@ -1,8 +1,15 @@
 spacetime_model_predict = function( p, Si, YiU, pa ) {
 
   res =NULL
-  Yloc = p$ptr$Yloc
-  Y = p$ptr$Y
+
+    Yloc = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
+      ff=p$ptr$Yloc )
+    Y = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Y), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Y), 
+      ff=p$ptr$Y )
 
   if ( p$spacetime_engine %in% 
     c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
@@ -26,7 +33,10 @@ spacetime_model_predict = function( p, Si, YiU, pa ) {
     if ( exists("TIME", p$variables) ){
       # annual ts, seasonally centered and spatially 
       # pa_i = which( Sloc[Si,1]==Ploc[,1] & Sloc[Si,2]==Ploc[,2] )
-      Sloc = p$ptr$Sloc
+      Sloc = switch( p$storage.backend, 
+        bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
+        bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
+        ff=p$ptr$Sloc )
       pac_i = which( res$predictions$plon==Sloc[Si,1] & res$predictions$plat==Sloc[Si,2] )
       if (length(pac_i) > 5) {
         pac = res$predictions[ pac_i, ]

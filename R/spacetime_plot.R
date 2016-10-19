@@ -11,7 +11,11 @@
       pp = grep("predictions", obj )
       if ( length(pp) > 0 ) {
         pps  =  expand.grid( plons=p$plons, plats=p$plats)
-        P = ( p$ptr$P ) 
+        P = switch( p$storage.backend, 
+          bigmemory.ram=attach.big.matrix(p$ptr$P), 
+          bigmemory.filebacked=attach.big.matrix(p$ptr$P), 
+          ff=p$ptr$P )
+
         cl = 2 # default is mean value
         if ( grep("n", obj) ) cl=1
         if ( grep("mean", obj) ) cl=2

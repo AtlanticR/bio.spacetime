@@ -1,9 +1,19 @@
 
 spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
 
-    Sloc = attach.big.matrix( p$ptr$Sloc )
-    Yloc = attach.big.matrix( p$ptr$Yloc )
-    Y = attach.big.matrix( p$ptr$Y )
+
+    Sloc = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
+      ff=p$ptr$Sloc )
+    Yloc = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
+      ff=p$ptr$Yloc )
+    Y = switch( p$storage.backend, 
+      bigmemory.ram=attach.big.matrix(p$ptr$Y), 
+      bigmemory.filebacked=attach.big.matrix(p$ptr$Y), 
+      ff=p$ptr$Y )
 
     x = data.frame( Y[YiU] )
     names(x) = p$variables$Y
