@@ -126,87 +126,55 @@
       }
 
       # dependent variable
-      Y_ = B[, p$variables$Y ]
-        if (p$storage.backend=="ff") {
-          p$ptr$Y0 = ff( Y_, dim=dim(Y_), file=p$diskcache$Y0, overwrite=TRUE )
-        }
-        if (p$storage.backend=="bigmemory.filebacked") {
-          Y0 = bigmemory::as.big.matrix( Y_, type="double", 
-            backingfile=p$diskcache$Y0, descriptorfile=basename(p$ptr$Y0), backingpath=p$tmp.datadir )
-          p$ptr$Y0 = bigmemory::describe(Y0) # not sure if necessary .. should check .. 
-        }
-        if (p$storage.backend=="bigmemory.ram") {
-          Y0 = bigmemory::as.big.matrix( Y_, type="double" )
-          p$ptr$Y0 = bigmemory::describe(Y0) 
-        }
+      Y0 = B[, p$variables$Y ]
+
+      p$ptr$Y0 = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Y0, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Y0, type="double", backingfile=p$diskcache$Y0, descriptorfile=basename(p$ptr$Y0), backingpath=p$tmp.datadir ) ),
+        ff = ff( Y0, dim=dim(Y0), file=p$diskcache$Y0, overwrite=TRUE )
+      )
 
       if (exists( "spacetime_covariate_spacetime_engine_modelformula", p)) {
-        Yresid_ = residuals( spacetime_db( p=p, DS="model.covariates") )
+        Y = residuals( spacetime_db( p=p, DS="model.covariates") )
       } else {
-        Yresid_ = Y_  # if no residual model simply use the raw data
+        Y = Y0  # reducndant but simpler this way
       }
-        if (p$storage.backend=="ff") {
-          p$ptr$Y = ff( Yresid_, dim=dim(Yresid_), file=p$diskcache$Y, overwrite=TRUE )
-        }
-        if (p$storage.backend=="bigmemory.filebacked") {
-          Y = bigmemory::as.big.matrix( Yresid_, type="double", 
-            backingfile=p$diskcache$Y, descriptorfile=basename(p$ptr$Y), backingpath=p$tmp.datadir )
-          p$ptr$Y = bigmemory::describe(Y) # not sure if necessary .. should check .. 
-        }
-        if (p$storage.backend=="bigmemory.ram") {
-          Y = bigmemory::as.big.matrix( Yresid_, type="double" )
-          p$ptr$Y = bigmemory::describe(Y) 
-        }
 
+      p$ptr$Y = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Y, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Y, type="double", backingfile=p$diskcache$Y, descriptorfile=basename(p$ptr$Y), backingpath=p$tmp.datadir ) ),
+        ff = ff( Y, dim=dim(Y), file=p$diskcache$Y, overwrite=TRUE )
+      )
+
+----- here ...
 
      # data coordinates
-      Yloc_ = as.matrix( B[, p$variables$LOCS ])
-        if (p$storage.backend=="ff") {
-          p$ptr$Yloc = ff( Yloc_, dim=dim(Yloc_), file=p$diskcache$Yloc, overwrite=TRUE )
-        }
-        if (p$storage.backend=="bigmemory.filebacked") {
-          Yloc = bigmemory::as.big.matrix( Yloc_, type="double", 
-            backingfile=p$diskcache$Yloc, descriptorfile=basename(p$ptr$Yloc), backingpath=p$tmp.datadir )
-          p$ptr$Yloc = bigmemory::describe(Yloc) # not sure if necessary .. should check .. 
-        }
-        if (p$storage.backend=="bigmemory.ram") {
-          Yloc = bigmemory::as.big.matrix( Yloc_, type="double" )
-          p$ptr$Yloc = bigmemory::describe(Yloc) 
-        }
+      Yloc = as.matrix( B[, p$variables$LOCS ])
+      p$ptr$Yloc = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Yloc, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Yloc, type="double", backingfile=p$diskcache$Yloc, descriptorfile=basename(p$ptr$Yloc), backingpath=p$tmp.datadir ) ),
+        ff = ff( Yloc, dim=dim(Yloc), file=p$diskcache$Yloc, overwrite=TRUE )
+      )
 
       # independent variables/ covariate
       if (exists("COV", p$variables)) {
-        Ycov_ = as.matrix( B[ , p$variables$COV ] )
-          if (p$storage.backend=="ff") {
-            p$ptr$Ycov = ff( Ycov_, dim=dim(Ycov_), file=p$diskcache$Ycov, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            Ycov = bigmemory::as.big.matrix( Ycov_, type="double", 
-              backingfile=p$diskcache$Ycov, descriptorfile=basename(p$ptr$Ycov), backingpath=p$tmp.datadir )
-            p$ptr$Ycov = bigmemory::describe(Ycov) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            Ycov = bigmemory::as.big.matrix( Ycov_, type="double" )
-            p$ptr$Ycov = bigmemory::describe(Ycov) 
-          }
-
+        Ycov = as.matrix( B[ , p$variables$COV ] )
+        p$ptr$Ycov = switch(p$storage.backend,
+          bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Ycov, type="double" ) ) ,
+          bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Ycov, type="double", backingfile=p$diskcache$Ycov, descriptorfile=basename(p$ptr$Ycov), backingpath=p$tmp.datadir ) ),
+          ff = ff( Ycov, dim=dim(Ycov), file=p$diskcache$Ycov, overwrite=TRUE )
+        )
       }
 
       # data times
       if ( exists("TIME", p$variables) ) {
-        Ytime_ = as.matrix( B[, p$variables$TIME ] )
-          if (p$storage.backend=="ff") {
-            p$ptr$Ytime = ff( Ytime_, dim=dim(Ytime_), file=p$diskcache$Ytime, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            Ytime = bigmemory::as.big.matrix( Ytime_, type="double", 
-              backingfile=p$diskcache$Ytime, descriptorfile=basename(p$ptr$Ytime), backingpath=p$tmp.datadir )
-            p$ptr$Ytime = bigmemory::describe(Ytime) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            Ytime = bigmemory::as.big.matrix( Ytime_, type="double" )
-            p$ptr$Ytime = bigmemory::describe(Ytime) 
-          }
+        Ytime = as.matrix( B[, p$variables$TIME ] )
+        p$ptr$Ytime = switch(p$storage.backend,
+          bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Ytime, type="double" ) ) ,
+          bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Ytime, type="double", backingfile=p$diskcache$Ytime, descriptorfile=basename(p$ptr$Ytime), backingpath=p$tmp.datadir ) ),
+          ff = ff( Ytime, dim=dim(Ytime), file=p$diskcache$Ytime, overwrite=TRUE )
+        )
+
       }
 
       return( p ) #return pointers to data
@@ -219,130 +187,72 @@
       
       if (exists("COV", p$variables)) {
         if (is.vector(B$COV) ) {
-          Pcov_ = as.matrix( B$COV ) 
+          Pcov = as.matrix( B$COV ) 
         } else {
-          Pcov_ = as.matrix( B$COV[,p$variables$COV ] ) 
+          Pcov = as.matrix( B$COV[,p$variables$COV ] ) 
         }
-          if (p$storage.backend=="ff") {
-            p$ptr$Pcov = ff( Pcov_, dim=dim(Pcov_), file=p$diskcache$Pcov, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            Pcov = bigmemory::as.big.matrix( Pcov_, type="double", 
-              backingfile=p$diskcache$Pcov, descriptorfile=basename(p$ptr$Pcov), backingpath=p$tmp.datadir )
-            p$ptr$Pcov = bigmemory::describe(Pcov) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            Pcov = bigmemory::as.big.matrix( Pcov_, type="double" )
-            p$ptr$Pcov = bigmemory::describe(Pcov) 
-          }
+        p$ptr$Pcov = switch(p$storage.backend,
+          bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Pcov, type="double" ) ) ,
+          bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Pcov, type="double", backingfile=p$diskcache$Pcov, descriptorfile=basename(p$ptr$Pcov), backingpath=p$tmp.datadir ) ),
+          ff = ff( Pcov, dim=dim(Pcov), file=p$diskcache$Pcov, overwrite=TRUE )
+        )
       }
 
       # prediction times 
       if (exists("TIME", p$variables)) {
-        Ptime_ = as.matrix( B$TIME )
-          if (p$storage.backend=="ff") {
-            p$ptr$Ptime = ff( Ptime_, dim=dim(Ptime_), file=p$diskcache$Ptime, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            Ptime = bigmemory::as.big.matrix( Ptime_, type="double", 
-              backingfile=p$diskcache$Ptime, descriptorfile=basename(p$ptr$Ptime), backingpath=p$tmp.datadir )
-            p$ptr$Ptime = bigmemory::describe(Ptime) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            Ptime = bigmemory::as.big.matrix( Ptime_, type="double" )
-            p$ptr$Ptime = bigmemory::describe(Ptime) 
-          }
+        Ptime = as.matrix( B$TIME )
+        p$ptr$Ptime = switch(p$storage.backend,
+          bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Ptime, type="double" ) ) ,
+          bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Ptime, type="double", backingfile=p$diskcache$Ptime, descriptorfile=basename(p$ptr$Ptime), backingpath=p$tmp.datadir ) ),
+          ff = ff( Ptime, dim=dim(Ptime), file=p$diskcache$Ptime, overwrite=TRUE )
+        )
       }
       
       # predictions and associated stats
-      P_ = matrix( NaN, nrow=nrow(B$LOCS), ncol=p$nt )
-        # predictions proper
-        if (p$storage.backend=="ff") {
-          p$ptr$P = ff( P_, dim=dim(P_), file=p$diskcache$P, overwrite=TRUE )
-        }
-        if (p$storage.backend=="bigmemory.filebacked") {
-          P = bigmemory::as.big.matrix( P_, type="double", 
-            backingfile=p$diskcache$P, descriptorfile=basename(p$ptr$P), backingpath=p$tmp.datadir )
-          p$ptr$P = bigmemory::describe(P) # not sure if necessary .. should check .. 
-        }
-        if (p$storage.backend=="bigmemory.ram") {
-          P = bigmemory::as.big.matrix( P_, type="double" )
-          p$ptr$P = bigmemory::describe(P) 
-        }
-        
-        # count of prediction estimates
-        if (p$storage.backend=="ff") {
-          p$ptr$Pn = ff( P_, dim=dim(P_), file=p$diskcache$Pn, overwrite=TRUE )
-        }
-        if (p$storage.backend=="bigmemory.filebacked") {
-          Pn = bigmemory::as.big.matrix( P_, type="double", 
-            backingfile=p$diskcache$Pn, descriptorfile=basename(p$ptr$Pn), backingpath=p$tmp.datadir )
-          p$ptr$Pn = bigmemory::describe(Pn) # not sure if necessary .. should check .. 
-        }
-        if (p$storage.backend=="bigmemory.ram") {
-          Pn = bigmemory::as.big.matrix( P_, type="double" )
-          p$ptr$Pn = bigmemory::describe(Pn) 
-        }
+      P = matrix( NaN, nrow=nrow(B$LOCS), ncol=p$nt )
+      p$ptr$P = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( P, type="double", backingfile=p$diskcache$P, descriptorfile=basename(p$ptr$P), backingpath=p$tmp.datadir ) ),
+        ff = ff( P, dim=dim(P), file=p$diskcache$P, overwrite=TRUE )
+      )
+      
+      # count of prediction estimates
+      p$ptr$Pn = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( P, type="double", backingfile=p$diskcache$Pn, descriptorfile=basename(p$ptr$Pn), backingpath=p$tmp.datadir ) ),
+        ff = ff( P, dim=dim(P), file=p$diskcache$Pn, overwrite=TRUE )
+      )
 
-        # sd of prediction estimates
-        if (p$storage.backend=="ff") {
-          p$ptr$Psd = ff( P_, dim=dim(P_), file=p$diskcache$Psd, overwrite=TRUE )
-        }
-        if (p$storage.backend=="bigmemory.filebacked") {
-          Psd = bigmemory::as.big.matrix( P_, type="double", 
-            backingfile=p$diskcache$Psd, descriptorfile=basename(p$ptr$Psd), backingpath=p$tmp.datadir )
-          p$ptr$Psd = bigmemory::describe(Psd) # not sure if necessary .. should check .. 
-        }
-        if (p$storage.backend=="bigmemory.ram") {
-          Psd = bigmemory::as.big.matrix( P_, type="double" )
-          p$ptr$Psd = bigmemory::describe(Psd) 
-        }
+      # sd of prediction estimates
+      p$ptr$Psd = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( P, type="double", backingfile=p$diskcache$Psd, descriptorfile=basename(p$ptr$Psd), backingpath=p$tmp.datadir ) ),
+        ff = ff( P, dim=dim(P), file=p$diskcache$Psd, overwrite=TRUE )
+      )
 
       # prediction coordinates
-      Ploc_ = as.matrix( B$LOCS )
-          if (p$storage.backend=="ff") {
-            p$ptr$Ploc = ff( Ploc_, dim=dim(Ploc_), file=p$diskcache$Ploc, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            Ploc = bigmemory::as.big.matrix( Ploc_, type="double", 
-              backingfile=p$diskcache$Ploc, descriptorfile=basename(p$ptr$Ploc), backingpath=p$tmp.datadir )
-            p$ptr$Ploc = bigmemory::describe(Ploc) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            Ploc = bigmemory::as.big.matrix( Ploc_, type="double" )
-            p$ptr$Ploc = bigmemory::describe(Ploc) 
-          }
+      Ploc = as.matrix( B$LOCS )
+      p$ptr$Ploc = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Ploc, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Ploc, type="double", backingfile=p$diskcache$Ploc, descriptorfile=basename(p$ptr$Ploc), backingpath=p$tmp.datadir ) ),
+        ff = ff( Ploc, dim=dim(Ploc), file=p$diskcache$Ploc, overwrite=TRUE )
+      )
 
       # pre-compute a few things for spacetime_interpolate_xy_simple_multiple  
-      Mat2Ploc_ = cbind( (Ploc_[,1]-p$plons[1])/p$pres + 1, (Ploc_[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
-          if (p$storage.backend=="ff") {
-            p$ptr$Mat2Ploc = ff( Mat2Ploc_, dim=dim(Mat2Ploc_), file=p$diskcache$Mat2Ploc, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            Mat2Ploc = bigmemory::as.big.matrix( Mat2Ploc_, type="double", 
-              backingfile=p$diskcache$Mat2Ploc, descriptorfile=basename(p$ptr$Mat2Ploc), backingpath=p$tmp.datadir )
-            p$ptr$Mat2Ploc = bigmemory::describe(Mat2Ploc) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            Mat2Ploc = bigmemory::as.big.matrix( Mat2Ploc_, type="double" )
-            p$ptr$Mat2Ploc = bigmemory::describe(Mat2Ploc) 
-          }
+      Mat2Ploc = cbind( (Ploc_[,1]-p$plons[1])/p$pres + 1, (Ploc_[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
+      p$ptr$Mat2Ploc = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double", backingfile=p$diskcache$Mat2Ploc, descriptorfile=basename(p$ptr$Mat2Ploc), backingpath=p$tmp.datadir ) ),
+        ff = ff( Mat2Ploc, dim=dim(Mat2Ploc), file=p$diskcache$Mat2Ploc, overwrite=TRUE )
+      )
 
-      spatial_weights_ = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$res, 
+      spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$res, 
         theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
-          if (p$storage.backend=="ff") {
-            p$ptr$spatial_weights = ff( spatial_weights_, dim=dim(spatial_weights_), file=p$diskcache$spatial_weights, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            spatial_weights = bigmemory::as.big.matrix( spatial_weights_, type="double", 
-              backingfile=p$diskcache$spatial_weights, descriptorfile=basename(p$ptr$spatial_weights), backingpath=p$tmp.datadir )
-            p$ptr$spatial_weights = bigmemory::describe(spatial_weights) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            spatial_weights = bigmemory::as.big.matrix( spatial_weights_, type="double" )
-            p$ptr$spatial_weights = bigmemory::describe(spatial_weights) 
-          }
-      
+      p$ptr$spatial_weights = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( spatial_weights, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( spatial_weights, type="double", backingfile=p$diskcache$spatial_weights, descriptorfile=basename(p$ptr$spatial_weights), backingpath=p$tmp.datadir ) ),
+        ff = ff( spatial_weights, dim=dim(spatial_weights), file=p$diskcache$spatial_weights, overwrite=TRUE )
+      )
 
       # prediction offsets from an additive (global) model of covariates (if any, zero valued otherwise) 
       if ( exists("COV", p$variables) && exists("spacetime_covariate_spacetime_engine_modelformula", p ) ) {
@@ -351,39 +261,26 @@
         covars = data.frame(B$COV)
         names(covars) = p$variables$COV
         Pcov = predict( covmodel, newdata=covars, type="response", se.fit=T ) 
-        P0_   = Pcov$fit
-        P0sd_ = Pcov$se.fit
+        P0   = Pcov$fit
+        P0sd = Pcov$se.fit
         rm (covmodel, covars, Pcov); gc()
       } else {
-        P0_   = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
-        P0sd_ = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
+        # if no civars, then resids = 0
+        P0   = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
+        P0sd = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
       }
 
-        if (p$storage.backend=="ff") {
-          p$ptr$P0 = ff( P0_, dim=dim(P0_), file=p$diskcache$P0, overwrite=TRUE )
-        }
-        if (p$storage.backend=="bigmemory.filebacked") {
-          P0 = bigmemory::as.big.matrix( P0_, type="double", 
-            backingfile=p$diskcache$P0, descriptorfile=basename(p$ptr$P0), backingpath=p$tmp.datadir )
-          p$ptr$P0 = bigmemory::describe(P0) # not sure if necessary .. should check .. 
-        }
-        if (p$storage.backend=="bigmemory.ram") {
-          P0 = bigmemory::as.big.matrix( P0_, type="double" )
-          p$ptr$P0 = bigmemory::describe(P0) 
-        }
-      
-        if (p$storage.backend=="ff") {
-          p$ptr$P0sd = ff( P0sd_, dim=dim(P0sd_), file=p$diskcache$P0sd, overwrite=TRUE )
-        }
-        if (p$storage.backend=="bigmemory.filebacked") {
-          P0sd = bigmemory::as.big.matrix( P0sd_, type="double", 
-            backingfile=p$diskcache$P0sd, descriptorfile=basename(p$ptr$P0sd), backingpath=p$tmp.datadir )
-          p$ptr$P0sd = bigmemory::describe(P0sd) # not sure if necessary .. should check .. 
-        }
-        if (p$storage.backend=="bigmemory.ram") {
-          P0sd = bigmemory::as.big.matrix( P0sd_, type="double" )
-          p$ptr$P0sd = bigmemory::describe(P0sd) 
-        }
+      p$ptr$P0 = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( P0, type="double" )),
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( P0, type="double", backingfile=p$diskcache$P0, descriptorfile=basename(p$ptr$P0), backingpath=p$tmp.datadir )) ,
+        ff = ff( P0, dim=dim(P0), file=p$diskcache$P0, overwrite=TRUE )
+      )
+
+      p$ptr$P0sd = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( P0sd, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( P0sd, type="double", backingfile=p$diskcache$P0sd, descriptorfile=basename(p$ptr$P0sd), backingpath=p$tmp.datadir ) ),
+        ff = ff( P0sd, dim=dim(P0sd), file=p$diskcache$P0sd, overwrite=TRUE )
+      )
       
       return( p )
     }
@@ -461,33 +358,19 @@
       if ( DS=="statistics.initialize" ) {
         # statistics storage matrix ( aggregation window, coords ) .. no inputs required
         # statistics coordinates
-        Sloc_ = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
-          if (p$storage.backend=="ff") {
-            p$ptr$Sloc = ff( Sloc_, dim=dim(Sloc_), filename=p$diskcache$Sloc, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            Sloc = bigmemory::as.big.matrix( Sloc_, type="double", 
-              backingfile=p$diskcache$Sloc, descriptorfile=basename(p$ptr$Sloc), backingpath=p$tmp.datadir )
-            p$ptr$Sloc = bigmemory::describe(Sloc) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            Sloc = bigmemory::as.big.matrix( Sloc_, type="double" )
-            p$ptr$Sloc = bigmemory::describe(Sloc) 
-          }
+        Sloc = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
+        p$ptr$Sloc = switch(p$storage.backend,
+          bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Sloc, type="double" )),
+          bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Sloc, type="double", backingfile=p$diskcache$Sloc, descriptorfile=basename(p$ptr$Sloc), backingpath=p$tmp.datadir )) ,
+          ff = ff( Sloc, dim=dim(Sloc), file=p$diskcache$Sloc, overwrite=TRUE )
+        )
 
-        S_ = matrix( NaN, nrow=nrow(Sloc_), ncol=length( p$statsvars ) ) # NA forces into logical
-          if (p$storage.backend=="ff") {
-            p$ptr$S = ff( S_, dim=dim(S_), file=p$diskcache$S, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            S = bigmemory::as.big.matrix( S_, type="double", 
-              backingfile=p$diskcache$S, descriptorfile=basename(p$ptr$S), backingpath=p$tmp.datadir )
-            p$ptr$S = bigmemory::describe(S) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            S = bigmemory::as.big.matrix( S_, type="double" )
-            p$ptr$S = bigmemory::describe(S) 
-          }
+        S = matrix( NaN, nrow=nrow(Sloc_), ncol=length( p$statsvars ) ) # NA forces into logical
+        p$ptr$S = switch(p$storage.backend,
+          bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( S, type="double" )),
+          bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( S, type="double", backingfile=p$diskcache$S, descriptorfile=basename(p$ptr$S), backingpath=p$tmp.datadir )) ,
+          ff = ff( S, dim=dim(S), file=p$diskcache$S, overwrite=TRUE )
+        )
 
         return( p )
       }
@@ -508,8 +391,8 @@
           ff=p$ptr$S )
 
         i = which( is.infinite( S[,1] )  )  # not yet completed (due to a failed attempt)
-        j = which( is.nan( S[,1] )   )      # completed
-        k = which( is.finite (S[,1])  )     # not yet done
+        j = which( is.nan( S[,1] )   )      # incomplete
+        k = which( is.finite (S[,1])  )     # completed
         out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
                      n.incomplete=length(j), n.problematic=length(i), 
                      n.complete=length(k) )
@@ -581,18 +464,11 @@
         Yi = na.omit(Yi)
       }
 
-          if (p$storage.backend=="ff") {
-            p$ptr$Yi = ff( Yi, filename=p$diskcache$Yi, overwrite=TRUE )
-          }
-          if (p$storage.backend=="bigmemory.filebacked") {
-            Yi = bigmemory::as.big.matrix( Yi, type="double", 
-              backingfile=p$diskcache$Yi, descriptorfile=basename(p$ptr$Yi), backingpath=p$tmp.datadir )
-            p$ptr$Yi = bigmemory::describe(Yi) # not sure if necessary .. should check .. 
-          }
-          if (p$storage.backend=="bigmemory.ram") {
-            Yi = bigmemory::as.big.matrix( Yi, type="double" )
-            p$ptr$Yi = bigmemory::describe(Yi) 
-          }
+      p$ptr$Yi = switch(p$storage.backend,
+        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Yi, type="double" ) ) ,
+        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Yi, type="double", backingfile=p$diskcache$Yi, descriptorfile=basename(p$ptr$Yi), backingpath=p$tmp.datadir ) ),
+        ff = ff( Yi, dim=dim(Yi), file=p$diskcache$Yi, overwrite=TRUE )
+      )
 
 
       #---------------------

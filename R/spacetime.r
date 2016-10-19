@@ -3,6 +3,16 @@ spacetime = function( p, DATA, overwrite=NULL, storage.backend="bigmemory.ram") 
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
 
+  if(0) {
+     p = bio.temperature::temperature.parameters( current.year=2016 )
+     p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
+     RLibrary( p$libs )
+     o = spacetime_db( p, DS="statistics.status" )
+     p = make.list( list( locs=sample( o$incomplete )) , Y=p ) 
+     spacetime_interpolate (p=p ) 
+  }
+
+
   p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "fields" ) ) 
   
   p$storage.backend = storage.backend
