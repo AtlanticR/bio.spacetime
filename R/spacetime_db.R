@@ -221,7 +221,7 @@
       
       # count of prediction estimates
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Pn P = p$cache$Pn
+            p$ptr$Pn = p$cache$Pn
             bigmemory::as.big.matrix( P, type="double" ) 
           }
           if (p$storage.backend == "bigmemory.ram" ) {
@@ -235,7 +235,7 @@
       # sd of prediction estimates
       # count of prediction estimates
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Psd P = p$cache$Psd
+            p$ptr$Psd = p$cache$Psd
             bigmemory::as.big.matrix( P, type="double" ) 
           }
           if (p$storage.backend == "bigmemory.ram" ) {
