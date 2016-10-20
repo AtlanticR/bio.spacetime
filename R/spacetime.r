@@ -5,8 +5,11 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
 
   if(0) {
      p = bio.temperature::temperature.parameters( current.year=2016 )
-     p = spacetime( DATA='hydro.db( p=p, DS="spacetime.input" )', p=p, storage.backend="bigmemory.ram" )
-
+     family="gaussian"
+     method="simple"
+     overwrite=NULL
+     storage.backend="bigmemory.ram"
+     DATA='hydro.db( p=p, DS="spacetime.input" )'
 
      p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
      RLibrary( p$libs )

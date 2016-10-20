@@ -43,7 +43,6 @@
       p$cache$Sloc =  file.path( p$stloc, "statistics_loc.cache" )
       p$cache$Stime = file.path( p$stloc, "statistics_time.cache" )
       p$cache$Mat2Ploc = file.path( p$stloc, "Mat2Ploc.cache" )
-      p$cache$spatial_weights = file.path( p$stloc, "spatial_weights.cache" )
       p$cache$Ylogit = file.path( p$stloc, "Ylogit.cache" )
 
       return(p)
@@ -82,7 +81,7 @@
       }
 
       # dependent variable
-      Y = B[, p$variables$Y ]
+      Y = as.matrix(B[, p$variables$Y ])
       p$ptr$Y = switch(p$storage.backend,
         bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Y, type="double" ) ) ,
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Y, type="double", backingfile=p$cache$Y, descriptorfile=basename(p$ptr$Y), backingpath=p$stloc ) ),
@@ -146,6 +145,7 @@
           ff = ff( Pcov, dim=dim(Pcov), file=p$cache$Pcov, overwrite=TRUE )
         )
       }
+      rm(Pcov)
 
       # prediction times 
       if (exists("TIME", p$variables)) {
@@ -156,7 +156,8 @@
           ff = ff( Ptime, dim=dim(Ptime), file=p$cache$Ptime, overwrite=TRUE )
         )
       }
-      
+      rm(Ptime)
+
       # predictions and associated stats
       P = matrix( NaN, nrow=nrow(B$LOCS), ncol=p$nt )
       p$ptr$P = switch(p$storage.backend,
@@ -178,6 +179,7 @@
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( P, type="double", backingfile=p$cache$Psd, descriptorfile=basename(p$ptr$Psd), backingpath=p$stloc ) ),
         ff = ff( P, dim=dim(P), file=p$cache$Psd, overwrite=TRUE )
       )
+      rm(P)
 
       # prediction coordinates
       Ploc = as.matrix( B$LOCS )
@@ -186,22 +188,19 @@
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Ploc, type="double", backingfile=p$cache$Ploc, descriptorfile=basename(p$ptr$Ploc), backingpath=p$stloc ) ),
         ff = ff( Ploc, dim=dim(Ploc), file=p$cache$Ploc, overwrite=TRUE )
       )
+      rm(Ploc)
 
       # pre-compute a few things for spacetime_interpolate_xy_simple_multiple  
-      Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
+      Mat2Ploc = as.matrix(cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1)) # row, col indices in matrix form
       p$ptr$Mat2Ploc = switch(p$storage.backend,
         bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double" ) ) ,
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double", backingfile=p$cache$Mat2Ploc, descriptorfile=basename(p$ptr$Mat2Ploc), backingpath=p$stloc ) ),
         ff = ff( Mat2Ploc, dim=dim(Mat2Ploc), file=p$cache$Mat2Ploc, overwrite=TRUE )
       )
+      rm(Mat2Ploc)
 
-      spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$res, 
+      p$spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
         theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
-      p$ptr$spatial_weights = switch(p$storage.backend,
-        bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( spatial_weights, type="double" ) ) ,
-        bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( spatial_weights, type="double", backingfile=p$cache$spatial_weights, descriptorfile=basename(p$ptr$spatial_weights), backingpath=p$stloc ) ),
-        ff = ff( spatial_weights, dim=dim(spatial_weights), file=p$cache$spatial_weights, overwrite=TRUE )
-      )
 
       P0   = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
       p$ptr$P0 = switch(p$storage.backend,
@@ -209,6 +208,7 @@
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( P0, type="double", backingfile=p$cache$P0, descriptorfile=basename(p$ptr$P0), backingpath=p$stloc )) ,
         ff = ff( P0, dim=dim(P0), file=p$cache$P0, overwrite=TRUE )
       )
+      rm(P0)
 
       P0sd = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
       p$ptr$P0sd = switch(p$storage.backend,
@@ -216,7 +216,9 @@
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( P0sd, type="double", backingfile=p$cache$P0sd, descriptorfile=basename(p$ptr$P0sd), backingpath=p$stloc ) ),
         ff = ff( P0sd, dim=dim(P0sd), file=p$cache$P0sd, overwrite=TRUE )
       )
-      
+      rm(P0sd)
+      gc()
+
       return( p )
     }
 
