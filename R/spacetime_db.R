@@ -89,7 +89,7 @@
           p$ptr$Y  = p$cache$Y
           bigmemory::as.big.matrix( Y, type="double" ) 
         }
-        if (p$storage.backend == "bigmemory.ram" ) {
+        if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Y  = p$cache$Y
           bigmemory::as.big.matrix( Y, type="double", backingfile=basename(p$bm$Y), descriptorfile=basename(p$cache$Y), backingpath=p$stloc )
         }
@@ -103,7 +103,7 @@
           p$ptr$Ylogit  = p$cache$Ylogit
           bigmemory::as.big.matrix( Ylogit, type="double" ) 
         }
-        if (p$storage.backend == "bigmemory.ram" ) {
+        if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Ylogit  = p$cache$Ylogit
           bigmemory::as.big.matrix( Ylogit, type="double", backingfile=basename(p$bm$Ylogit), descriptorfile=basename(p$cache$Ylogit), backingpath=p$stloc )
         }
@@ -118,7 +118,7 @@
           p$ptr$Yloc  = p$cache$Yloc
           bigmemory::as.big.matrix( Yloc, type="double" ) 
         }
-        if (p$storage.backend == "bigmemory.ram" ) {
+        if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Yloc  = p$cache$Yloc
           bigmemory::as.big.matrix( Yloc, type="double", backingfile=basename(p$bm$Yloc), descriptorfile=basename(p$cache$Yloc), backingpath=p$stloc )
         }
@@ -133,7 +133,7 @@
             p$ptr$Ycov  = p$cache$Ycov
             bigmemory::as.big.matrix( Ycov, type="double" )
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ycov  = p$cache$Ycov
             bigmemory::as.big.matrix( Ycov, type="double", backingfile=basename(p$bm$Ycov), descriptorfile=basename(p$cache$Ycov), backingpath=p$stloc )
           }
@@ -149,7 +149,7 @@
             p$ptr$Ytime  = p$cache$Ytime
             bigmemory::as.big.matrix( Ytime, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ytime  = p$cache$Ytime
             bigmemory::as.big.matrix( Ytime, type="double", backingfile=basename(p$bm$Ytime), descriptorfile=basename(p$cache$Ytime), backingpath=p$stloc )
           }
@@ -177,7 +177,7 @@
             p$ptr$Pcov  = p$cache$Pcov
             bigmemory::as.big.matrix( Pcov, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Pcov  = p$cache$Pcov
             bigmemory::as.big.matrix( Pcov, type="double", backingfile=basename(p$bm$Pcov), descriptorfile=basename(p$cache$Pcov), backingpath=p$stloc )
           }
@@ -195,7 +195,7 @@
             p$ptr$Ptime  = p$cache$Ptime
             bigmemory::as.big.matrix( Ptime, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ptime  = p$cache$Ptime
             bigmemory::as.big.matrix( Ptime, type="double", backingfile=basename(p$bm$Ptime), descriptorfile=basename(p$cache$Ptime), backingpath=p$stloc )
           }
@@ -211,7 +211,7 @@
             p$ptr$P  = p$cache$P
             bigmemory::as.big.matrix( P, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$P  = p$cache$P
             bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$P), descriptorfile=basename(p$cache$P), backingpath=p$stloc )
           }
@@ -224,7 +224,7 @@
             p$ptr$Pn = p$cache$Pn
             bigmemory::as.big.matrix( P, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Pn  = p$cache$Pn
             bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$Pn), descriptorfile=basename(p$cache$Pn), backingpath=p$stloc )
           }
@@ -238,7 +238,7 @@
             p$ptr$Psd = p$cache$Psd
             bigmemory::as.big.matrix( P, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Psd  = p$cache$Psd
             bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$Psd), descriptorfile=basename(p$cache$Psd), backingpath=p$stloc )
           }
@@ -255,7 +255,7 @@
             p$ptr$Ploc  = p$cache$Ploc
             bigmemory::as.big.matrix( Ploc, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ploc  = p$cache$Ploc
             bigmemory::as.big.matrix( Ploc, type="double", backingfile=basename(p$bm$Ploc), descriptorfile=basename(p$cache$Ploc), backingpath=p$stloc )
           }
@@ -270,7 +270,7 @@
             p$ptr$Mat2Ploc  = p$cache$Mat2Ploc
             bigmemory::as.big.matrix( Mat2Ploc, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Mat2Ploc  = p$cache$Mat2Ploc
             bigmemory::as.big.matrix( Mat2Ploc, type="double", backingfile=basename(p$bm$Mat2Ploc), descriptorfile=basename(p$cache$Mat2Ploc), backingpath=p$stloc )
           }
@@ -288,7 +288,7 @@
             p$ptr$P0  = p$cache$P0
             bigmemory::as.big.matrix( P0, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$P0  = p$cache$P0
             bigmemory::as.big.matrix( P0, type="double", backingfile=basename(p$bm$P0), descriptorfile=basename(p$cache$P0), backingpath=p$stloc )
           }
@@ -302,7 +302,7 @@
             p$ptr$P0sd  = p$cache$P0sd
             bigmemory::as.big.matrix( P0, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$P0sd  = p$cache$P0sd
             bigmemory::as.big.matrix( P0, type="double", backingfile=basename(p$bm$P0sd), descriptorfile=basename(p$cache$P0sd), backingpath=p$stloc )
           }
@@ -379,7 +379,7 @@
             p$ptr$Sloc  = p$cache$Sloc
             bigmemory::as.big.matrix( Sloc, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Sloc  = p$cache$Sloc
             bigmemory::as.big.matrix( Sloc, type="double", backingfile=basename(p$bm$Sloc), descriptorfile=basename(p$cache$Sloc), backingpath=p$stloc )
           }
@@ -393,7 +393,7 @@
             p$ptr$S  = p$cache$S
             bigmemory::as.big.matrix( S, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$S  = p$cache$S
             bigmemory::as.big.matrix( S, type="double", backingfile=basename(p$bm$S), descriptorfile=basename(p$cache$S), backingpath=p$stloc )
           }
@@ -476,7 +476,7 @@
             p$ptr$Yi  = p$cache$Yi
             bigmemory::as.big.matrix( Yi, type="double" ) 
           }
-          if (p$storage.backend == "bigmemory.ram" ) {
+          if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Yi  = p$cache$Yi
             bigmemory::as.big.matrix( Yi, type="double", backingfile=basename(p$bm$Yi), descriptorfile=basename(p$cache$Yi), backingpath=p$stloc )
           }
