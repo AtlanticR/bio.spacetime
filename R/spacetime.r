@@ -1,10 +1,13 @@
 
-spacetime = function( p, DATA, family=gaussian, method="simple", overwrite=NULL, storage.backend="bigmemory.ram" ) {
+spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NULL, storage.backend="bigmemory.ram" ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
 
   if(0) {
      p = bio.temperature::temperature.parameters( current.year=2016 )
+     p = spacetime( DATA='hydro.db( p=p, DS="spacetime.input" )', p=p, storage.backend="bigmemory.ram" )
+
+
      p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
      RLibrary( p$libs )
      o = spacetime_db( p, DS="statistics.status" )

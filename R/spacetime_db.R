@@ -188,7 +188,7 @@
       )
 
       # pre-compute a few things for spacetime_interpolate_xy_simple_multiple  
-      Mat2Ploc = cbind( (Ploc_[,1]-p$plons[1])/p$pres + 1, (Ploc_[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
+      Mat2Ploc = cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) # row, col indices in matrix form
       p$ptr$Mat2Ploc = switch(p$storage.backend,
         bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double" ) ) ,
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double", backingfile=p$cache$Mat2Ploc, descriptorfile=basename(p$ptr$Mat2Ploc), backingpath=p$stloc ) ),
@@ -300,7 +300,7 @@
           ff = ff( Sloc, dim=dim(Sloc), file=p$cache$Sloc, overwrite=TRUE )
         )
 
-        S = matrix( NaN, nrow=nrow(Sloc_), ncol=length( p$statsvars ) ) # NA forces into logical
+        S = matrix( NaN, nrow=nrow(Sloc), ncol=length( p$statsvars ) ) # NA forces into logical
         p$ptr$S = switch(p$storage.backend,
           bigmemory.ram = bigmemory::describe( bigmemory::as.big.matrix( S, type="double" )),
           bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( S, type="double", backingfile=p$cache$S, descriptorfile=basename(p$ptr$S), backingpath=p$stloc )) ,
