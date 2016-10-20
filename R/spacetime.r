@@ -1,5 +1,5 @@
 
-spacetime = function( p, DATA, overwrite=NULL, storage.backend="bigmemory.ram") {
+spacetime = function( p, DATA, family=gaussian, method="simple", overwrite=NULL, storage.backend="bigmemory.ram" ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
 
@@ -12,7 +12,6 @@ spacetime = function( p, DATA, overwrite=NULL, storage.backend="bigmemory.ram") 
      spacetime_interpolate (p=p ) 
   }
 
-
   p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "fields" ) ) 
   
   p$storage.backend = storage.backend
@@ -20,7 +19,9 @@ spacetime = function( p, DATA, overwrite=NULL, storage.backend="bigmemory.ram") 
   if (any( grepl ("bigmemory", p$storage.backend)))  p$libs = c( p$libs, "bigmemory" )
 
   RLibrary( p$libs )
-
+  
+  p$spacetime_method = method
+  p$spacetime_family = family
   if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
 
   p = spacetime_db( p=p, DS="filenames" )
@@ -94,8 +95,10 @@ spacetime = function( p, DATA, overwrite=NULL, storage.backend="bigmemory.ram") 
     spacetime_db( p=p, DS="cleanup" )
     p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
     p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
-    p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
     p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
+    
+    # p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
+
     rm(DATA); gc()
 
     message( "Defining boundary polygon for data .. this reduces the number of points to analyse") 
@@ -125,7 +128,7 @@ spacetime = function( p, DATA, overwrite=NULL, storage.backend="bigmemory.ram") 
   parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
   
   spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk
-  spacetime_db( p, DS="stats_to_prediction_grid.redo")
+  spacetime_db( p, DS="stats.to.prediction.grid.redo")
   
   message ("Finished! \n")
   resp = readline( "To delete temporary files, type <Yes>:  ")

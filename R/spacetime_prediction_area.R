@@ -2,8 +2,8 @@
 spacetime_prediction_area = function(p, Si, dist.cur ){
   # So, YiU and dist.cur determine the data entering into local model construction
   # but predictions are expensive, esp in space-time and so a smaller spatial raange is selected
-  # this is determined by p$spacetime.prediction.dist.min
-  dist_prediction = min( dist.cur*p$spacetime.prediction.range.proportion,  p$spacetime.prediction.dist.min )
+  # this is determined by p$spacetime_prediction_dist_min
+  dist_prediction = min( dist.cur*p$spacetime_prediction_range_proportion,  p$spacetime_prediction_dist_min )
   windowsize.half = floor(dist_prediction/p$pres) # convert distance to discretized increments of row/col indices
   pa_w = -windowsize.half : windowsize.half
   pa_w_n = length(pa_w)

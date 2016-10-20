@@ -7,22 +7,71 @@
     #\\   vname is the name of the random spatial field in the model formula
     #\\   idat are indices for random field at data locations ( idat <- inla.stack.index( DATA, 'data')$data )
     #\\   nxout, nyout are the number of cells in x and y direct for interpolated output
+     
+    pp = grep("datalocation", obj )
+      if ( length(pp) > 0 ) {
+
+        Y = switch( p$storage.backend, 
+          bigmemory.ram=attach.big.matrix(p$ptr$Y), 
+          bigmemory.filebacked=attach.big.matrix(p$ptr$Y), 
+          ff=p$ptr$Y )
+        
+        Y0 = switch( p$storage.backend, 
+          bigmemory.ram=attach.big.matrix(p$ptr$Y0), 
+          bigmemory.filebacked=attach.big.matrix(p$ptr$Y0), 
+          ff=p$ptr$Y0 )
+
+        Yloc = switch( p$storage.backend, 
+          bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
+          bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
+          ff=p$ptr$Yloc )
+
+        lattice::levelplot( Y0 ~ Yloc[,1] + Yloc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+
+      }
+
+     
+
+      pp = grep("statistics", obj )
+      if ( length(pp) > 0 ) {
+
+        S = switch( p$storage.backend, 
+          bigmemory.ram=attach.big.matrix(p$ptr$S), 
+          bigmemory.filebacked=attach.big.matrix(p$ptr$S), 
+          ff=p$ptr$S )
+        
+        Sloc = switch( p$storage.backend, 
+          bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
+          bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
+          ff=p$ptr$Sloc )
+        # vname = "ar_timerange"
+        v = which( p$statsvars == vname) 
+        lattice::levelplot( S[,v] ~ Sloc[,1] + Sloc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+      }
 
       pp = grep("predictions", obj )
       if ( length(pp) > 0 ) {
-        pps  =  expand.grid( plons=p$plons, plats=p$plats)
+
+        Ploc = switch( p$storage.backend, 
+          bigmemory.ram=attach.big.matrix(p$ptr$Ploc), 
+          bigmemory.filebacked=attach.big.matrix(p$ptr$Ploc), 
+          ff=p$ptr$Ploc )
+     
         P = switch( p$storage.backend, 
           bigmemory.ram=attach.big.matrix(p$ptr$P), 
           bigmemory.filebacked=attach.big.matrix(p$ptr$P), 
           ff=p$ptr$P )
+        
+        P0 = switch( p$storage.backend, 
+          bigmemory.ram=attach.big.matrix(p$ptr$P0), 
+          bigmemory.filebacked=attach.big.matrix(p$ptr$P0), 
+          ff=p$ptr$P0 )
 
         cl = 2 # default is mean value
         if ( grep("n", obj) ) cl=1
         if ( grep("mean", obj) ) cl=2
         if ( grep("sd", obj) ) cl=3
-        require(lattice)
-        levelplot( log( P[,2] ) ~plons+plats, pps ,
-            col.regions=rev(sequential_hcl(100)), scale=list(draw=FALSE) , aspect="iso" )
+        lattice::levelplot( P[,2] + P0 ~ Ploc[,1] + Ploc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
       }
 
     if ("mesh" %in% obj) {
