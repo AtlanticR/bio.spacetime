@@ -33,6 +33,7 @@
       p$cache$Ytime = file.path( p$stloc, "input.Ytime.cache" )
       p$cache$Yi =    file.path( p$stloc, "input.Yi.cache" ) # index of useable data
       p$cache$P0 =    file.path( p$stloc, "predictions0.cache" ) # offsets from covar model
+      p$cache$P0sd =  file.path( p$stloc, "predictions0sd.cache" ) # offsets from covar model
       p$cache$P =     file.path( p$stloc, "predictions.cache" )
       p$cache$Psd =   file.path( p$stloc, "predictions_sd.cache" )
       p$cache$Pn =    file.path( p$stloc, "predictions_n.cache" )
@@ -296,7 +297,6 @@
             p$ptr$P0 = ff( P0, dim=dim(P0), file=p$cache$P0, overwrite=TRUE )
           }
 
-      rm(P0)
 
           if (p$storage.backend == "bigmemory.ram" ) {
             p$ptr$P0sd  = p$cache$P0sd
