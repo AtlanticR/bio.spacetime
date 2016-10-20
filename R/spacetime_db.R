@@ -188,7 +188,6 @@
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Ploc, type="double", backingfile=p$cache$Ploc, descriptorfile=basename(p$ptr$Ploc), backingpath=p$stloc ) ),
         ff = ff( Ploc, dim=dim(Ploc), file=p$cache$Ploc, overwrite=TRUE )
       )
-      rm(Ploc)
 
       # pre-compute a few things for spacetime_interpolate_xy_simple_multiple  
       Mat2Ploc = as.matrix(cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1)) # row, col indices in matrix form
@@ -197,7 +196,7 @@
         bigmemory.filebacked = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double", backingfile=p$cache$Mat2Ploc, descriptorfile=basename(p$ptr$Mat2Ploc), backingpath=p$stloc ) ),
         ff = ff( Mat2Ploc, dim=dim(Mat2Ploc), file=p$cache$Mat2Ploc, overwrite=TRUE )
       )
-      rm(Mat2Ploc)
+      rm(Mat2Ploc, Ploc)
 
       p$spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
         theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
