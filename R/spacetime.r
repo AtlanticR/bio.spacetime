@@ -97,14 +97,18 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
     }
 
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
-    message( "These are large files (4GB each), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
+    message( "These are large files (4 to 6 X 5GB), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
     spacetime_db( p=p, DS="cleanup" )
-    p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
-    p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
-    p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
     
-    # u = spacetime_attach( p$storage.backend, p$ptr$Y )
-
+    p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
+     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
+    
+    p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
+     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
+    
+    p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
+     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
+    
     # p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
 
     rm(DATA); gc()

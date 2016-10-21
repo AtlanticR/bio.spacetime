@@ -80,10 +80,6 @@ spacetime_predictions_save = function( p, pred ) {
   
   }
   
-  close(P)
-  close(Pn )
-  close(Psd )
-
   invisible()
 
 }

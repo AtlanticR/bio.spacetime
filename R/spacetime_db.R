@@ -55,13 +55,11 @@
     # --------------------------
 
     if (DS=="save.parameters")  {
-      p = spacetime_db( p=p, DS="filenames" )  
       save(p, file=file.path( p$stloc, "p.rdata") )
       message( "Saved parameters:")
       message( file.path( p$stloc, "p.rdata") )
     }
     if (DS=="load.parameters")  {
-      p = spacetime_db( p=p, DS="filenames" )  
       load(file.path( p$stloc, "p.rdata") )
       RLibrary( p$libs )
       return(p)
@@ -69,7 +67,6 @@
 
     # --------------------------
     if (DS %in% "cleanup" ) {
-      p = spacetime_db( p=p, DS="filenames" )
       for (fn in p$cache ) if (file.exists(fn)) file.remove(fn)
       for (fn in p$bm ) if (file.exists(fn)) file.remove(fn)
       return( "done" )
@@ -77,7 +74,6 @@
 
     # ------------------
     if (DS == "data.initialize" ) {
-      p = spacetime_db( p=p, DS="filenames" ) 
       if ( "data.frame" %in% class(B) ) {
         # B = B # nothing to do
       } else if ( "SpatialGridDataFrame" %in% class(B) ) {
@@ -165,8 +161,6 @@
     #---------------------
     if (DS == "predictions.initialize" ) {
 
-      p = spacetime_db( p=p, DS="filenames" ) 
-      
       if (exists("COV", p$variables)) {
         if (is.vector(B$COV) ) {
           Pcov = as.matrix( B$COV ) 
@@ -318,7 +312,7 @@
     # -----------------
 
     if (DS %in% c( "boundary.redo", "boundary" ) )  {
-      p = spacetime_db( p=p, DS="filenames" )
+
       fn =  file.path(p$stloc, "boundary.rdata" )
       if (DS=="boundary") {
         boundary = NULL
@@ -369,7 +363,6 @@
     # -----------------
     
     if (DS %in% c( "statistics.initialize", "statistics.status", "statistics.box" ) ) {
-      p = spacetime_db( p=p, DS="filenames" )  
      
       if ( DS=="statistics.initialize" ) {
         # statistics storage matrix ( aggregation window, coords ) .. no inputs required
