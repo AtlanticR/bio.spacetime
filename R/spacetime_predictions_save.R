@@ -8,18 +8,9 @@ spacetime_predictions_save = function( p, pred ) {
  
   npred = nrow(pred)
 
-  P = switch( p$storage.backend, 
-    bigmemory.ram=attach.big.matrix(p$ptr$P), 
-    bigmemory.filebacked=attach.big.matrix(p$ptr$P), 
-    ff=p$ptr$P )
-  Pn = switch( p$storage.backend, 
-    bigmemory.ram=attach.big.matrix(p$ptr$Pn), 
-    bigmemory.filebacked=attach.big.matrix(p$ptr$Pn), 
-    ff=p$ptr$Pn )
-  Psd = switch( p$storage.backend, 
-    bigmemory.ram=attach.big.matrix(p$ptr$Psd), 
-    bigmemory.filebacked=attach.big.matrix(p$ptr$Psd), 
-    ff=p$ptr$Psd )
+  P = spacetime_attach( p$storage.backend, p$ptr$P )
+  Pn = spacetime_attach( p$storage.backend, p$ptr$Pn )
+  Psd = spacetime_attach( p$storage.backend, p$ptr$Psd )
 
   if ( ! exists("TIME", p$variables) ) {
 

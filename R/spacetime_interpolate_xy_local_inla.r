@@ -33,36 +33,16 @@
     #---------------------
     # data for modelling
     # dependent vars # already link-transformed in spacetime_db("dependent")
- 
-    Y = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Y), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Y), 
-      ff=p$ptr$Y )
-    P = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$P), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$P), 
-      ff=p$ptr$P )
-    S = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$S), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$S), 
-      ff=p$ptr$S )
-    Sloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
-      ff=p$ptr$Sloc )
-    Yloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
-      ff=p$ptr$Yloc )
-    Ploc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Ploc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Ploc), 
-      ff=p$ptr$Ploc )
-    Yi = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Yi), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Yi), 
-      ff=p$ptr$Yi )
+    Y = spacetime_attach( p$storage.backend, p$ptr$Y )
+    Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
+    
+    P = spacetime_attach( p$storage.backend, p$ptr$P )
+    Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
+    
+    S = spacetime_attach( p$storage.backend, p$ptr$S )
+    Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
 
+    Yi = spacetime_attach( p$storage.backend, p$ptr$Yi )
     Yi = Yi[]
 
     #---------------------
@@ -71,10 +51,7 @@
     pbad = which( !is.finite( rowSums(Ploc[])))
     if (length(pbad)> 0 ) Pi[ pbad ] = NA
     if ( exists( "COV", p$variables) ) {
-      Pcov = switch( p$storage.backend, 
-        bigmemory.ram=attach.big.matrix(p$ptr$Pcov), 
-        bigmemory.filebacked=attach.big.matrix(p$ptr$Pcov), 
-        ff=p$ptr$Pcov )
+      Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
       if ( length( p$variables$COV ) == 1 ) {
         pbad = which( !is.finite( Pcov[]) )
       } else {

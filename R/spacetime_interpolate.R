@@ -7,22 +7,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime_db("dependent")
-    S = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$S), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$S), 
-      ff=p$ptr$S )
-    Sloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
-      ff=p$ptr$Sloc )
-    Yloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
-      ff=p$ptr$Yloc )
-    Yi = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Yi), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Yi), 
-      ff=p$ptr$Yi )
+    S = spacetime_attach( p$storage.backend, p$ptr$S )
+    Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
+
+    Yi = spacetime_attach( p$storage.backend, p$ptr$Yi )
+    Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
     Yi = Yi[]  #force copy
 
   # main loop over each output location in S (stats output locations)

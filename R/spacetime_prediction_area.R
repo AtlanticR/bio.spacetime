@@ -24,38 +24,22 @@ spacetime_prediction_area = function(p, Si, dist.cur ){
 
   pa_n = nrow(pa)
   if ( pa_n < 5) return(NULL)
-
-  Ploc = switch( p$storage.backend, 
-    bigmemory.ram=attach.big.matrix(p$ptr$Ploc), 
-    bigmemory.filebacked=attach.big.matrix(p$ptr$Ploc), 
-    ff=p$ptr$Ploc )
-
+ 
+  Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
   pa$plon = Ploc[ pa$i, 1]
   pa$plat = Ploc[ pa$i, 2]
 
   # prediction covariates i.e., independent variables/ covariates
   if (exists("COV", p$variables)) {
-
-    Pcov = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Pcov), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Pcov), 
-      ff=p$ptr$Pcov )
-
+    Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
     for (ci in 1:length(p$variables$COV)) {
       pa[,p$variables$COV[ci]] = Pcov[ pa$i, ci ]
     }
   }
 
   if (0) {
-    Sloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
-      ff=p$ptr$Sloc )
-    Yloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
-      ff=p$ptr$Yloc )
-
+    Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
+    Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
     plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data
     points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )  # with covars and no other data issues
     points( Sloc[Si,1] ~ Sloc[Si,2], col="blue" ) # statistical locations
@@ -73,10 +57,7 @@ spacetime_prediction_area = function(p, Si, dist.cur ){
   if ( ! exists("TIME", p$variables) ) {
     pa = pa[, pvars]
   } else {
-    Ptime = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Ptime), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Ptime), 
-      ff=p$ptr$Ptime )
+    Ptime = spacetime_attach( p$storage.backend, p$ptr$Ptime )
     pa = cbind( pa[ rep.int(1:pa_n, length(Ptime)), pvars ], 
                      rep.int(Ptime[], rep(pa_n,length(Ptime) )) )
     names(pa) = c(pvars, "tiyr" )

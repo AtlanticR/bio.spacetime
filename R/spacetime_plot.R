@@ -10,40 +10,18 @@
      
     pp = grep("datalocation", obj )
       if ( length(pp) > 0 ) {
-
-        Y = switch( p$storage.backend, 
-          bigmemory.ram=attach.big.matrix(p$ptr$Y), 
-          bigmemory.filebacked=attach.big.matrix(p$ptr$Y), 
-          ff=p$ptr$Y )
-        
-        Y0 = switch( p$storage.backend, 
-          bigmemory.ram=attach.big.matrix(p$ptr$Y0), 
-          bigmemory.filebacked=attach.big.matrix(p$ptr$Y0), 
-          ff=p$ptr$Y0 )
-
-        Yloc = switch( p$storage.backend, 
-          bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
-          bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
-          ff=p$ptr$Yloc )
-
+        Y = spacetime_attach( p$storage.backend, p$ptr$Y )
+        Y0 = spacetime_attach( p$storage.backend, p$ptr$Y0 )
+        Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
         lattice::levelplot( Y0 ~ Yloc[,1] + Yloc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
-
       }
 
      
 
       pp = grep("statistics", obj )
       if ( length(pp) > 0 ) {
-
-        S = switch( p$storage.backend, 
-          bigmemory.ram=attach.big.matrix(p$ptr$S), 
-          bigmemory.filebacked=attach.big.matrix(p$ptr$S), 
-          ff=p$ptr$S )
-        
-        Sloc = switch( p$storage.backend, 
-          bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
-          bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
-          ff=p$ptr$Sloc )
+        S = spacetime_attach( p$storage.backend, p$ptr$S )
+        Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
         # vname = "ar_timerange"
         v = which( p$statsvars == vname) 
         lattice::levelplot( S[,v] ~ Sloc[,1] + Sloc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
@@ -51,22 +29,9 @@
 
       pp = grep("predictions", obj )
       if ( length(pp) > 0 ) {
-
-        Ploc = switch( p$storage.backend, 
-          bigmemory.ram=attach.big.matrix(p$ptr$Ploc), 
-          bigmemory.filebacked=attach.big.matrix(p$ptr$Ploc), 
-          ff=p$ptr$Ploc )
-     
-        P = switch( p$storage.backend, 
-          bigmemory.ram=attach.big.matrix(p$ptr$P), 
-          bigmemory.filebacked=attach.big.matrix(p$ptr$P), 
-          ff=p$ptr$P )
-        
-        P0 = switch( p$storage.backend, 
-          bigmemory.ram=attach.big.matrix(p$ptr$P0), 
-          bigmemory.filebacked=attach.big.matrix(p$ptr$P0), 
-          ff=p$ptr$P0 )
-
+        P = spacetime_attach( p$storage.backend, p$ptr$P )
+        P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
+        Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
         cl = 2 # default is mean value
         if ( grep("n", obj) ) cl=1
         if ( grep("mean", obj) ) cl=2

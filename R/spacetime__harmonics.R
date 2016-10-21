@@ -16,19 +16,9 @@ spacetime__harmonics = function( p, YiU, Si, pa ) {
     #   c = sqrt(b1^2 + b2^2)
     #   b1/b2 = tan(b)  
     #   b = arctan(b1/b2)
-  
-    Sloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
-      ff=p$ptr$Sloc )
-    Yloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
-      ff=p$ptr$Yloc )
-    Y = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Y), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Y), 
-      ff=p$ptr$Y )
+    Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
+    Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
+    Y = spacetime_attach( p$storage.backend, p$ptr$Y )
 
     x = data.frame( Y[YiU] )
     names(x) = p$variables$Y
@@ -40,18 +30,12 @@ spacetime__harmonics = function( p, YiU, Si, pa ) {
     x$Y_wgt[ which( x$Y_wgt > 1 ) ] = 1
     
     if (exists("COV", p$variables)) {
-      Ycov = switch( p$storage.backend, 
-        bigmemory.ram=attach.big.matrix(p$ptr$Ycov), 
-        bigmemory.filebacked=attach.big.matrix(p$ptr$Ycov), 
-        ff=p$ptr$Ycov )
+      Ycov = spacetime_attach( p$storage.backend, p$ptr$Ycov )
       for (i in 1:length(p$variables$COV )) x[, p$variables$COV[i] ] = Ycov[YiU,i]
     }
     
     if (exists("TIME", p$variables)) {
-      Ytime = switch( p$storage.backend, 
-        bigmemory.ram=attach.big.matrix(p$ptr$Ytime), 
-        bigmemory.filebacked=attach.big.matrix(p$ptr$Ytime), 
-        ff=p$ptr$Ytime )
+      Ytime = spacetime_attach( p$storage.backend, p$ptr$Ytime )
       x[, p$variables$TIME ] = Ytime[YiU,] 
       x$yr = trunc( x[, p$variables$TIME])
       x$cos.w  = cos( 2*pi*x$tiyr )

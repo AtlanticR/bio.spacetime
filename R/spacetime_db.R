@@ -291,6 +291,7 @@
             p$ptr$P0 = ff( P0, dim=dim(P0), file=p$cache$P0, overwrite=TRUE )
           }
 
+        # P0sd
 
           if (p$storage.backend == "bigmemory.ram" ) {
             p$ptr$P0sd  = p$cache$P0sd
