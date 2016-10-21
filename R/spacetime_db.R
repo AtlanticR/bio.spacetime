@@ -72,6 +72,64 @@
       return( "done" )
     }
 
+    # -----------------
+    
+    if (DS %in% c( "statistics.initialize", "statistics.status", "statistics.box" ) ) {
+     
+      if ( DS=="statistics.initialize" ) {
+        # statistics storage matrix ( aggregation window, coords ) .. no inputs required
+        # statistics coordinates
+        Sloc = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
+          if (p$storage.backend == "bigmemory.ram" ) {
+            p$ptr$Sloc <<- bigmemory::describe( bigmemory::as.big.matrix( Sloc, type="double" ) )
+          }
+          if (p$storage.backend == "bigmemory.filebacked" ) {
+            p$ptr$Sloc <<- p$cache$Sloc
+            bigmemory::as.big.matrix( Sloc, type="double", backingfile=basename(p$bm$Sloc), descriptorfile=basename(p$cache$Sloc), backingpath=p$stloc )
+          }
+          if (p$storage.backend == "ff" ) {
+            p$ptr$Sloc <<- ff( Sloc, dim=dim(Sloc), file=p$cache$Sloc, overwrite=TRUE )
+          }
+
+
+        S = matrix( NaN, nrow=nrow(Sloc), ncol=length( p$statsvars ) ) # NA forces into logical
+          if (p$storage.backend == "bigmemory.ram" ) {
+            p$ptr$S  <<- bigmemory::describe( bigmemory::as.big.matrix( S, type="double" ) )
+          }
+          if (p$storage.backend == "bigmemory.filebacked" ) {
+            p$ptr$S  <<- p$cache$S
+            bigmemory::as.big.matrix( S, type="double", backingfile=basename(p$bm$S), descriptorfile=basename(p$cache$S), backingpath=p$stloc )
+          }
+          if (p$storage.backend == "ff" ) {
+            p$ptr$S <<- ff( S, dim=dim(S), file=p$cache$S, overwrite=TRUE )
+          }
+          invisible()
+        return(  )
+      }
+      
+      if (DS == "statistics.box")  {
+        sbbox = list( plats = seq( p$corners$plat[1], p$corners$plat[2], by=p$spacetime_prediction_dist_min ),
+                      plons = seq( p$corners$plon[1], p$corners$plon[2], by=p$spacetime_prediction_dist_min ) )
+        return(sbbox)
+      }
+
+
+      if ( DS=="statistics.status" ) {
+        # find locations for statistic computation and trim area based on availability of data
+        # stats:
+        S = spacetime_attach( p$storage.backend, p$ptr$S )
+        i = which( is.infinite( S[,1] )  )  # not yet completed (due to a failed attempt)
+        j = which( is.nan( S[,1] )   )      # incomplete
+        k = which( is.finite (S[,1])  )     # completed
+        out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
+                     n.incomplete=length(j), n.problematic=length(i), 
+                     n.complete=length(k) )
+        out$prop_incomp=out$n.incomplete / ( out$n.incomplete + out$n.complete)
+        message( paste("Proportion incomplete:", round(out$prop_incomp,5), "\n" )) 
+        return( out )
+      }
+    }
+
     # ------------------
     if (DS == "data.initialize" ) {
       if ( "data.frame" %in% class(B) ) {
@@ -83,55 +141,55 @@
       # dependent variable
       Y = as.matrix(B[, p$variables$Y ])
         if (p$storage.backend == "bigmemory.ram" ) {
-          p$ptr$Y  = bigmemory::describe( bigmemory::as.big.matrix( Y, type="double" ) )
+          p$ptr$Y <<- bigmemory::describe( bigmemory::as.big.matrix( Y, type="double" ) )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
-          p$ptr$Y  = p$cache$Y
+          p$ptr$Y <<- p$cache$Y
           bigmemory::as.big.matrix( Y, type="double", backingfile=basename(p$bm$Y), descriptorfile=basename(p$cache$Y), backingpath=p$stloc )
         }
         if (p$storage.backend == "ff" ) {
-          p$ptr$Y = ff( Y, dim=dim(Y), file=p$cache$Y, overwrite=TRUE )
+          p$ptr$Y <<- ff( Y, dim=dim(Y), file=p$cache$Y, overwrite=TRUE )
         }
         
 
       if (p$spacetime_method=="habitat") {
         if (p$storage.backend == "bigmemory.ram" ) {
-          p$ptr$Ylogit  = bigmemory::describe( bigmemory::as.big.matrix( Ylogit, type="double" ) )
+          p$ptr$Ylogit <<- bigmemory::describe( bigmemory::as.big.matrix( Ylogit, type="double" ) )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
-          p$ptr$Ylogit  = p$cache$Ylogit
+          p$ptr$Ylogit  <<- p$cache$Ylogit
           bigmemory::as.big.matrix( Ylogit, type="double", backingfile=basename(p$bm$Ylogit), descriptorfile=basename(p$cache$Ylogit), backingpath=p$stloc )
         }
         if (p$storage.backend == "ff" ) {
-          p$ptr$Ylogit = ff( Ylogit, dim=dim(Ylogit), file=p$cache$Ylogit, overwrite=TRUE )
+          p$ptr$Ylogit <<- ff( Ylogit, dim=dim(Ylogit), file=p$cache$Ylogit, overwrite=TRUE )
         }
       }
 
      # data coordinates
       Yloc = as.matrix( B[, p$variables$LOCS ])
         if (p$storage.backend == "bigmemory.ram" ) {
-          p$ptr$Yloc  = bigmemory::describe(  bigmemory::as.big.matrix( Yloc, type="double" ) )
+          p$ptr$Yloc  <<- bigmemory::describe(  bigmemory::as.big.matrix( Yloc, type="double" ) )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
-          p$ptr$Yloc  = p$cache$Yloc
+          p$ptr$Yloc  <<- p$cache$Yloc
           bigmemory::as.big.matrix( Yloc, type="double", backingfile=basename(p$bm$Yloc), descriptorfile=basename(p$cache$Yloc), backingpath=p$stloc )
         }
         if (p$storage.backend == "ff" ) {
-          p$ptr$Yloc = ff( Yloc, dim=dim(Yloc), file=p$cache$Yloc, overwrite=TRUE )
+          p$ptr$Yloc <<- ff( Yloc, dim=dim(Yloc), file=p$cache$Yloc, overwrite=TRUE )
         }
         
       # independent variables/ covariate
       if (exists("COV", p$variables)) {
         Ycov = as.matrix( B[ , p$variables$COV ] )
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Ycov  = bigmemory::describe(  bigmemory::as.big.matrix( Ycov, type="double" ) )
+            p$ptr$Ycov <<- bigmemory::describe(  bigmemory::as.big.matrix( Ycov, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Ycov  = p$cache$Ycov
+            p$ptr$Ycov  <<- p$cache$Ycov
             bigmemory::as.big.matrix( Ycov, type="double", backingfile=basename(p$bm$Ycov), descriptorfile=basename(p$cache$Ycov), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Ycov = ff( Ycov, dim=dim(Ycov), file=p$cache$Ycov, overwrite=TRUE )
+            p$ptr$Ycov <<- ff( Ycov, dim=dim(Ycov), file=p$cache$Ycov, overwrite=TRUE )
           }
       }
 
@@ -139,18 +197,20 @@
       if ( exists("TIME", p$variables) ) {
         Ytime = as.matrix( B[, p$variables$TIME ] )
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Ytime  = bigmemory::describe( bigmemory::as.big.matrix( Ytime, type="double" ) )
+            p$ptr$Ytime <<- bigmemory::describe( bigmemory::as.big.matrix( Ytime, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Ytime  = p$cache$Ytime
+            p$ptr$Ytime  <<- p$cache$Ytime
             bigmemory::as.big.matrix( Ytime, type="double", backingfile=basename(p$bm$Ytime), descriptorfile=basename(p$cache$Ytime), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Ytime = ff( Ytime, dim=dim(Ytime), file=p$cache$Ytime, overwrite=TRUE )
+            p$ptr$Ytime <<- ff( Ytime, dim=dim(Ytime), file=p$cache$Ytime, overwrite=TRUE )
           }
       }
+      
+      invisible()
 
-      return( p ) #return pointers to data
+      return( ) #return pointers to data
     }
 
     #---------------------
@@ -164,14 +224,14 @@
         }
         attr( Pcov, "dimnames" ) = NULL
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Pcov  = bigmemory::describe( bigmemory::as.big.matrix( Pcov, type="double" ) )
+            p$ptr$Pcov <<- bigmemory::describe( bigmemory::as.big.matrix( Pcov, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Pcov  = p$cache$Pcov
+            p$ptr$Pcov  <<- p$cache$Pcov
             bigmemory::as.big.matrix( Pcov, type="double", backingfile=basename(p$bm$Pcov), descriptorfile=basename(p$cache$Pcov), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Pcov = ff( Pcov, dim=dim(Pcov), file=p$cache$Pcov, overwrite=TRUE )
+            p$ptr$Pcov <<- ff( Pcov, dim=dim(Pcov), file=p$cache$Pcov, overwrite=TRUE )
           }
       }
       rm(Pcov)
@@ -196,39 +256,39 @@
       # predictions and associated stats
       P = matrix( NaN, nrow=nrow(B$LOCS), ncol=p$nt )
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$P  = bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
+            p$ptr$P  <<- bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$P  = p$cache$P
+            p$ptr$P  <<- p$cache$P
             bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$P), descriptorfile=basename(p$cache$P), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$P = ff( P, dim=dim(P), file=p$cache$P, overwrite=TRUE )
+            p$ptr$P <<- ff( P, dim=dim(P), file=p$cache$P, overwrite=TRUE )
           }
       
       # count of prediction estimates
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Pn = bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
+            p$ptr$Pn <<- bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Pn  = p$cache$Pn
+            p$ptr$Pn  <<- p$cache$Pn
             bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$Pn), descriptorfile=basename(p$cache$Pn), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Pn = ff( P, dim=dim(P), file=p$cache$Pn, overwrite=TRUE )
+            p$ptr$Pn <<- ff( P, dim=dim(P), file=p$cache$Pn, overwrite=TRUE )
           }
 
       # sd of prediction estimates
       # count of prediction estimates
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Psd =bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
+            p$ptr$Psd <<- bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Psd  = p$cache$Psd
+            p$ptr$Psd  <<- p$cache$Psd
             bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$Psd), descriptorfile=basename(p$cache$Psd), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Psd = ff( P, dim=dim(P), file=p$cache$Psd, overwrite=TRUE )
+            p$ptr$Psd <<- ff( P, dim=dim(P), file=p$cache$Psd, overwrite=TRUE )
           }
 
       rm(P)
@@ -237,28 +297,28 @@
       Ploc = as.matrix( B$LOCS )
       attr( Ploc, "dimnames" ) = NULL
          if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Ploc  = bigmemory::describe( bigmemory::as.big.matrix( Ploc, type="double" ) )
+            p$ptr$Ploc <<- bigmemory::describe( bigmemory::as.big.matrix( Ploc, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Ploc  = p$cache$Ploc
+            p$ptr$Ploc <<- p$cache$Ploc
             bigmemory::as.big.matrix( Ploc, type="double", backingfile=basename(p$bm$Ploc), descriptorfile=basename(p$cache$Ploc), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Ploc = ff( Ploc, dim=dim(Ploc), file=p$cache$Ploc, overwrite=TRUE )
+            p$ptr$Ploc <<- ff( Ploc, dim=dim(Ploc), file=p$cache$Ploc, overwrite=TRUE )
           }
 
       # pre-compute a few things for spacetime_interpolate_xy_simple_multiple  
       Mat2Ploc = as.matrix( cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) ) # row, col indices in matrix form
       attr( Mat2Ploc, "dimnames" ) = NULL
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Mat2Ploc  = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double" ) )
+            p$ptr$Mat2Ploc <<- bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Mat2Ploc  = p$cache$Mat2Ploc
+            p$ptr$Mat2Ploc <<- p$cache$Mat2Ploc
             bigmemory::as.big.matrix( Mat2Ploc, type="double", backingfile=basename(p$bm$Mat2Ploc), descriptorfile=basename(p$cache$Mat2Ploc), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Mat2Ploc = ff( Mat2Ploc, dim=dim(Mat2Ploc), file=p$cache$Mat2Ploc, overwrite=TRUE )
+            p$ptr$Mat2Ploc <<- ff( Mat2Ploc, dim=dim(Mat2Ploc), file=p$cache$Mat2Ploc, overwrite=TRUE )
           }
 
       rm(Mat2Ploc, Ploc)
@@ -268,32 +328,32 @@
 
       P0   = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$P0  = bigmemory::describe( bigmemory::as.big.matrix( P0, type="double" ) )
+            p$ptr$P0 <<- bigmemory::describe( bigmemory::as.big.matrix( P0, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$P0  = p$cache$P0
+            p$ptr$P0 <<- p$cache$P0
             bigmemory::as.big.matrix( P0, type="double", backingfile=basename(p$bm$P0), descriptorfile=basename(p$cache$P0), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$P0 = ff( P0, dim=dim(P0), file=p$cache$P0, overwrite=TRUE )
+            p$ptr$P0 <<- ff( P0, dim=dim(P0), file=p$cache$P0, overwrite=TRUE )
           }
 
         # P0sd
 
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$P0sd  = bigmemory::describe( bigmemory::as.big.matrix( P0, type="double" ) )
+            p$ptr$P0sd <<- bigmemory::describe( bigmemory::as.big.matrix( P0, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$P0sd  = p$cache$P0sd
+            p$ptr$P0sd <<- p$cache$P0sd
             bigmemory::as.big.matrix( P0, type="double", backingfile=basename(p$bm$P0sd), descriptorfile=basename(p$cache$P0sd), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$P0sd = ff( P0, dim=dim(P0), file=p$cache$P0sd, overwrite=TRUE )
+            p$ptr$P0sd <<- ff( P0, dim=dim(P0), file=p$cache$P0sd, overwrite=TRUE )
           }
 
-      gc()
+      invisible()
 
-      return( p )
+      return( )
     }
 
     # -----------------
@@ -347,63 +407,6 @@
       return( fn )
     }
 
-    # -----------------
-    
-    if (DS %in% c( "statistics.initialize", "statistics.status", "statistics.box" ) ) {
-     
-      if ( DS=="statistics.initialize" ) {
-        # statistics storage matrix ( aggregation window, coords ) .. no inputs required
-        # statistics coordinates
-        Sloc = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
-          if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Sloc  = bigmemory::describe( bigmemory::as.big.matrix( Sloc, type="double" ) )
-          }
-          if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Sloc  = p$cache$Sloc
-            bigmemory::as.big.matrix( Sloc, type="double", backingfile=basename(p$bm$Sloc), descriptorfile=basename(p$cache$Sloc), backingpath=p$stloc )
-          }
-          if (p$storage.backend == "ff" ) {
-            p$ptr$Sloc = ff( Sloc, dim=dim(Sloc), file=p$cache$Sloc, overwrite=TRUE )
-          }
-
-
-        S = matrix( NaN, nrow=nrow(Sloc), ncol=length( p$statsvars ) ) # NA forces into logical
-          if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$S  =bigmemory::describe( bigmemory::as.big.matrix( S, type="double" ) )
-          }
-          if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$S  = p$cache$S
-            bigmemory::as.big.matrix( S, type="double", backingfile=basename(p$bm$S), descriptorfile=basename(p$cache$S), backingpath=p$stloc )
-          }
-          if (p$storage.backend == "ff" ) {
-            p$ptr$S = ff( S, dim=dim(S), file=p$cache$S, overwrite=TRUE )
-          }
-
-        return( p )
-      }
-      
-      if (DS == "statistics.box")  {
-        sbbox = list( plats = seq( p$corners$plat[1], p$corners$plat[2], by=p$spacetime_prediction_dist_min ),
-                      plons = seq( p$corners$plon[1], p$corners$plon[2], by=p$spacetime_prediction_dist_min ) )
-        return(sbbox)
-      }
-
-
-      if ( DS=="statistics.status" ) {
-        # find locations for statistic computation and trim area based on availability of data
-        # stats:
-        S = spacetime_attach( p$storage.backend, p$ptr$S )
-        i = which( is.infinite( S[,1] )  )  # not yet completed (due to a failed attempt)
-        j = which( is.nan( S[,1] )   )      # incomplete
-        k = which( is.finite (S[,1])  )     # completed
-        out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
-                     n.incomplete=length(j), n.problematic=length(i), 
-                     n.complete=length(k) )
-        out$prop_incomp=out$n.incomplete / ( out$n.incomplete + out$n.complete)
-        message( paste("Proportion incomplete:", round(out$prop_incomp,5), "\n" )) 
-        return( out )
-      }
-    }
 
     # -----
 
@@ -451,14 +454,14 @@
 
       Yi = as.matrix(Yi)
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Yi  = bigmemory::describe( bigmemory::as.big.matrix( Yi, type="double" ) )
+            p$ptr$Yi <<- bigmemory::describe( bigmemory::as.big.matrix( Yi, type="double" ) )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Yi  = p$cache$Yi
+            p$ptr$Yi <<- p$cache$Yi
             bigmemory::as.big.matrix( Yi, type="double", backingfile=basename(p$bm$Yi), descriptorfile=basename(p$cache$Yi), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Yi = ff( Yi, dim=dim(Yi), file=p$cache$Yi, overwrite=TRUE )
+            p$ptr$Yi <<- ff( Yi, dim=dim(Yi), file=p$cache$Yi, overwrite=TRUE )
           }
 
 
@@ -470,7 +473,7 @@
         Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1) )
       rcP$rc = paste( rcP$Prow, rcP$Pcol, sep="~")
       rcP$Prow = rcP$Pcol = NULL
-      p$rcP = rcP
+      p$rcP <<- rcP
 
       #-----------------
       # row, col indices
@@ -479,8 +482,11 @@
       rcS = data.frame( cbind( 
         Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
         Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
-      p$rcS = rcS
-      return(p)
+      p$rcS <<- rcS
+
+      invisible()
+      
+      return()
 
     }
 
