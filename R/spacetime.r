@@ -103,7 +103,13 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
     p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
     p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
     p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
-    
+
+    if (0) {   
+       u = spacetime_attach( p$storage.backend, p$ptr$S )
+       u = spacetime_attach( p$storage.backend, p$ptr$Sloc )
+       u = spacetime_attach( p$storage.backend, p$ptr$Y )
+   }
+
     # p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
 
     rm(DATA); gc()
