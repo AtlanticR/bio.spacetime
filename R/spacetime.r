@@ -8,7 +8,7 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
      family="gaussian"
      method="simple"
      overwrite=NULL
-     storage.backend="bigmemory.filebacked"
+     storage.backend="bigmemory.ram"
      DATA='hydro.db( p=p, DS="spacetime.input" )'
 
      p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
@@ -101,13 +101,8 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
     spacetime_db( p=p, DS="cleanup" )
     
     p = spacetime_db( p=p, DS="statistics.initialize" ) # init output data objects
-     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
-    
     p = spacetime_db( p=p, DS="data.initialize", B=DATA$input ) # p is updated with pointers to data
-     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
-    
     p = spacetime_db( p=p, DS="predictions.initialize", B=DATA$output )
-     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     
     # p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
 
