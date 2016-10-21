@@ -11,6 +11,7 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
      storage.backend="bigmemory.filebacked"
      DATA='hydro.db( p=p, DS="spacetime.input" )'
 
+     p = bio.temperature::temperature.parameters( current.year=2016 )
      p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
      RLibrary( p$libs )
      o = spacetime_db( p, DS="statistics.status" )
@@ -25,6 +26,16 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
   if (any( grepl ("bigmemory", p$storage.backend)))  p$libs = c( p$libs, "bigmemory" )
 
   RLibrary( p$libs )
+  
+  p$stloc = file.path( p$project.root, "tmp" )
+  # message( paste( "Temporary files are being created at:", p$stloc ) )
+  if( !file.exists(p$stloc)) dir.create( p$stloc, recursive=TRUE, showWarnings=FALSE )
+
+  p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
+  
+  # message( paste( "Final outputs will be palced at:", p$savedir ) )
+  if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
+
   
   p$spacetime_method = method
   p$spacetime_family = family

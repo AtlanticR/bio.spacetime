@@ -12,7 +12,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     Yi = spacetime_attach( p$storage.backend, p$ptr$Yi )
     Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
-    Yi = Yi[]  #force copy
+    Yi = as.vector(Yi[])  #force copy
 
   # main loop over each output location in S (stats output locations)
   for ( iip in ip ) {

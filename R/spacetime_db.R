@@ -9,15 +9,7 @@
     if (DS %in% "filenames" ) {
       # input data stored as a bigmemory file to permit operations with min memory usage
       # split into separate components to reduce filelocking conflicts
-
-      p$stloc = file.path( p$project.root, "tmp" )
-      # message( paste( "Temporary files are being created at:", p$stloc ) )
-      if( !file.exists(p$stloc)) dir.create( p$stloc, recursive=TRUE, showWarnings=FALSE )
-
-      p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
-      
-      # message( paste( "Final outputs will be palced at:", p$savedir ) )
-      if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
+ 
         
       # storage locations for finalized data 
       p$fn = list()
@@ -61,7 +53,7 @@
     }
 
     if (DS=="load.parameters")  {
-      load(file.path( p$stloc, "p.rdata") )
+      load( file.path( p$stloc, "p.rdata") )
       return(p)
     }
 
