@@ -59,9 +59,9 @@
       message( "Saved parameters:")
       message( file.path( p$stloc, "p.rdata") )
     }
+
     if (DS=="load.parameters")  {
       load(file.path( p$stloc, "p.rdata") )
-      RLibrary( p$libs )
       return(p)
     }
 

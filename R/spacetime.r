@@ -8,7 +8,7 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
      family="gaussian"
      method="simple"
      overwrite=NULL
-     storage.backend="bigmemory.ram"
+     storage.backend="bigmemory.filebacked"
      DATA='hydro.db( p=p, DS="spacetime.input" )'
 
      p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
@@ -108,7 +108,7 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
        u = spacetime_attach( p$storage.backend, p$ptr$S )
        u = spacetime_attach( p$storage.backend, p$ptr$Sloc )
        u = spacetime_attach( p$storage.backend, p$ptr$Y )
-   }
+    }
 
     # p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
 

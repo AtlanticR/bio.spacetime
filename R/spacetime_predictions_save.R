@@ -47,7 +47,11 @@ spacetime_predictions_save = function( p, pred ) {
     if ( nu > 0 ) {
       ui = pred$i[u]  # locations of P to modify
       nc = ncol(P)
-      add.ff(Pn, 1, ui, 1:nc ) # same as Pn[ui,] = Pn[ui]+1 but 2X faster
+      if (p$storage.backend == "ff" ) {
+        add.ff(Pn, 1, ui, 1:nc ) # same as Pn[ui,] = Pn[ui]+1 but 2X faster
+      } else {
+        Pn[ui,] = Pn[ui,] + 1
+      }
       stdev_update =  Psd[ui,] + ( pred$sd[u] -  Psd[ui,] ) / Pn[ui,]
       means_update = ( P[ui,] / Psd[ui,]^2 + pred$mean[u] / pred$sd[u]^2 ) / 
         ( Psd[ui,]^(-2) + pred$sd[u]^(-2) )
