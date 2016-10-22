@@ -73,8 +73,8 @@
         Sloc = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
         nS = nrow(Sloc)
           if (p$storage.backend == "bigmemory.ram" ) {
-            sloc_`   = big.matrix(nrow=nS, ncol=2, type="double", init=Sloc  )
-            p$ptr$Sloc  = bigmemory::describe( sloc_`  )
+            sloc_   = big.matrix(nrow=nS, ncol=2, type="double", init=Sloc  )
+            p$ptr$Sloc  = bigmemory::describe( sloc_  )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Sloc  = p$cache$Sloc
