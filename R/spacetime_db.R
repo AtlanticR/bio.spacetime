@@ -73,8 +73,8 @@
         Sloc = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
         nS = nrow(Sloc)
           if (p$storage.backend == "bigmemory.ram" ) {
-            _sloc_ = big.matrix(nrow=nS, ncol=2, type="double", init=Sloc  )
-            p$ptr$Sloc  = bigmemory::describe( _sloc_ )
+            sloc_`   = big.matrix(nrow=nS, ncol=2, type="double", init=Sloc  )
+            p$ptr$Sloc  = bigmemory::describe( sloc_`  )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Sloc  = p$cache$Sloc
@@ -86,8 +86,8 @@
 
         S = matrix( NaN, nrow=nS, ncol=length( p$statsvars ) ) # NA forces into logical
           if (p$storage.backend == "bigmemory.ram" ) {
-            _s_ = big.matrix(nrow=nS, ncol=length( p$statsvars ), type="double", init=S  )
-            p$ptr$S  = bigmemory::describe( _s_ )
+            s_ = big.matrix(nrow=nS, ncol=length( p$statsvars ), type="double", init=S  )
+            p$ptr$S  = bigmemory::describe( s_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$S  = p$cache$S
@@ -141,8 +141,8 @@
       # dependent variable
       Y = as.matrix(B[, p$variables$Y ])
         if (p$storage.backend == "bigmemory.ram" ) {
-          _y_ = big.matrix( nrow=nrow(Y), ncol=1, type="double", init=Y  )
-          p$ptr$Y  = bigmemory::describe( _y_ )
+          y_ = big.matrix( nrow=nrow(Y), ncol=1, type="double", init=Y  )
+          p$ptr$Y  = bigmemory::describe( y_ )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Y  = p$cache$Y
@@ -156,8 +156,8 @@
       if (p$spacetime_engine == "habitat") {
         if (p$storage.backend == "bigmemory.ram" ) {
           logitY = logit( presence.absense(Y) )
-          _ylgt_ = big.matrix( nrow=nrow(logitY), ncol=1, type="double", init=logitY  )
-          p$ptr$Ylogit  = bigmemory::describe( _ylgt_ )
+          yl_ = big.matrix( nrow=nrow(logitY), ncol=1, type="double", init=logitY  )
+          p$ptr$Ylogit  = bigmemory::describe( yl_ )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Ylogit  = p$cache$Ylogit
