@@ -12,6 +12,7 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
      DATA='hydro.db( p=p, DS="spacetime.input" )'
 
      p = bio.temperature::temperature.parameters( current.year=2016 )
+     p$stloc = file.path( p$project.root, "tmp" )
      p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
      RLibrary( p$libs )
      o = spacetime_db( p, DS="statistics.status" )

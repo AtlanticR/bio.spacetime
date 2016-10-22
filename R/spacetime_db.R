@@ -9,8 +9,7 @@
     if (DS %in% "filenames" ) {
       # input data stored as a bigmemory file to permit operations with min memory usage
       # split into separate components to reduce filelocking conflicts
- 
-        
+         
       # storage locations for finalized data 
       p$fn = list()
       p$fn$P = file.path( p$savedir, paste( "spacetime", "predictions", "rdata", sep=".") )
@@ -72,8 +71,10 @@
         # statistics storage matrix ( aggregation window, coords ) .. no inputs required
         # statistics coordinates
         Sloc = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
+        nS = nrow(Sloc)
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Sloc  = bigmemory::describe( bigmemory::as.big.matrix( Sloc, type="double" ) )
+            _sloc_ = big.matrix(nrow=nS, ncol=2, type="double", init=Sloc  )
+            p$ptr$Sloc  = bigmemory::describe( _sloc_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Sloc  = p$cache$Sloc
@@ -83,10 +84,10 @@
             p$ptr$Sloc = ff( Sloc, dim=dim(Sloc), file=p$cache$Sloc, overwrite=TRUE )
           }
 
-
-        S = matrix( NaN, nrow=nrow(Sloc), ncol=length( p$statsvars ) ) # NA forces into logical
+        S = matrix( NaN, nrow=nS, ncol=length( p$statsvars ) ) # NA forces into logical
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$S  = bigmemory::describe( bigmemory::as.big.matrix( S, type="double" ) )
+            _s_ = big.matrix(nrow=nS, ncol=length( p$statsvars ), type="double", init=S  )
+            p$ptr$S  = bigmemory::describe( _s_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$S  = p$cache$S
@@ -113,6 +114,13 @@
         i = which( is.infinite( S[,1] )  )  # not yet completed (due to a failed attempt)
         j = which( is.nan( S[,1] )   )      # incomplete
         k = which( is.finite (S[,1])  )     # completed
+        bnds = try( spacetime_db( p, DS="boundary" ) )
+        if (!is.null(bnds)) {
+          if( !("try-error" %in% class(bnds) ) ) {
+            l =  which( bnds$inside.polygon == 0 ) # outside boundary
+            # if (length(l)>0) S[l,] = Inf  # outside of data area
+        }}
+
         out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
                      n.incomplete=length(j), n.problematic=length(i), 
                      n.complete=length(k) )
@@ -133,7 +141,8 @@
       # dependent variable
       Y = as.matrix(B[, p$variables$Y ])
         if (p$storage.backend == "bigmemory.ram" ) {
-          p$ptr$Y  = bigmemory::describe( bigmemory::as.big.matrix( Y, type="double" ) )
+          _y_ = big.matrix( nrow=nrow(Y), ncol=1, type="double", init=Y  )
+          p$ptr$Y  = bigmemory::describe( _y_ )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Y  = p$cache$Y
