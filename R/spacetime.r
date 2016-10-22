@@ -1,12 +1,11 @@
 
-spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NULL, storage.backend="bigmemory.ram" ) {
+spacetime = function( p, DATA, family="gaussian", overwrite=NULL, storage.backend="bigmemory.ram" ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
 
   if(0) {
      p = bio.temperature::temperature.parameters( current.year=2016 )
      family="gaussian"
-     method="simple"
      overwrite=NULL
      storage.backend="bigmemory.filebacked"
      DATA='hydro.db( p=p, DS="spacetime.input" )'
@@ -37,8 +36,6 @@ spacetime = function( p, DATA, family="gaussian", method="simple", overwrite=NUL
   # message( paste( "Final outputs will be palced at:", p$savedir ) )
   if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
 
-  
-  p$spacetime_method = method
   p$spacetime_family = family
   if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
 

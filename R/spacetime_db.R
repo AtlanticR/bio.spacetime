@@ -153,9 +153,11 @@
         }
         
 
-      if (p$spacetime_method=="habitat") {
+      if (p$spacetime_engine == "habitat") {
         if (p$storage.backend == "bigmemory.ram" ) {
-          p$ptr$Ylogit  = bigmemory::describe( bigmemory::as.big.matrix( Ylogit, type="double" ) )
+          logitY = logit( presence.absense(Y) )
+          _ylgt_ = big.matrix( nrow=nrow(logitY), ncol=1, type="double", init=logitY  )
+          p$ptr$Ylogit  = bigmemory::describe( _ylgt_ )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Ylogit  = p$cache$Ylogit
@@ -490,7 +492,7 @@
   
     if (DS %in% c("model.covariates", "model.covariates.redo") ) {
       
-      fn.covmodel =  file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_method, p$spacetime_family, "rdata", sep=".") )
+      fn.covmodel =  file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_engine, p$spacetime_family, "rdata", sep=".") )
 
       if (DS =="model.covariates") {
         covmodel = NULL

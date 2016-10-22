@@ -54,5 +54,4 @@ spacetime_model_predict = function( p, Si, YiU, pa ) {
   if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon(  )
   if (p$spacetime_engine=="inla") res = spacetime__inla()
 
-
 }
