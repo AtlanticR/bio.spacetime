@@ -194,7 +194,8 @@
      # data coordinates
       Yloc = as.matrix( B[, p$variables$LOCS ])
         if (p$storage.backend == "bigmemory.ram" ) {
-          p$ptr$Yloc  = bigmemory::describe(  bigmemory::as.big.matrix( Yloc, type="double" ) )
+          yloc_ = big.matrix( nrow=nrow(Yloc), ncol=ncol(Yloc), type="double", init=Yloc  )
+          p$ptr$Yloc = bigmemory::describe( yloc_ )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Yloc  = p$cache$Yloc
@@ -208,7 +209,8 @@
       if (exists("COV", p$variables)) {
         Ycov = as.matrix( B[ , p$variables$COV ] )
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Ycov  = bigmemory::describe(  bigmemory::as.big.matrix( Ycov, type="double" ) )
+            ycov_ = big.matrix( nrow=nrow(Ycov), ncol=ncol(Ycov), type="double", init=Ycov  )
+            p$ptr$Ycov  = bigmemory::describe( ycov_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ycov  = p$cache$Ycov
@@ -223,7 +225,8 @@
       if ( exists("TIME", p$variables) ) {
         Ytime = as.matrix( B[, p$variables$TIME ] )
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Ytime  = bigmemory::describe( bigmemory::as.big.matrix( Ytime, type="double" ) )
+            ytime_ = big.matrix( nrow=nrow(Ytime), ncol=ncol(Ytime), type="double", init=Ytime  )
+            p$ptr$Ytime  = bigmemory::describe( ytime_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ytime  = p$cache$Ytime
@@ -248,7 +251,8 @@
         }
         attr( Pcov, "dimnames" ) = NULL
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Pcov  = bigmemory::describe( bigmemory::as.big.matrix( Pcov, type="double" ) )
+            pcov_ = big.matrix( nrow=nrow(Pcov), ncol=ncol(Pcov), type="double", init=Pcov  )
+            p$ptr$Pcov  = bigmemory::describe( pcov_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Pcov  = p$cache$Pcov
@@ -265,7 +269,8 @@
         Ptime = as.matrix( B$TIME )
         attr( Ptime, "dimnames" ) = NULL
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Ptime  = bigmemory::describe( bigmemory::as.big.matrix( Ptime, type="double" ) )
+            ptime_ = big.matrix( nrow=nrow(Ptime), ncol=ncol(Ptime), type="double", init=Ptime  )
+            p$ptr$Ptime  = bigmemory::describe( ptime_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ptime  = p$cache$Ptime
@@ -280,7 +285,8 @@
       # predictions and associated stats
       P = matrix( NaN, nrow=nrow(B$LOCS), ncol=p$nt )
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$P  = bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
+            p_ = big.matrix( nrow=nrow(P), ncol=ncol(P), type="double", init=P  )
+            p$ptr$P  = bigmemory::describe( p_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$P  = p$cache$P
@@ -292,7 +298,8 @@
       
       # count of prediction estimates
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Pn = bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
+            pn_ = big.matrix( nrow=nrow(P), ncol=ncol(P), type="double", init=P  )
+            p$ptr$Pn = bigmemory::describe( pn_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Pn  = p$cache$Pn
@@ -305,7 +312,8 @@
       # sd of prediction estimates
       # count of prediction estimates
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Psd =bigmemory::describe( bigmemory::as.big.matrix( P, type="double" ) )
+            psd_ = big.matrix( nrow=nrow(P), ncol=ncol(P), type="double", init=P  )
+            p$ptr$Psd =bigmemory::describe( psd_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Psd  = p$cache$Psd
@@ -318,7 +326,7 @@
 
       if (p$spacetime_engine == "habitat") {
         if (p$storage.backend == "bigmemory.ram" ) {
-          pl_= big.matrix( nrow=nrow(B$LOCS), ncol=p$nt , type="double", init=P  )
+          pl_= big.matrix( nrow=nrow(P), ncol=ncol(P) , type="double", init=P  )
           p$ptr$Plogit = bigmemory::describe(pl_ )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
@@ -336,7 +344,8 @@
       Ploc = as.matrix( B$LOCS )
       attr( Ploc, "dimnames" ) = NULL
          if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Ploc  = bigmemory::describe( bigmemory::as.big.matrix( Ploc, type="double" ) )
+            ploc_ = big.matrix( nrow=nrow(Ploc), ncol=ncol(Ploc), type="double", init=Ploc  )
+            p$ptr$Ploc  = bigmemory::describe( ploc_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ploc  = p$cache$Ploc
@@ -350,7 +359,8 @@
       Mat2Ploc = as.matrix( cbind( (Ploc[,1]-p$plons[1])/p$pres + 1, (Ploc[,2]-p$plats[1])/p$pres + 1) ) # row, col indices in matrix form
       attr( Mat2Ploc, "dimnames" ) = NULL
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Mat2Ploc  = bigmemory::describe( bigmemory::as.big.matrix( Mat2Ploc, type="double" ) )
+            m2p_ = big.matrix( nrow=nrow(Mat2Ploc), ncol=ncol(Mat2Ploc), type="double", init=Mat2Ploc  )
+            p$ptr$Mat2Ploc  = bigmemory::describe( m2p_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Mat2Ploc  = p$cache$Mat2Ploc
@@ -365,9 +375,13 @@
       p$spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
         theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
 
-      P0   = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
+      if (0) {
+        # to add gloabl covariate model ?? 
+
+        P0   = matrix( 0, nrow=nrow(B$LOCS), ncol=p$nt )
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$P0  = bigmemory::describe( bigmemory::as.big.matrix( P0, type="double" ) )
+             p0_ = big.matrix( nrow=nrow(P0), ncol=ncol(P0), type="double", init=P0  )
+             p$ptr$P0  = bigmemory::describe( p0_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$P0  = p$cache$P0
@@ -380,7 +394,8 @@
         # P0sd
 
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$P0sd  = bigmemory::describe( bigmemory::as.big.matrix( P0, type="double" ) )
+            p0sd_ = big.matrix( nrow=nrow(P0), ncol=ncol(P0), type="double", init=P0  )
+            p$ptr$P0sd  = bigmemory::describe( p0sd_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$P0sd  = p$cache$P0sd
@@ -390,7 +405,7 @@
             p$ptr$P0sd = ff( P0, dim=dim(P0), file=p$cache$P0sd, overwrite=TRUE )
           }
 
-      gc()
+        }
 
       return( p )
     }
@@ -492,8 +507,10 @@
       }
 
       Yi = as.matrix(Yi)
+          
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$ptr$Yi  = bigmemory::describe( bigmemory::as.big.matrix( Yi, type="double" ) )
+            yi_ = big.matrix( nrow=nrow(Yi), ncol=ncol(Yi), type="double", init=Yi  )
+            p$ptr$Yi  = bigmemory::describe( yi_ )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Yi  = p$cache$Yi
