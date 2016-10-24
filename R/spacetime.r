@@ -525,7 +525,7 @@ spacetime = function( p, DATA, family="gaussian", overwrite=NULL, storage.backen
   }
 
   # -------------------------------------
-  # 1. localized space-time interpolation
+  # localized space-time modelling/interpolation/prediction
   
   o = spacetime_db( p, DS="statistics.status" )
   p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
