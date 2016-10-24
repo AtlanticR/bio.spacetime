@@ -23,6 +23,8 @@
       p$cache$Yloc =  file.path( p$stloc, "input.Yloc.cache" )
       p$cache$Ytime = file.path( p$stloc, "input.Ytime.cache" )
       p$cache$Yi =    file.path( p$stloc, "input.Yi.cache" ) # index of useable data
+      p$cache$Ylogit = file.path( p$stloc, "Ylogit.cache" )
+
       p$cache$P0 =    file.path( p$stloc, "predictions0.cache" ) # offsets from covar model
       p$cache$P0sd =  file.path( p$stloc, "predictions0sd.cache" ) # offsets from covar model
       p$cache$P =     file.path( p$stloc, "predictions.cache" )
@@ -31,11 +33,14 @@
       p$cache$Pcov =  file.path( p$stloc, "predictions_cov.cache" )
       p$cache$Ploc =  file.path( p$stloc, "predictions_loc.cache" )
       p$cache$Ptime = file.path( p$stloc, "predictions_time.cache" )
+      p$cache$Plogit = file.path( p$stloc, "Plogit.cache" )
+
       p$cache$S =     file.path( p$stloc, "statistics.cache" )
       p$cache$Sloc =  file.path( p$stloc, "statistics_loc.cache" )
       p$cache$Stime = file.path( p$stloc, "statistics_time.cache" )
+      p$cache$Sflag =     file.path( p$stloc, "statistics_flag.cache" )
+
       p$cache$Mat2Ploc = file.path( p$stloc, "Mat2Ploc.cache" )
-      p$cache$Ylogit = file.path( p$stloc, "Ylogit.cache" )
 
       p$bm = p$cache
       for (i in 1:length(p$bm)) p$bm[[i]] = gsub(".cache$", ".bigmemory", p$bm[[i]] )
@@ -97,6 +102,19 @@
             p$ptr$S = ff( S, dim=dim(S), file=p$cache$S, overwrite=TRUE )
           }
 
+        Sflag = matrix( NaN, nrow=nS, ncol=1 ) # NA forces into logical
+          if (p$storage.backend == "bigmemory.ram" ) {
+            sflag_ = big.matrix(nrow=nS, ncol=1, type="double", init=NaN  )
+            p$ptr$Sflag  = bigmemory::describe( sflag_ )
+          }
+          if (p$storage.backend == "bigmemory.filebacked" ) {
+            p$ptr$Sflag  = p$cache$Sflag
+            bigmemory::as.big.matrix( Sflag, type="double", backingfile=basename(p$bm$Sflag), descriptorfile=basename(p$cache$Sflag), backingpath=p$stloc )
+          }
+          if (p$storage.backend == "ff" ) {
+            p$ptr$Sflag = ff( Sflag, dim=dim(Sflag), file=p$cache$Sflag, overwrite=TRUE )
+          }
+
         return( p )
       }
       
@@ -106,19 +124,23 @@
         return(sbbox)
       }
 
-
       if ( DS=="statistics.status" ) {
         # find locations for statistic computation and trim area based on availability of data
         # stats:
         S = spacetime_attach( p$storage.backend, p$ptr$S )
-        i = which( is.infinite( S[,1] )  )  # not yet completed (due to a failed attempt)
-        j = which( is.nan( S[,1] )   )      # incomplete
-        k = which( is.finite (S[,1])  )     # completed
+        Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
+        
+        i = which( is.infinite( Sflag )  )  # not yet completed (due to a failed attempt)
+        j = which( is.nan( Sflag )   )      # incomplete
+        k = which( is.finite (Sflag)  )     # completed
         bnds = try( spacetime_db( p, DS="boundary" ) )
         if (!is.null(bnds)) {
           if( !("try-error" %in% class(bnds) ) ) {
             l =  which( bnds$inside.polygon == 0 ) # outside boundary
-            # if (length(l)>0) S[l,] = Inf  # outside of data area
+            if (0) {
+              # to reset the flags
+              if (length(l)>0) Sflag[l] = Inf  # outside of data area
+            }
         }}
 
         out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
@@ -155,7 +177,8 @@
 
       if (p$spacetime_engine == "habitat") {
         if (p$storage.backend == "bigmemory.ram" ) {
-          logitY = logit( presence.absense(Y) )
+          if (!exists("habitat.threshold.quantile", p)) p$habitat.threshold.quantile = 0.01 
+          logitY = spacetime_db( p=p, DS="presence.absense" )
           yl_ = big.matrix( nrow=nrow(logitY), ncol=1, type="double", init=logitY  )
           p$ptr$Ylogit  = bigmemory::describe( yl_ )
         }
@@ -291,6 +314,21 @@
           if (p$storage.backend == "ff" ) {
             p$ptr$Psd = ff( P, dim=dim(P), file=p$cache$Psd, overwrite=TRUE )
           }
+
+
+      if (p$spacetime_engine == "habitat") {
+        if (p$storage.backend == "bigmemory.ram" ) {
+          pl_= big.matrix( nrow=nrow(B$LOCS), ncol=p$nt , type="double", init=P  )
+          p$ptr$Plogit = bigmemory::describe(pl_ )
+        }
+        if (p$storage.backend == "bigmemory.filebacked" ) {
+          p$ptr$Plogit  = p$cache$Plogit
+          bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$Plogit), descriptorfile=basename(p$cache$Plogit), backingpath=p$stloc )
+        }
+        if (p$storage.backend == "ff" ) {
+          p$ptr$Plogit = ff( P, dim=dim(Plogit), file=p$cache$Plogit, overwrite=TRUE )
+        }
+      }
 
       rm(P)
 
@@ -606,6 +644,36 @@
 
       save( stats,  file=p$fn.S, compress=TRUE )
 
+    }
+
+    #-------------
+
+    if (DS=="presence.absense") {
+
+      Y = spacetime_attach( p$storage.backend, p$ptr$Y )
+      z = which( Y == 0) # assumed to be real zeros
+      i = which( Y >  0)  # positive values
+      
+      # determine quantiles
+      Yq = rep( 0, length(Y) )
+      Yq[z] = 1
+    
+      pr = ecdf(Y[i])( Y[i] )
+      ix = which( pr ==1 )
+      if ( !( length(ix) %in% c(0, length(x)) ))  pr[ix] = max( pr[-ix] )
+      Yq[i] = pr
+
+      s01 = which( Yq < p$habitat.threshold.quantile )  # buffer zone
+      s0 = unique( c(s01, sz ) )
+      s1 = which( Yq >= p$habitat.threshold.quantile )
+
+      # determine presence-absence
+      YPA =  rep( NA, length(Y) )
+      YPA[s1] = 1  
+      YPA[s0] = 0
+      YPA[z] = 0
+
+      return(YPA)
     }
 
   }

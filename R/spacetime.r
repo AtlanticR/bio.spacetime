@@ -91,6 +91,12 @@ spacetime = function( p, DATA, family="gaussian", overwrite=NULL, storage.backen
     if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
            "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
       p$statsvars = c( "sdTotal", "rsquared", "ndata" )
+    } else if (p$spacetime_engine == "habitat") {
+  
+    } else if ( p$spacetime_engine=="inla") {
+      p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
+    } else {
+      stop( "spacetime_engine not recognized")
     }
     
     if (exists("spacetime_variogram_engine", p) ) {
@@ -99,10 +105,6 @@ spacetime = function( p, DATA, family="gaussian", overwrite=NULL, storage.backen
 
     if ( exists("TIME", p$variables) ){
       p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
-    }
-
-    if ( p$spacetime_engine=="inla") {
-      p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
     }
 
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
@@ -147,10 +149,10 @@ spacetime = function( p, DATA, family="gaussian", overwrite=NULL, storage.backen
 
   # 2. fast/simple spatial interpolation for anything not resolved by the local analysis
   p = make.list( list( tiyr_index=p$ncP ), Y=p ) 
-  parallel.run( spacetime_interpolate_xy_simple_multiple, p=p ) 
+  parallel.run( spacetime_interpolate_xy_simple_multiple, p=p )  # this a kernel density method using fft
   
-  spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk
-  spacetime_db( p, DS="stats.to.prediction.grid.redo")
+  spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
+  spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
   
   message ("Finished! \n")
   resp = readline( "To delete temporary files, type <Yes>:  ")
@@ -162,7 +164,6 @@ spacetime = function( p, DATA, family="gaussian", overwrite=NULL, storage.backen
   }
   
   return( p )
-  
 }
 
 
