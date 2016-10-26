@@ -206,14 +206,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
       }
     }
 
-   if (exists("spacetime_family", p)) {
+    if (exists("spacetime_family", p)) {
       res$mean = p$spacetime_family()$linkinv( res$mean )
       res$sd  =  p$spacetime_family()$linkinv( res$sd )
     }
 
 
     # stats collator
-    if ( !exists("spacetime_stats"),  res) res$spacetime_stats = list()
+    if ( !exists("spacetime_stats",  res) ) res$spacetime_stats = list()
 
     if (exists("spacetime_variogram_engine", p) ) {
       sp.stat = NULL
