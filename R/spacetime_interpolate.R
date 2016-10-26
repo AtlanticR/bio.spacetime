@@ -187,19 +187,15 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # model and prediction
     res =NULL
   
-    if ( p$spacetime_engine %in% c( "harmonics.1.depth.lonlat", "harmonics.1", 
-        "harmonics.2", "harmonics.3", "harmonics.1.depth",
-        "seasonal.basic", "seasonal.smoothed", "annual", "gam" ,
-        "seasonal.smoothed.depth.lonlat", "seasonal.smoothed.depth.lonlat.complex" ) ) {
-      res = spacetime__harmonics( p, x, pa )
-    }
-    if (p$spacetime_engine=="habitat") res = spacetime__habitat(  )
-    if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity(  )
-    if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon(  )
-    if (p$spacetime_engine=="inla") res = spacetime__inla()
+    if (p$spacetime_engine=="gam" )  res = spacetime__gam( p, x, pa )
+    if (p$spacetime_engine=="habitat") res = spacetime__habitat( p, x, pa )
+    if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity( p, x, pa )
+    if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon( p, x, pa )
+    if (p$spacetime_engine=="inla") res = spacetime__inla( p, x, pa )
+
+    if ( is.null(res)) next()
 
     if (0) {
-      
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions$tiyr==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
       
       for( i in sort(unique(res$predictions$tiyr)))  print(lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions$tiyr==i,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" ) )
@@ -207,9 +203,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
       lattice::levelplot( P[pa$i,2] ~ Ploc[pa$i,1] + Ploc[ pa$i, 2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
     }
    
-    if ( is.null(res)) next()
     rm(pa)
-
  
     if (exists( "quantile_bounds", p)) {
       tq = quantile( x[,p$variables$Y], probs=p$quantile_bounds, na.rm=TRUE  )

@@ -1,11 +1,18 @@
 
-spacetime__harmonics = function( p, x, pa ) {
+spacetime__gam = function( p, x, pa ) {
   #\\ this is the core engine of spacetime .. localised space-time modelling interpolation and prediction
   #\\ simple GAM with spatial weights (inverse distance squared) and ts harmonics 
   
-  # estimate model parameters
-  hmod = try( 
-    gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","optim")  ) ) 
+  
+  if ( exists("spacetime_model_distance_weighted", p) ) {
+    if (p$spacetime_model_distance_weighted) {
+      hmod = try( gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","optim")  ) )
+    } else {
+      hmod = try( gam( p$spacetime_engine_modelformula, data=x, optimizer=c("outer","optim")  ) )
+    }
+  } else {
+      hmod = try( gam( p$spacetime_engine_modelformula, data=x ) )
+  } 
 
   if ( "try-error" %in% class(hmod) ) next()
   
@@ -23,3 +30,4 @@ spacetime__harmonics = function( p, x, pa ) {
   
   return( list( predictions=pa, spacetime_stats=spacetime_stats ) )  
 }
+
