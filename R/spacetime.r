@@ -78,7 +78,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
         seasonal.basic = ' s(yr) + s(dyear, bs="cc") ', 
         seasonal.smoothed = ' s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ', 
         seasonal.smoothed.depth.lonlat = ' s(yr, dyear) + s(yr, k=3) + s(dyear, bs="cc") +s(z) +s(plon) +s(plat) + s(plon, plat, by=yr), s(plon, plat, k=10, by=dyear ) ', 
-        seasonal.smoothed.depth.lonlat = ' s(yr, dyear, bs="ts") + s(yr, k=3, bs="ts") + s(dyear, bs="cc") +s(z, bs="ts") +s(plon, bs="ts") +s(plat, bs="ts") + s(plon, plat, by=tiyr, k=10, bs="ts" ) ', 
+        seasonal.smoothed.depth.lonlat.complex = ' s(yr, dyear, bs="ts") + s(yr, k=3, bs="ts") + s(dyear, bs="cc") +s(z, bs="ts") +s(plon, bs="ts") +s(plat, bs="ts") + s(plon, plat, by=tiyr, k=10, bs="ts" ) ', 
         harmonics.1 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ', 
         harmonics.2 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' , 
         harmonics.3 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) ',

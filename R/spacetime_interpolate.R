@@ -187,8 +187,10 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # model and prediction
     res =NULL
   
-    if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
-         "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
+    if ( p$spacetime_engine %in% c( "harmonics.1.depth.lonlat", "harmonics.1", 
+        "harmonics.2", "harmonics.3", "harmonics.1.depth",
+        "seasonal.basic", "seasonal.smoothed", "annual", "gam" ,
+        "seasonal.smoothed.depth.lonlat", "seasonal.smoothed.depth.lonlat.complex" ) ) {
       res = spacetime__harmonics( p, x, pa )
     }
     if (p$spacetime_engine=="habitat") res = spacetime__habitat(  )
@@ -199,7 +201,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (0) {
       
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions$tiyr==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
-     
+      
+      for( i in sort(unique(res$predictions$tiyr)))  print(lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions$tiyr==i,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" ) )
+
       lattice::levelplot( P[pa$i,2] ~ Ploc[pa$i,1] + Ploc[ pa$i, 2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
     }
    
