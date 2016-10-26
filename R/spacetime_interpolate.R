@@ -60,11 +60,10 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ((ndata < p$n.min) | (ndata > p$n.max) ) next()
     YiU = Yi[pib$U]  
     # So, YiU and dist_prediction determine the data entering into local model construction
-    dist_prediction = min( pib$dist,  p$spacetime_prediction_dist_min )
-    rm(pib)
+    # dist_model = pib$dist
+    dist_prediction = min( p$spacetime_distance_prediction, pib$dist ) # do not predict greater than p$spacetime_distance_prediction
  
     # construct prediction/output grid area ('pa')
-
     windowsize.half = floor(dist_prediction/p$pres) # convert distance to discretized increments of row/col indices
     pa_w = -windowsize.half : windowsize.half
     pa_w_n = length(pa_w)
@@ -85,6 +84,18 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     pa_n = nrow(pa)
     if ( pa_n < 5) next()
+
+      if (0) {
+        Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
+        Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
+        plot( Yloc[pib$U,1]~ Yloc[pib$U,2], col="red", pch=".") # all data
+        points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )  # with covars and no other data issues
+        points( Sloc[Si,1] ~ Sloc[Si,2], col="blue" ) # statistical locations
+        points( p$plons[p$rcS[Si,1]] ~ p$plats[p$rcS[Si,2]] , col="purple", pch=25, cex=2 ) # check on p$rcS indexing
+        points( p$plons[pa$iplon] ~ p$plats[ pa$iplat] , col="cyan", pch=".", cex=0.01 ) # check on Proc iplat indexing
+        points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="black", pch=20, cex=0.7 ) # check on pa$i indexing -- prediction locations
+      }
+    rm(pib)
    
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
@@ -106,6 +117,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
       pa$yr = trunc( pa[,p$variables$TIME] )
       if (exists("nw", p)) {
         # where time exists and there are seasonal components, 
+        pa$dyear = pa[, p$variables$TIME] - pa$yr  # fractional year
         # additional variables are needed: cos.w, sin.w, etc.. 
         # to add an offset to a trig function (b) must add cos to a sin function
         # y ~ a + c*sin(x+b)
@@ -133,17 +145,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     }
 
-    if (0) {
-      Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
-      Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
-      plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data
-      points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )  # with covars and no other data issues
-      points( Sloc[Si,1] ~ Sloc[Si,2], col="blue" ) # statistical locations
-      points( p$plons[p$rcS[Si,1]] ~ p$plats[p$rcS[Si,2]] , col="purple", pch=25, cex=2 ) # check on p$rcS indexing
-      points( p$plons[pa$iplon] ~ p$plats[ pa$iplat] , col="cyan", pch=".", cex=0.01 ) # check on Proc iplat indexing
-      points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="black", pch=20, cex=0.7 ) # check on pa$i indexing -- prediction locations
-    }
-
     
     # prep dependent data 
 
@@ -167,7 +168,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (exists("TIME", p$variables)) {
       x[, p$variables$TIME ] = Ytime[YiU,] 
       x$yr = trunc( x[, p$variables$TIME])
+
       if (exists("nw", p)) {
+        x$dyear = x[, p$variables$TIME] - x$yr
         x$cos.w  = cos( 2*pi*x$tiyr )
         x$sin.w  = sin( 2*pi*x$tiyr )
         if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
@@ -193,6 +196,13 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon(  )
     if (p$spacetime_engine=="inla") res = spacetime__inla()
 
+    if (0) {
+      
+      lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions$tiyr==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+     
+      lattice::levelplot( P[pa$i,2] ~ Ploc[pa$i,1] + Ploc[ pa$i, 2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+    }
+   
     if ( is.null(res)) next()
     rm(pa)
 

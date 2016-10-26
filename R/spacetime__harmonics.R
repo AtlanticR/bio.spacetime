@@ -5,7 +5,7 @@ spacetime__harmonics = function( p, x, pa ) {
   
   # estimate model parameters
   hmod = try( 
-    gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) ) 
+    gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","optim")  ) ) 
 
   if ( "try-error" %in% class(hmod) ) next()
   
@@ -18,7 +18,8 @@ spacetime__harmonics = function( p, x, pa ) {
 
   ss = summary(hmod)
   spacetime_stats = list( sdTotal=sd(Y[], na.rm=T), rsquared=ss$r.sq, ndata=ss$n ) # must be same order as p$statsvars
-
+  
+  # lattice::levelplot( mean ~ plon + plat, data=pa[pa$tiyr==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+  
   return( list( predictions=pa, spacetime_stats=spacetime_stats ) )  
-
 }

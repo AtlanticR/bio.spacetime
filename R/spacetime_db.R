@@ -73,8 +73,8 @@
     if (DS %in% c( "statistics.status", "statistics.box" ) ) {
           
       if (DS == "statistics.box")  {
-        sbbox = list( plats = seq( p$corners$plat[1], p$corners$plat[2], by=p$spacetime_prediction_dist_min ),
-                      plons = seq( p$corners$plon[1], p$corners$plon[2], by=p$spacetime_prediction_dist_min ) )
+        sbbox = list( plats = seq( p$corners$plat[1], p$corners$plat[2], by=p$spacetime_distance_statsgrid ),
+                      plons = seq( p$corners$plon[1], p$corners$plon[2], by=p$spacetime_distance_statsgrid ) )
         return(sbbox)
       }
 
@@ -260,7 +260,7 @@
         data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=S[,i] )
         res = spacetime_interpolate_xy_simple( interp.method="kernel.density", 
           data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
-          theta=p$spacetime_prediction_dist_min, xwidth=p$spacetime_prediction_dist_min*10, ywidth=p$spacetime_prediction_dist_min*10 )
+          theta=p$spacetime_distance_statsgrid, xwidth=p$spacetime_distance_statsgrid*10, ywidth=p$spacetime_distance_statsgrid*10 )
         if (!is.null(res)) stats[i,] = res
       }
     
