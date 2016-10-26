@@ -18,6 +18,10 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
   Y = spacetime_attach( p$storage.backend, p$ptr$Y )
 
+  P = spacetime_attach( p$storage.backend, p$ptr$P )
+  Pn = spacetime_attach( p$storage.backend, p$ptr$Pn )
+  Psd = spacetime_attach( p$storage.backend, p$ptr$Psd )
+
   if (exists("COV", p$variables)) {
     Ycov = spacetime_attach( p$storage.backend, p$ptr$Ycov )
     Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
@@ -226,7 +230,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ( exists("TIME", p$variables) ){
       # annual ts, seasonally centered and spatially 
       # pa_i = which( Sloc[Si,1]==Ploc[,1] & Sloc[Si,2]==Ploc[,2] )
-      Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
       pac_i = which( res$predictions$plon==Sloc[Si,1] & res$predictions$plat==Sloc[Si,2] )
       if (length(pac_i) > 5) {
         pac = res$predictions[ pac_i, ]
@@ -248,13 +251,84 @@ spacetime_interpolate = function( ip=NULL, p ) {
       }
     }
 
+    # save stats
     for ( k in 1: length(p$statsvars) ) {
       if (exists( p$statsvars[k], res$spacetime_stats )) {
         S[Si,k] = res$spacetime_stats[[ p$statsvars[k] ]]
       }
     }
 
-    spacetime_predictions_save( p, res$predictions ) # update P (predictions) .. slow!! .. try diff cache size for P, Pn Psd
+    # update SD estimates of predictions with those from other locations via the
+    # incremental  method ("online algorithm") of mean estimation after Knuth ;
+    # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+    # update means: inverse-variance weighting   
+    # see https://en.wikipedia.org/wiki/Inverse-variance_weighting
+   
+    npred = nrow(res$predictions)
+
+    if ( ! exists("TIME", p$variables) ) {
+
+      u = which( is.finite( P[res$predictions$i] ) )  # these have data already .. update
+      if ( length( u ) > 0 ) {
+        ui = res$predictions$i[u]  # locations of P to modify
+        Pn[ui] = Pn[ui] + 1 # update counts
+        stdev_update =  Psd[ui] + ( res$predictions$sd[u] -  Psd[ui] ) / Pn[ui]
+        means_update = ( P[ui] / Psd[ui]^2 + res$predictions$mean[u] / res$predictions$sd[u]^2 ) / ( Psd[ui]^(-2) + res$predictions$sd[u]^(-2) )
+        mm = which(is.finite( means_update + stdev_update ))
+        if( length(mm)> 0) {
+          iumm = ui[mm]
+          Psd[iumm] = stdev_update[mm]
+          P  [iumm] = means_update[mm]
+        }
+      }
+
+      # first time # no data yet
+      v = setdiff(1:npred, u)         
+      if ( length(v) > 0 ) {
+        vi = res$predictions$i[v]
+        Pn [vi] = 1
+        P  [vi] = res$predictions$mean[v]
+        Psd[vi] = res$predictions$sd[v]
+      }
+
+    }
+
+
+    if ( exists("TIME", p$variables) ) {
+
+      u = which( is.finite( P[res$predictions$i,1] ) )  # these have data already .. update
+      nu = length( u ) 
+      if ( nu > 0 ) {
+        ui = res$predictions$i[u]  # locations of P to modify
+        nc = ncol(P)
+        if (p$storage.backend == "ff" ) {
+          add.ff(Pn, 1, ui, 1:nc ) # same as Pn[ui,] = Pn[ui]+1 but 2X faster
+        } else {
+          Pn[ui,] = Pn[ui,] + 1
+        }
+        stdev_update =  Psd[ui,] + ( res$predictions$sd[u] -  Psd[ui,] ) / Pn[ui,]
+        means_update = ( P[ui,] / Psd[ui,]^2 + res$predictions$mean[u] / res$predictions$sd[u]^2 ) / 
+          ( Psd[ui,]^(-2) + res$predictions$sd[u]^(-2) )
+        mm = which( is.finite( rowSums(means_update + stdev_update )))  # created when preds go outside quantile bounds .. this removes all data from a given location rather than the space-time .. severe but likely due to a poor prediction and so remove all (it is also faster this way as few manipulations)
+        if( length(mm)> 0) {
+          iumm = ui[mm] 
+          Psd[iumm] = stdev_update[mm]
+          P  [iumm] = means_update[mm]
+        }
+      }
+
+      # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
+      v = setdiff(1:npred, u) 
+      nv = length(v)          # no data yet
+      if ( nv > 0 ) {
+        vi = res$predictions$i[v]
+        Pn [vi,] = 1
+        P  [vi,] = res$predictions$mean[v]
+        Psd[vi,] = res$predictions$sd[v]
+      }
+    
+    }
+    
 
       if (0) {
         v = res$predictions
@@ -267,7 +341,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
    
     # ----------------------
-    # do last. it is an indicator of completion of all tasks .. restarts would be broken otherwise
+    # do last. it is an indicator of completion of all tares$predictionssks .. restarts would be broken otherwise
     Sflag[Si] = 1  # done .. any finite value would do
 
   }  # end for loop
