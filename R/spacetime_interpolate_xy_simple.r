@@ -2,8 +2,7 @@
 
 spacetime_interpolate_xy_simple = function( interp.method, data, locsout, 
   trimquants=TRUE, trimprobs=c(0.025, 0.975), 
-  nr=NULL, nc=NULL, theta=NULL, xwidth=theta*10, ywidth=theta*10, 
-  link=NA ) {
+  nr=NULL, nc=NULL, theta=NULL, xwidth=theta*10, ywidth=theta*10 ) {
   #\\ reshape after interpolating to fit the output resolution 
   
   # trim quaniles in case of extreme values
@@ -54,12 +53,6 @@ spacetime_interpolate_xy_simple = function( interp.method, data, locsout,
     method="fast"  # "direct" is slower and more accurate
     nsamples=5000 
   # identity links by default .. add more if needed here
-    spacetime.link = function(X) {X}
-    spacetime.invlink = function(X) {X}
-    if (link=="log" ) {
-      spacetime.link = function(X) {log(X)}
-      spacetime.invlink = function(X) {exp(X)}
-    }
     locs = as.matrix( locs)
     lengthscale = max( diff(range( locs[,1])), diff(range( locs[,2]) )) / 10  # in absence of range estimate take 1/10 of domain size
     ndata = length(Y)
@@ -74,7 +67,7 @@ spacetime_interpolate_xy_simple = function( interp.method, data, locsout,
     obs_eff[["spde"]] = c( obs_index, list(intercept=1) )
     obs_A = list( inla.spde.make.A( mesh=MESH, loc=locs[,] ) ) # no effects
     obs_ydata = list()
-    obs_ydata[[ varY ]] = spacetime.link ( Y )
+    obs_ydata[[ varY ]] =  Y 
     DATA = inla.stack( tag="obs", data=obs_ydata, A=obs_A, effects=obs_eff, remove.unused=FALSE )
     if ( method=="direct") {
       # direct method
@@ -104,8 +97,8 @@ spacetime_interpolate_xy_simple = function( interp.method, data, locsout,
     if ( method=="direct" ) {
       # direct method ... way too slow to use for production runs
       preds = as.data.frame( locsout )
-      preds$xmean = spacetime.invlink( RES$summary.fitted.values[ i_data, "mean"] )
-      preds$xsd   = spacetime.invlink( RES$summary.fitted.values[ i_data, "sd"] )
+      preds$xmean =  RES$summary.fitted.values[ i_data, "mean"] 
+      preds$xsd   =  RES$summary.fitted.values[ i_data, "sd"] 
       rm(RES, MESH); gc()
     }
     if (method=="fast") {
@@ -124,7 +117,7 @@ spacetime_interpolate_xy_simple = function( interp.method, data, locsout,
       rm(RES, MESH); gc()
       rnm = rownames(posterior.samples[[1]]$latent )
       posterior = sapply( posterior.samples, posterior.extract, rnm=rnm )
-      posterior = spacetime.invlink( posterior )   # return to original scale
+      posterior =  posterior    # return to original scale
       rm(posterior.samples); gc()
           # robustify the predictions by trimming extreme values .. will have minimal effect upon mean
           # but variance estimates should be useful/more stable as the tails are sometimes quite long

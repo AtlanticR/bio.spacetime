@@ -122,7 +122,7 @@
 
       rnm = rownames(posterior.samples[[1]]$latent )
       posterior = sapply( posterior.samples, p$spacetime.posterior.extract, rnm=rnm )
-      posterior = p$spacetime.invlink( posterior )   # return to original scale
+      posterior = p$spacetime_family()$linkinv( posterior )   # return to original scale
 
       out_mean = inla.mesh.project( pG, field=apply( posterior, 1, mean, na.rm=TRUE )  )  # mean
       out_sd   = inla.mesh.project( pG, field=apply( posterior, 1, sd  , na.rm=TRUE )  )  # mean

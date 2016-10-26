@@ -1,7 +1,8 @@
 
-spacetime = function( p, DATA, family="gaussian", overwrite=NULL, storage.backend="bigmemory.ram" ) {
+spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend="bigmemory.ram" ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
+  #\\ speed ratings: bigmemory.ram (1), ff (2), bigmemory.filebacked (3)
 
   if(0) {
      p = bio.temperature::temperature.parameters( current.year=2016 )
@@ -35,8 +36,20 @@ spacetime = function( p, DATA, family="gaussian", overwrite=NULL, storage.backen
   
   # message( paste( "Final outputs will be palced at:", p$savedir ) )
   if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
+  
+  # family handling copied from glm
+  if (!exists( "spacetime_family", p)) {
+    if (is.character(family)) 
+      family = get(family, mode = "function", envir = parent.frame())
+    if (is.function(family)) 
+      family = family()
+    if (is.null(family$family)) {
+      print(family)
+      stop("'family' not recognized")
+    }
+    p$spacetime_family = family
+  }
 
-  p$spacetime_family = family
   if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
 
   p = spacetime_db( p=p, DS="filenames" )

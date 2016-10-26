@@ -1,57 +1,6 @@
 
-spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
+spacetime__LaplacesDemon = function( p, x, pa ) {
 
-
-    Sloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Sloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Sloc), 
-      ff=p$ptr$Sloc )
-    Yloc = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Yloc), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Yloc), 
-      ff=p$ptr$Yloc )
-    Y = switch( p$storage.backend, 
-      bigmemory.ram=attach.big.matrix(p$ptr$Y), 
-      bigmemory.filebacked=attach.big.matrix(p$ptr$Y), 
-      ff=p$ptr$Y )
-
-    x = data.frame( Y[YiU] )
-    names(x) = p$variables$Y
-    if ( exists("spacetime.link", p) ) x[, p$variables$Y] = p$spacetime.link ( x[, p$variables$Y] )
-    x$plon = Yloc[YiU,1]
-    x$plat = Yloc[YiU,2]
-    x$Y_wgt = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
-    x$Y_wgt[ which( x$Y_wgt < 1e-3 ) ] = 1e-3
-    x$Y_wgt[ which( x$Y_wgt > 1 ) ] = 1
-
-    if (exists("COV", p$variables)) {
-      Ycov = attach.big.matrix( p$ptr$Ycov )
-      for (i in 1:length(p$variables$COV )) x[, p$variables$COV[i] ] = Ycov[YiU,i]
-    }
-
-    if (exists("TIME", p$variables)) {
-      Ytime = attach.big.matrix( p$ptr$Ytime )
-      x[, p$variables$TIME ] = Ytime[YiU,]
-      x$yr = trunc( x[, p$variables$TIME])
-      x$cos.w  = cos( 2*pi*x$tiyr )
-      x$sin.w  = sin( 2*pi*x$tiyr )
-      newdata$yr = trunc( newdata[,p$variables$TIME] )
-      newdata$cos.w  = cos( newdata$tiyr )
-      newdata$sin.w  = sin( newdata$tiyr )
-      # compute adiitional harmonics only if required (to try to speed things up a bit)
-      if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
-        x$cos.w2 = cos( 2*x$tiyr )
-        x$sin.w2 = sin( 2*x$tiyr )
-        newdata$cos.w2 = cos( 2*newdata$tiyr )
-        newdata$sin.w2 = sin( 2*newdata$tiyr )
-      }
-      if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
-        x$cos.w3 = cos( 3*x$tiyr )
-        x$sin.w3 = sin( 3*x$tiyr )
-        newdata$cos.w3 = cos( 3*newdata$tiyr )
-        newdata$sin.w3 = sin( 3*newdata$tiyr )
-      }
-    }
 
     # estimate model parameters
     hmod = try(
@@ -65,11 +14,6 @@ spacetime__LaplacesDemon = function( p, YiU, Si, newdata ) {
 
     newdata$mean = as.vector(out$fit)
     newdata$sd = as.vector(out$se.fit) # this is correct: se.fit== stdev of the mean fit: eg:  https://stat.ethz.ch/pipermail/r-help/2005-July/075856.html
-
-    if (exists("spacetime.invlink", p)) {
-      newdata$mean = p$spacetime.invlink( newdata$mean )
-      newdata$sd  =  p$spacetime.invlink( newdata$sd )
-    }
 
     if (exists( "quantile_bounds", p)) {
       tq = quantile( x[,p$variables$Y], probs=p$quantile_bounds, na.rm=TRUE  )

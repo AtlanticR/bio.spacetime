@@ -12,8 +12,20 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
   
   Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
+    
+  Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
+  
   Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
   Y = spacetime_attach( p$storage.backend, p$ptr$Y )
+
+  if (exists("COV", p$variables)) {
+    Ycov = spacetime_attach( p$storage.backend, p$ptr$Ycov )
+    Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
+  }
+  if ( exists("TIME", p$variables) ) {
+    Ytime = spacetime_attach( p$storage.backend, p$ptr$Ytime )
+    Ptime = spacetime_attach( p$storage.backend, p$ptr$Ptime )
+  }  
 
   if ( p$storage.backend != "bigmemory.ram" ) {
     # force copy into RAM to reduce thrashing
@@ -40,23 +52,137 @@ spacetime_interpolate = function( ip=NULL, p ) {
     
     if ( is.null(pib)) next()
     
-    dist.cur = pib$dist
     ndata = length(pib$U)
     if ((ndata < p$n.min) | (ndata > p$n.max) ) next()
     YiU = Yi[pib$U]  
+    # So, YiU and dist_prediction determine the data entering into local model construction
+    dist_prediction = min( pib$dist,  p$spacetime_prediction_dist_min )
     rm(pib)
-    
+ 
     # construct prediction/output grid area ('pa')
+
+    windowsize.half = floor(dist_prediction/p$pres) # convert distance to discretized increments of row/col indices
+    pa_w = -windowsize.half : windowsize.half
+    pa_w_n = length(pa_w)
+    iwplon = p$rcS[Si,1] + pa_w
+    iwplat = p$rcS[Si,2] + pa_w
     pa = NULL
-    pa = spacetime_prediction_area( p, Si, dist.cur ) 
-    if (is.null(pa)) next()
+    pa = data.frame( iplon = rep.int(iwplon, pa_w_n) , 
+                     iplat = rep.int(iwplat, rep.int(pa_w_n, pa_w_n)) )
+
+    bad = which( (pa$iplon < 1 & pa$iplon > p$nplons) | (pa$iplat < 1 & pa$iplat > p$nplats) )
+    if (length(bad) > 0 ) pa = pa[-bad,]
+    if (nrow(pa)< 5) next()
+
+    pc_rc = paste( pa$iplon, pa$iplat, sep="~" )
+    pa$i = match( pc_rc, p$rcP$rc)
+    bad = which( !is.finite(pa$i))
+    if (length(bad) > 0 ) pa = pa[-bad,]
+
+    pa_n = nrow(pa)
+    if ( pa_n < 5) next()
+   
+    pa$plon = Ploc[ pa$i, 1]
+    pa$plat = Ploc[ pa$i, 2]
+
+    # prediction covariates i.e., independent variables/ covariates
+    pvars = c("plon", "plat", "i")
+    if (exists("COV", p$variables)) {
+      pvars = c( pvars, p$variables$COV)
+      for (ci in 1:length(p$variables$COV)) {
+        pa[,p$variables$COV[ci]] = Pcov[ pa$i, ci ]
+      }
+    }
+    pa = pa[, pvars]
+
+    if ( exists("TIME", p$variables) ) {
+      pa = cbind( pa[ rep.int(1:pa_n, length(Ptime)), ], 
+                       rep.int(Ptime[], rep(pa_n,length(Ptime) )) )
+      names(pa) = c( pvars, "tiyr" )
+      pa$yr = trunc( pa[,p$variables$TIME] )
+      if (exists("nw", p)) {
+        # where time exists and there are seasonal components, 
+        # additional variables are needed: cos.w, sin.w, etc.. 
+        # to add an offset to a trig function (b) must add cos to a sin function
+        # y ~ a + c*sin(x+b)
+        # y ~ a + c*sin(b)*cos(x) + c*cos(b)*sin(x)  
+        #   .. as C*sin(x+b) = C*( cos(b) * sin(x) + sin(b) * cos(x) )
+        # y ~ b0 + b1*x1 + b2*x2
+        # where: 
+        #   a = b0
+        #   c^2 = b1^2 + b2^2 = c^2*(sin^2(b) + cos^2(b))
+        #   c = sqrt(b1^2 + b2^2)
+        #   b1/b2 = tan(b)  
+        #   b = arctan(b1/b2)
+        pa$cos.w  = cos( pa$tiyr )
+        pa$sin.w  = sin( pa$tiyr )
+        # compute aditional harmonics only if required (to try to speed things up a bit)
+        if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
+          pa$cos.w2 = cos( 2*pa$tiyr )
+          pa$sin.w2 = sin( 2*pa$tiyr )
+        }
+        if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
+          pa$cos.w3 = cos( 3*pa$tiyr )
+          pa$sin.w3 = sin( 3*pa$tiyr )
+        }
+      }
+
+    }
+
+    if (0) {
+      Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
+      Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
+      plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data
+      points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )  # with covars and no other data issues
+      points( Sloc[Si,1] ~ Sloc[Si,2], col="blue" ) # statistical locations
+      points( p$plons[p$rcS[Si,1]] ~ p$plats[p$rcS[Si,2]] , col="purple", pch=25, cex=2 ) # check on p$rcS indexing
+      points( p$plons[pa$iplon] ~ p$plats[ pa$iplat] , col="cyan", pch=".", cex=0.01 ) # check on Proc iplat indexing
+      points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="black", pch=20, cex=0.7 ) # check on pa$i indexing -- prediction locations
+    }
+
     
+    # prep dependent data 
+
+    # reconstruct data for modelling (x) and data for prediction purposes (pa)
+    x = data.frame( Y[YiU] )
+    names(x) = p$variables$Y
+    if ( exists("spacetime_family", p) ) {
+      x[, p$variables$Y] = p$spacetime_family()$linkfun ( x[, p$variables$Y] ) 
+    }
+
+    x$plon = Yloc[YiU,1]
+    x$plat = Yloc[YiU,2]
+    x$Y_wgt = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
+    x$Y_wgt[ which( x$Y_wgt < 1e-3 ) ] = 1e-3
+    x$Y_wgt[ which( x$Y_wgt > 1 ) ] = 1
+    
+    if (exists("COV", p$variables)) {
+      for (i in 1:length(p$variables$COV )) x[, p$variables$COV[i] ] = Ycov[YiU,i]
+    }
+     
+    if (exists("TIME", p$variables)) {
+      x[, p$variables$TIME ] = Ytime[YiU,] 
+      x$yr = trunc( x[, p$variables$TIME])
+      if (exists("nw", p)) {
+        x$cos.w  = cos( 2*pi*x$tiyr )
+        x$sin.w  = sin( 2*pi*x$tiyr )
+        if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
+          x$cos.w2 = cos( 2*x$tiyr )
+          x$sin.w2 = sin( 2*x$tiyr )
+        }
+        if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
+          x$cos.w3 = cos( 3*x$tiyr )
+          x$sin.w3 = sin( 3*x$tiyr )
+        }
+      }
+    }
+
     # model and prediction
     res =NULL
   
     if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
          "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
-      res = spacetime__harmonics( p, YiU, Si, pa )
+      res = spacetime__harmonics( p, x, pa )
     }
     if (p$spacetime_engine=="habitat") res = spacetime__habitat(  )
     if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity(  )
@@ -64,15 +190,30 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (p$spacetime_engine=="inla") res = spacetime__inla()
 
     if ( is.null(res)) next()
-
     rm(pa)
+
+ 
+    if (exists( "quantile_bounds", p)) {
+      tq = quantile( x[,p$variables$Y], probs=p$quantile_bounds, na.rm=TRUE  )
+      bad = which( res$mean < tq[1] | res$mean > tq[2]  )
+      if (length( bad) > 0) {
+        res$mean[ bad] = NA
+        res$sd[ bad] = NA
+      }
+    }
+
+   if (exists("spacetime_family", p)) {
+      res$mean = p$spacetime_family()$linkinv( res$mean )
+      res$sd  =  p$spacetime_family()$linkinv( res$sd )
+    }
+
 
     # stats collator
     if ( !exists("spacetime_stats"),  res) res$spacetime_stats = list()
 
     if (exists("spacetime_variogram_engine", p) ) {
       sp.stat = NULL
-      sp.stat = try( spacetime_variogram(  Yloc[YiU,], Y[YiU], methods=p$spacetime_variogram_engine ) )
+      sp.stat = try( spacetime_variogram(  x[,p$variables$LOC], x[,p$variables$Y], methods=p$spacetime_variogram_engine ) )
       if (!is.null(sp.stat) && !("try-error" %in% class(sp.stat)) ){
         res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
         res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )

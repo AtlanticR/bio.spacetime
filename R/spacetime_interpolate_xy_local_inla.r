@@ -3,6 +3,7 @@
     #\\ generic spatial and space-time interpolator using inla
     #\\ parameter and data requirements can be seen in bathymetry\src\bathymetry.r
     #\\ note this can run in parallel and serial mode
+    #\\ NOTE:: link function is broken for this method
 
     # ip is the first parameter passed in the parallel mode
     if (exists( "libs", p)) RLibrary( p$libs )
@@ -32,7 +33,7 @@
 
     #---------------------
     # data for modelling
-    # dependent vars # already link-transformed in spacetime_db("dependent")
+    # dependent vars # already link-transformed in spacetime_interpolate
     Y = spacetime_attach( p$storage.backend, p$ptr$Y )
     Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
     
@@ -145,7 +146,6 @@
 
       obs_ydata = list()
       obs_ydata[[ p$variables$Y ]] = Y[YiU]
-      if ( exists("spacetime.link", p) ) obs_ydata[[ p$variables$Y ]] = p$spacetime.link ( Y[YiU] ) 
       
       DATA = inla.stack( tag="obs", data=obs_ydata, A=obs_A, effects=obs_eff, remove.unused=FALSE )
       rm ( obs_index, obs_eff, obs_ydata, obs_A )
@@ -254,10 +254,6 @@
           # precomputed ... slow and expensive in RAM/CPU, just extract from tag indices
           xmean = RES$summary.fitted.values[ preds_stack_index, "mean"]
           xsd = RES$summary.fitted.values[ preds_stack_index, "sd"]
-          if (exists("spacetime.invlink", p)) {
-            xmean =  p$spacetime.invlink( xmean )
-            xsd =  p$spacetime.invlink( xsd )
-          }
           preds = data.frame(xmean=xmean, xsd=xsd) 
         }
 
@@ -269,7 +265,6 @@
           posterior.samples = inla.posterior.sample(n=p$inla.nsamples, RES)
           rnm = rownames(posterior.samples[[1]]$latent )  
           posterior = sapply( posterior.samples, p$spacetime.posterior.extract, rnm=rnm )
-          if (exists("spacetime.invlink", p)) posterior = p$spacetime.invlink( posterior )   # return to user scale
           rm(posterior.samples); gc()
           # robustify the predictions by trimming extreme values .. will have minimal effect upon mean
           # but variance estimates should be useful/more stable as the tails are sometimes quite long 
