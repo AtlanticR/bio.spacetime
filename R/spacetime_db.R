@@ -34,6 +34,7 @@
       p$cache$Ploc =  file.path( p$stloc, "predictions_loc.cache" )
       p$cache$Ptime = file.path( p$stloc, "predictions_time.cache" )
       p$cache$Plogit = file.path( p$stloc, "Plogit.cache" )
+      p$cache$Plogitsd = file.path( p$stloc, "Plogitsd.cache" )
 
       p$cache$S =     file.path( p$stloc, "statistics.cache" )
       p$cache$Sloc =  file.path( p$stloc, "statistics_loc.cache" )

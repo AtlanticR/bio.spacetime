@@ -38,6 +38,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
     Y = Y[]
   }
 
+  if (p$spacetime_engine="habitat") {
+    Ylogit = spacetime_attach( p$storage.backend, p$ptr$Ylogit )
+    Plogit = spacetime_attach( p$storage.backend, p$ptr$Plogit )
+    Plogitsd = spacetime_attach( p$storage.backend, p$ptr$Plogitsd )
+  }
+
   Yi = spacetime_attach( p$storage.backend, p$ptr$Yi )
   Yi = as.vector(Yi[])  #force copy to RAM as a vector
 
@@ -282,7 +288,18 @@ spacetime_interpolate = function( ip=NULL, p ) {
           iumm = ui[mm]
           Psd[iumm] = stdev_update[mm]
           P  [iumm] = means_update[mm]
-      } }
+        } 
+        if (p$spacetime_engine="habitat") {
+          logit_stdev_update =  Plogitsd[ui] + ( res$predictions$logitsd[u] -  Plogitsd[ui] ) / Pn[ui]
+          logit_means_update = ( Plogit[ui] / Plogitsd[ui]^2 + res$predictions$logitmean[u] / res$predictions$logitsd[u]^2 ) / ( Plogitsd[ui]^(-2) + res$predictions$logitsd[u]^(-2) )
+          mm = which(is.finite( logit_means_update + logit_stdev_update ))
+          if( length(mm)> 0) {
+            iumm = ui[mm]
+            Plogitsd[iumm] = logit_stdev_update[mm]
+            Plogit  [iumm] = logit_means_update[mm]
+          } 
+        }
+      }
 
       # first time # no data yet
       v = setdiff(1:npred, u)         
@@ -291,6 +308,10 @@ spacetime_interpolate = function( ip=NULL, p ) {
         Pn [vi] = 1
         P  [vi] = res$predictions$mean[v]
         Psd[vi] = res$predictions$sd[v]
+        if (p$spacetime_engine="habitat") {
+          Plogit  [vi] = res$predictions$logitmean[v]
+          Plogitsd[vi] = res$predictions$logitsd[v]
+        }
       }
     }
 
@@ -311,9 +332,20 @@ spacetime_interpolate = function( ip=NULL, p ) {
         mm = which( is.finite( rowSums(means_update + stdev_update )))  # created when preds go outside quantile bounds .. this removes all data from a given location rather than the space-time .. severe but likely due to a poor prediction and so remove all (it is also faster this way as few manipulations)
         if( length(mm)> 0) {
           iumm = ui[mm] 
-          Psd[iumm] = stdev_update[mm]
-          P  [iumm] = means_update[mm]
-      } }
+          Psd[iumm,] = stdev_update[mm]
+          P  [iumm,] = means_update[mm]
+        } 
+        if (p$spacetime_engine="habitat") {
+          logit_stdev_update =  Plogitsd[ui,] + ( res$predictions$logitsd[u] -  Plogitsd[ui,] ) / Pn[ui]
+          logit_means_update = ( Plogit[ui,] / Plogitsd[ui,]^2 + res$predictions$logitmean[u] / res$predictions$logitsd[u]^2 ) / ( Plogitsd[ui,]^(-2) + res$predictions$logitsd[u]^(-2) )
+          mm = which(is.finite( logit_means_update + logit_stdev_update ))
+          if( length(mm)> 0) {
+            iumm = ui[mm]
+            Plogitsd[iumm,] = logit_stdev_update[mm]
+            Plogit  [iumm,] = logit_means_update[mm]
+          } 
+        }
+      }
 
       # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
       v = setdiff(1:npred, u) 
@@ -323,7 +355,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
         Pn [vi,] = 1
         P  [vi,] = res$predictions$mean[v]
         Psd[vi,] = res$predictions$sd[v]
-    } }
+        if (p$spacetime_engine="habitat") {
+          Plogit  [vi,] = res$predictions$logitmean[v]
+          Plogitsd[vi,] = res$predictions$logitsd[v]
+        }
+      } 
+    }
     
       if (0) {
         v = res$predictions

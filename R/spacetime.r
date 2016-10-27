@@ -71,27 +71,27 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
 
   if ( is.null(overwrite) || overwrite ) {
   
-    if (!exists("spacetime_engine_modelformula", p) ) {
+ #   if (!exists("spacetime_engine_modelformula", p) ) {
     # these are simple, generic defaults .. 
     # for more complex models (.i.e, with covariates) the formula should be passed directly 
-      p$spacetime_engine_modelformula = switch( p$spacetime_engine ,
-        seasonal.basic = ' s(yr) + s(dyear, bs="cc") ', 
-        seasonal.smoothed = ' s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ', 
-        seasonal.smoothed.depth.lonlat = ' s(yr, dyear) + s(yr, k=3) + s(dyear, bs="cc") +s(z) +s(plon) +s(plat) + s(plon, plat, by=yr), s(plon, plat, k=10, by=dyear ) ', 
-        seasonal.smoothed.depth.lonlat.complex = ' s(yr, dyear, bs="ts") + s(yr, k=3, bs="ts") + s(dyear, bs="cc") +s(z, bs="ts") +s(plon, bs="ts") +s(plat, bs="ts") + s(plon, plat, by=tiyr, k=10, bs="ts" ) ', 
-        harmonics.1 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ', 
-        harmonics.2 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' , 
-        harmonics.3 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) ',
-        harmonics.1.depth = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) +s(z)  ', 
-        harmonics.1.depth.lonlat = 's(yr, k=5, bs="ts") + s(cos.w, bs="ts") + s(sin.w, bs="ts") +s(z, k=3, bs="ts") +s(plon,k=3, bs="ts") +s(plat, k=3, bs="ts") + s(plon, plat, cos.w, sin.w, yr, k=100, bs="ts") ', 
-        inla = ' -1 + intercept + f( spatial.field, model=SPDE ) ', # not used
-        annual = ' s(yr) ',
-        '+1'  # default, ie. Y~ + 1 , just to catch error
-      )
-      p$spacetime_engine_modelformula = as.formula( paste( p$variables$Y, "~", p$spacetime_engine_modelformula ) )
-      message( "Verify that the spacetime_engine_modelformula is/should be:" )
-      message( p$spacetime_engine_modelformula )
-    }
+    #   p$spacetime_engine_modelformula = switch( p$spacetime_engine ,
+    #     seasonal.basic = ' s(yr) + s(dyear, bs="cc") ', 
+    #     seasonal.smoothed = ' s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ', 
+    #     seasonal.smoothed.depth.lonlat = ' s(yr, dyear) + s(yr, k=3) + s(dyear, bs="cc") +s(z) +s(plon) +s(plat) + s(plon, plat, by=yr), s(plon, plat, k=10, by=dyear ) ', 
+    #     seasonal.smoothed.depth.lonlat.complex = ' s(yr, dyear, bs="ts") + s(yr, k=3, bs="ts") + s(dyear, bs="cc") +s(z, bs="ts") +s(plon, bs="ts") +s(plat, bs="ts") + s(plon, plat, by=tiyr, k=10, bs="ts" ) ', 
+    #     harmonics.1 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ', 
+    #     harmonics.2 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' , 
+    #     harmonics.3 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) ',
+    #     harmonics.1.depth = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) +s(z)  ', 
+    #     harmonics.1.depth.lonlat = 's(yr, k=5, bs="ts") + s(cos.w, bs="ts") + s(sin.w, bs="ts") +s(z, k=3, bs="ts") +s(plon,k=3, bs="ts") +s(plat, k=3, bs="ts") + s(plon, plat, cos.w, sin.w, yr, k=100, bs="ts") ', 
+    #     inla = ' -1 + intercept + f( spatial.field, model=SPDE ) ', # not used
+    #     annual = ' s(yr) ',
+    #     '+1'  # default, ie. Y~ + 1 , just to catch error
+    #   )
+    #   p$spacetime_engine_modelformula = as.formula( paste( p$variables$Y, "~", p$spacetime_engine_modelformula ) )
+    #   message( "Verify that the spacetime_engine_modelformula is/should be:" )
+    #   message( p$spacetime_engine_modelformula )
+    # }
 
     # permit passing a function rather than data directly .. less RAM usage
     if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
@@ -104,24 +104,17 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
     } 
 
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
-    if ( p$spacetime_engine %in% c( "harmonics.1", "harmonics.2", "harmonics.3", "harmonics.1.depth",
-           "seasonal.basic", "seasonal.smoothed", "annual", "gam"  ) ) {
-      p$statsvars = c( "sdTotal", "rsquared", "ndata" )
-    } else if (p$spacetime_engine == "habitat") {
-  
-    } else if ( p$spacetime_engine=="inla") {
-      p$statsvars = c("varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
-    } else {
-      stop( "spacetime_engine not recognized")
-    }
-    
-    if (exists("spacetime_variogram_engine", p) ) {
-      p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
-    }
+    p$statsvars = c( "sdTotal", "rsquared", "ndata" )
+    if (p$spacetime_engine == "habitat") p$statsvars = c( p$statsvars)
+    if (p$spacetime_engine=="inla") p$statsvars = c(p$statsvars, "varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
+    if (exists("spacetime_variogram_engine", p) ) p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
+    if ( exists("TIME", p$variables) ) p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
+   
 
-    if ( exists("TIME", p$variables) ){
-      p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
-    }
+    # limits based on quantiles to permit in predictions 
+    Y = spacetime_attach( p$storage.backend, p$ptr$Y )
+    p$qs = quantile( Y, probs=p$quantile_bounds, na.rm=TRUE  )
+
 
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
     message( "These are large files (4 to 6 X 5GB), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
@@ -208,12 +201,12 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ylogit  = p$cache$Ylogit
-            bigmemory::as.big.matrix( Ylogit, type="double", backingfile=basename(p$bm$Ylogit), descriptorfile=basename(p$cache$Ylogit), backingpath=p$stloc )
+            bigmemory::as.big.matrix( logitY, type="double", backingfile=basename(p$bm$Ylogit), descriptorfile=basename(p$cache$Ylogit), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Ylogit = ff( Ylogit, dim=dim(Ylogit), file=p$cache$Ylogit, overwrite=TRUE )
+            p$ptr$Ylogit = ff( Ylogit, dim=dim(logitY), file=p$cache$Ylogit, overwrite=TRUE )
           }
-        rm(Ylogit)        
+        rm(logitY)        
       }
 
      # data coordinates
@@ -367,7 +360,20 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$Plogit), descriptorfile=basename(p$cache$Plogit), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Plogit = ff( P, dim=dim(Plogit), file=p$cache$Plogit, overwrite=TRUE )
+            p$ptr$Plogit = ff( P, dim=dim(P), file=p$cache$Plogit, overwrite=TRUE )
+          }
+
+          if (p$storage.backend == "bigmemory.ram" ) {
+            pl_= big.matrix( nrow=nrow(P), ncol=ncol(P) , type="double" )
+            pl_[] = P
+            p$ptr$Plogitsd = bigmemory::describe(pl_ )
+          }
+          if (p$storage.backend == "bigmemory.filebacked" ) {
+            p$ptr$Plogitsd  = p$cache$Plogitsd
+            bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$Plogitsd), descriptorfile=basename(p$cache$Plogitsd), backingpath=p$stloc )
+          }
+          if (p$storage.backend == "ff" ) {
+            p$ptr$Plogitsd = ff( P, dim=dim(P), file=p$cache$Plogitsd, overwrite=TRUE )
           }
         }
       rm(P)
