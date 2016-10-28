@@ -343,7 +343,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
         stdev_update = NULL
         means_update = NULL
 
-        if (p$spacetime_engine="habitat") {
+        if (p$spacetime_engine=="habitat") {
           logit_stdev_update =  Plogitsd[ui] + ( res$predictions$logitsd[u] -  Plogitsd[ui] ) / Pn[ui]
           logit_means_update = ( Plogit[ui] / Plogitsd[ui]^2 + res$predictions$logitmean[u] / res$predictions$logitsd[u]^2 ) / ( Plogitsd[ui]^(-2) + res$predictions$logitsd[u]^(-2) )
           mm = which(is.finite( logit_means_update + logit_stdev_update ))
