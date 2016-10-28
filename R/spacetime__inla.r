@@ -125,7 +125,7 @@
       # predictions
       
         preds = NULL
-        if (!(exists, "spacetime_inla_prediction", p)) p$spacetime_inla_prediction="direct"
+        if (! exists("spacetime_inla_prediction", p) ) p$spacetime_inla_prediction="direct"
 
         if ( p$spacetime_inla_prediction=="direct" ) {
           # precomputed ... slow and expensive in RAM/CPU, just extract from tag indices
