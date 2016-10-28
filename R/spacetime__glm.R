@@ -17,7 +17,7 @@ spacetime__glm = function( p, x, pa ) {
   if ( "try-error" %in% class(hmod) ) return( NULL )
 
   ss = summary(hmod)
-  rsq = 1−(ss$deviance/ss$null.deviance)
+  rsq = 1 - (ss$deviance/ss$null.deviance)
   if ( rsq < p$spacetime_rsquared_threshold ) return(NULL)
   
   out = try( predict( hmod, newdata=pa, type="response", se.fit=TRUE ) ) 
