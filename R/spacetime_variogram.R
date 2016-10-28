@@ -137,10 +137,10 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       vMod0 = vgm(psill=0.75, model="Mat", range=distx, nugget=0.25, kappa=1 ) # starting model parameters
       #vMod0 = vgm("Mat")
       vFitgs =  try( fit.variogram( vEm, vMod0, fit.kappa =TRUE, fit.sills=TRUE, fit.ranges=TRUE ) ) ## gstat's kappa is the Bessel function's "nu" smoothness parameter
-      vrange = min(1, geoR::practicalRange("matern", phi=vFitgs$range[2], kappa=vFitgs$kappa[2]  ) )
+      if  ("try-error" %in% vFitgs) return(NULL)
+      vrange = max(1, geoR::practicalRange("matern", phi=vFitgs$range[2], kappa=vFitgs$kappa[2]  ) )
       if (nc > nc_max ) break()
     }
-
     if  ("try-error" %in% vFitgs) return(NULL)
     vEm$dist = vEm$dist * out$maxdist
     vEm$gamma = vEm$gamma * out$varZ

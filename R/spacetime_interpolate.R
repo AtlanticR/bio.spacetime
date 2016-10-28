@@ -55,22 +55,78 @@ spacetime_interpolate = function( ip=NULL, p ) {
     Sflag[Si] = Inf   # over-written below if successful else if a run fails it does not get revisited 
     print( iip )
 
-    # find data withing a given distance / number 
-    pib = point_in_block( Sloc=Sloc, Si=Si, Yloc=Yloc, Yi=Yi, 
-      dist.max=p$dist.max, dist.min=p$dist.min, n.min=p$n.min, n.max=p$n.max, 
-      upsampling=p$upsampling, downsampling=p$downsampling, resize=TRUE ) 
-    
-    if ( is.null(pib)) next()
-    
-    ndata = length(pib$U)
-    if ((ndata < p$n.min) | (ndata > p$n.max) ) next()
-    YiU = Yi[pib$U]  
-    # So, YiU and dist_prediction determine the data entering into local model construction
-    # dist_model = pib$dist
-    dist_prediction = min( p$spacetime_distance_prediction, pib$dist ) # do not predict greater than p$spacetime_distance_prediction
+    # find data nearest S[Si,] and with sufficient data
+    dlon = abs( Sloc[Si,1] - Yloc[Yi,1] ) 
+    dlat = abs( Sloc[Si,2] - Yloc[Yi,2] ) 
+    U =  which( dlon  <= p$dist.max  & dlat <= p$dist.max )
+    ndata = length(U)
  
+    sp.stat = NULL
+    if (ndata > p$n.min) {
+      if (exists("spacetime_variogram_engine", p) ) {
+        sp.stat = try( spacetime_variogram(  Sloc[U,], Y[U], methods=p$spacetime_variogram_engine ) )
+        if (!is.null(sp.stat) && !("try-error" %in% class(sp.stat)) ){
+          dist.cur = sp.stat$range
+          U = which( dlon  <= dist.cur  & dlat <= dist.cur )
+          ndata =length(U)
+        }
+      }
+    }
+
+    if (ndata < p$n.min | ndata > p$n.max | is.null(sp.stat) ) { 
+      # as a backup .. find data withing a given distance / number 
+      if ( ndata < p$n.min )  {
+        for ( usamp in p$upsampling )  {
+          dist.cur = p$dist.max * usamp
+          U = which( dlon < dist.cur & dlat < dist.cur ) # faster to take a block 
+          ndata = length(U)
+          if ( ndata >= p$n.min ) {
+            if (ndata >= p$n.max) {
+              U = U[ .Internal( sample( length(U), p$n.max, replace=FALSE, prob=NULL)) ] 
+              ndata = p$n.max
+              break()
+            }
+          }
+        }
+      } else if ( ndata >= p$n.min ) {
+        if ( ndata <= p$n.max * 1.5 ) { # if close to p$n.max, subsample quickly 
+          if ( ndata > p$n.max) { 
+            U = U[ .Internal( sample( length(U), p$n.max, replace=FALSE, prob=NULL)) ] 
+            ndata = p$n.max
+            break()
+          } else {
+            for ( dsamp in p$downsampling )  {
+              dist.cur = p$dist.max * dsamp
+              U = which( dlon < dist.cur & dlat < dist.cur )# faster to take a block 
+              ndata = length(U)
+              if ( ndata <= p$n.max ) break()
+              if ( dist.cur <= p$dist.min ) {
+                # reached lower limit in distance, taking a subsample instead
+                U = which( dlon < p$dist.min & dlat < p$dist.min ) # faster to take a block 
+                U = U[ .Internal( sample( length(U), p$n.max, replace=FALSE, prob=NULL)) ]
+                ndata = length(U)
+                break()
+              }
+            }
+          }
+        }
+      }
+    }
+
+    rm (dlon, dlat); gc()
+
+    # final check
+    ndata = length(U)
+    if ((ndata < p$n.min) | (ndata > p$n.max) ) next()
+    YiU = Yi[U]  
+    # So, YiU and dist_prediction determine the data entering into local model construction
+    # dist_model = dist.cur
+
+    dist_prediction = min( p$spacetime_distance_prediction, dist.cur ) # do not predict greater than p$spacetime_distance_prediction
+
     # construct prediction/output grid area ('pa')
     windowsize.half = floor(dist_prediction/p$pres) # convert distance to discretized increments of row/col indices
+
     pa_w = -windowsize.half : windowsize.half
     pa_w_n = length(pa_w)
     iwplon = p$rcS[Si,1] + pa_w
@@ -78,13 +134,13 @@ spacetime_interpolate = function( ip=NULL, p ) {
     pa = NULL
     pa = data.frame( iplon = rep.int(iwplon, pa_w_n) , 
                      iplat = rep.int(iwplat, rep.int(pa_w_n, pa_w_n)) )
+    rm(iwplon, iwplat, pa_w)
 
     bad = which( (pa$iplon < 1 & pa$iplon > p$nplons) | (pa$iplat < 1 & pa$iplat > p$nplats) )
     if (length(bad) > 0 ) pa = pa[-bad,]
     if (nrow(pa)< 5) next()
 
-    pc_rc = paste( pa$iplon, pa$iplat, sep="~" )
-    pa$i = match( pc_rc, p$rcP$rc)
+    pa$i = match( paste( pa$iplon, pa$iplat, sep="~" ), p$rcP$rc)
     bad = which( !is.finite(pa$i))
     if (length(bad) > 0 ) pa = pa[-bad,]
 
@@ -94,14 +150,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
       if (0) {
         Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
         Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
-        plot( Yloc[pib$U,1]~ Yloc[pib$U,2], col="red", pch=".") # all data
+        plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data
         points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )  # with covars and no other data issues
         points( Sloc[Si,1] ~ Sloc[Si,2], col="blue" ) # statistical locations
         points( p$plons[p$rcS[Si,1]] ~ p$plats[p$rcS[Si,2]] , col="purple", pch=25, cex=2 ) # check on p$rcS indexing
         points( p$plons[pa$iplon] ~ p$plats[ pa$iplat] , col="cyan", pch=".", cex=0.01 ) # check on Proc iplat indexing
         points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="black", pch=20, cex=0.7 ) # check on pa$i indexing -- prediction locations
       }
-    rm(pib)
+    rm(U)
    
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
@@ -148,12 +204,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
           pa$sin.w3 = sin( 3*pa$tiyr )
         }
       }
-
     }
 
-    
     # prep dependent data 
-
     # reconstruct data for modelling (x) and data for prediction purposes (pa)
     x = data.frame( Y[YiU] )
     names(x) = p$variables$Y
@@ -199,7 +252,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon( p, x, pa )
     if (p$spacetime_engine=="inla") res = spacetime__inla( p, x, pa )
 
-    if ( is.null(res)) next()
 
     if (0) {
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions$tiyr==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
@@ -208,11 +260,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
       lattice::levelplot( P[pa$i,2] ~ Ploc[pa$i,1] + Ploc[ pa$i, 2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
     }
+
+    rm(x, pa); gc()
+    if ( is.null(res)) next()
    
-    rm(pa)
- 
     if (exists( "quantile_bounds", p)) {
-      tq = quantile( x[,p$variables$Y], probs=p$quantile_bounds, na.rm=TRUE  )
+      tq = quantile( Y[YiU], probs=p$quantile_bounds, na.rm=TRUE  )
       bad = which( res$mean < tq[1] | res$mean > tq[2]  )
       if (length( bad) > 0) {
         res$mean[ bad] = NA
@@ -225,13 +278,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
       res$sd  =  p$spacetime_family()$linkinv( res$sd )
     }
 
-
     # stats collator
-    if ( !exists("spacetime_stats",  res) ) res$spacetime_stats = list()
-
+    if (!exists("spacetime_stats",  res) ) res$spacetime_stats = list()
     if (exists("spacetime_variogram_engine", p) ) {
-      sp.stat = NULL
-      sp.stat = try( spacetime_variogram(  x[,p$variables$LOC], x[,p$variables$Y], methods=p$spacetime_variogram_engine ) )
       if (!is.null(sp.stat) && !("try-error" %in% class(sp.stat)) ){
         res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
         res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )
@@ -259,6 +308,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
               ar1 = try( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 0, na.action="na.omit") )
               if (!("try-error" %in% class(ts.stat))) res$spacetime_stats["ar_1"] = coef( ar1 )
     } } } } }
+    pac = NULL
+    pac_i = NULL
 
     # save stats
     for ( k in 1: length(p$statsvars) ) {
@@ -289,6 +340,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
           Psd[iumm] = stdev_update[mm]
           P  [iumm] = means_update[mm]
         } 
+        stdev_update = NULL
+        means_update = NULL
+
         if (p$spacetime_engine="habitat") {
           logit_stdev_update =  Plogitsd[ui] + ( res$predictions$logitsd[u] -  Plogitsd[ui] ) / Pn[ui]
           logit_means_update = ( Plogit[ui] / Plogitsd[ui]^2 + res$predictions$logitmean[u] / res$predictions$logitsd[u]^2 ) / ( Plogitsd[ui]^(-2) + res$predictions$logitsd[u]^(-2) )
@@ -297,7 +351,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
             iumm = ui[mm]
             Plogitsd[iumm] = logit_stdev_update[mm]
             Plogit  [iumm] = logit_means_update[mm]
-          } 
+          }
+          logit_stdev_update = NULL
+          logit_means_update = NULL
         }
       }
 
@@ -335,6 +391,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
           Psd[iumm,] = stdev_update[mm]
           P  [iumm,] = means_update[mm]
         } 
+        stdev_update = NULL
+        means_update = NULL
         if (p$spacetime_engine="habitat") {
           logit_stdev_update =  Plogitsd[ui,] + ( res$predictions$logitsd[u] -  Plogitsd[ui,] ) / Pn[ui]
           logit_means_update = ( Plogit[ui,] / Plogitsd[ui,]^2 + res$predictions$logitmean[u] / res$predictions$logitsd[u]^2 ) / ( Plogitsd[ui,]^(-2) + res$predictions$logitsd[u]^(-2) )
@@ -344,6 +402,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
             Plogitsd[iumm,] = logit_stdev_update[mm]
             Plogit  [iumm,] = logit_means_update[mm]
           } 
+          logit_stdev_update = NULL
+          logit_means_update = NULL
         }
       }
 
@@ -371,6 +431,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
         levelplot( mean ~ plon+plat, v, aspect="iso", labels=TRUE, pretty=TRUE, xlab=NULL,ylab=NULL,scales=list(draw=TRUE) )
       }
    
+    res = NULL
+
     # ----------------------
     # do last. it is an indicator of completion of all tares$predictionssks .. restarts would be broken otherwise
     Sflag[Si] = 1  # done .. any finite value would do
