@@ -24,19 +24,15 @@
         Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
         # vname = "ar_timerange"
         v = which( p$statsvars == vname) 
-        lattice::levelplot( S[,v] ~ Sloc[,1] + Sloc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+        lattice::levelplot( log(S[,v]) ~ Sloc[,1] + Sloc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
       }
 
       pp = grep("predictions", obj )
       if ( length(pp) > 0 ) {
         P = spacetime_attach( p$storage.backend, p$ptr$P )
-        P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
+        # P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
         Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
-        cl = 2 # default is mean value
-        if ( grep("n", obj) ) cl=1
-        if ( grep("mean", obj) ) cl=2
-        if ( grep("sd", obj) ) cl=3
-        lattice::levelplot( P[,2] + P0 ~ Ploc[,1] + Ploc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+        lattice::levelplot( (P[,100]) ~ Ploc[,1] + Ploc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
       }
 
     if ("mesh" %in% obj) {

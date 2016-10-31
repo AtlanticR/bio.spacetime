@@ -12,10 +12,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
   
   Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
-    
   Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
-  
   Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
+
   Y = spacetime_attach( p$storage.backend, p$ptr$Y )
 
   P = spacetime_attach( p$storage.backend, p$ptr$P )
@@ -64,20 +63,21 @@ spacetime_interpolate = function( ip=NULL, p ) {
     sp.stat = NULL
     if (ndata > p$n.min) {
       if (exists("spacetime_variogram_engine", p) ) {
-        sp.stat = try( spacetime_variogram(  Sloc[U,], Y[U], methods=p$spacetime_variogram_engine ) )
+        sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
         if (!is.null(sp.stat) && !("try-error" %in% class(sp.stat)) ){
-          dist.cur = sp.stat$range
+          dist.cur = sp.stat[[p$spacetime_variogram_engine]]$range
           U = which( dlon  <= dist.cur  & dlat <= dist.cur )
           ndata =length(U)
         }
       }
     }
 
-    if (ndata < p$n.min | ndata > p$n.max | is.null(sp.stat) ) { 
+    if (ndata < p$n.min | ndata > p$n.max | is.null(sp.stat) | dist.cur < p$dist.min | dist.cur > p$dist.max ) { 
       # as a backup .. find data withing a given distance / number 
-      if ( ndata < p$n.min )  {
+
+      if ( ndata < p$n.min | dist.cur < p$dist.min )  {
         for ( usamp in p$upsampling )  {
-          dist.cur = p$dist.max * usamp
+          dist.cur = p$dist.median * usamp
           U = which( dlon < dist.cur & dlat < dist.cur ) # faster to take a block 
           ndata = length(U)
           if ( ndata >= p$n.min ) {
@@ -95,8 +95,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
             ndata = p$n.max
             break()
           } else {
-            for ( dsamp in p$downsampling )  {
-              dist.cur = p$dist.max * dsamp
+              for ( dsamp in downsampling )  {
+              dist.cur = p$dist.median * dsamp
               U = which( dlon < dist.cur & dlat < dist.cur )# faster to take a block 
               ndata = length(U)
               if ( ndata <= p$n.max ) break()
@@ -139,8 +139,10 @@ spacetime_interpolate = function( ip=NULL, p ) {
     bad = which( (pa$iplon < 1 & pa$iplon > p$nplons) | (pa$iplat < 1 & pa$iplat > p$nplats) )
     if (length(bad) > 0 ) pa = pa[-bad,]
     if (nrow(pa)< 5) next()
-
-    pa$i = match( paste( pa$iplon, pa$iplat, sep="~" ), p$rcP$rc)
+    
+    rc_local = paste(pa$iplon, pa$iplat, sep = "~")
+    pa$i = match(rc_local, p$rcP$rc)
+    
     bad = which( !is.finite(pa$i))
     if (length(bad) > 0 ) pa = pa[-bad,]
 
@@ -157,7 +159,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
         points( p$plons[pa$iplon] ~ p$plats[ pa$iplat] , col="cyan", pch=".", cex=0.01 ) # check on Proc iplat indexing
         points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="black", pch=20, cex=0.7 ) # check on pa$i indexing -- prediction locations
       }
-    rm(U)
+    rm(U, rc_local)
    
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
@@ -175,8 +177,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ( exists("TIME", p$variables) ) {
       pa = cbind( pa[ rep.int(1:pa_n, length(Ptime)), ], 
                        rep.int(Ptime[], rep(pa_n,length(Ptime) )) )
-      names(pa) = c( pvars, "tiyr" )
-      pa$yr = trunc( pa[,p$variables$TIME] )
+      names(pa) = c( pvars, p$variables$TIME )
+      if ( p$variables$TIME != "yr" ) pa$yr = trunc( pa[,p$variables$TIME] )
       if (exists("nw", p)) {
         # where time exists and there are seasonal components, 
         pa$dyear = pa[, p$variables$TIME] - pa$yr  # fractional year
@@ -192,16 +194,16 @@ spacetime_interpolate = function( ip=NULL, p ) {
         #   c = sqrt(b1^2 + b2^2)
         #   b1/b2 = tan(b)  
         #   b = arctan(b1/b2)
-        pa$cos.w  = cos( pa$tiyr )
-        pa$sin.w  = sin( pa$tiyr )
+        pa$cos.w  = cos( pa[,p$variables$TIME] )
+        pa$sin.w  = sin( pa[,p$variables$TIME] )
         # compute aditional harmonics only if required (to try to speed things up a bit)
         if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
-          pa$cos.w2 = cos( 2*pa$tiyr )
-          pa$sin.w2 = sin( 2*pa$tiyr )
+          pa$cos.w2 = cos( 2*pa[,p$variables$TIME] )
+          pa$sin.w2 = sin( 2*pa[,p$variables$TIME] )
         }
         if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
-          pa$cos.w3 = cos( 3*pa$tiyr )
-          pa$sin.w3 = sin( 3*pa$tiyr )
+          pa$cos.w3 = cos( 3*pa[,p$variables$TIME] )
+          pa$sin.w3 = sin( 3*pa[,p$variables$TIME] )
         }
       }
     }
@@ -226,19 +228,18 @@ spacetime_interpolate = function( ip=NULL, p ) {
      
     if (exists("TIME", p$variables)) {
       x[, p$variables$TIME ] = Ytime[YiU,] 
-      x$yr = trunc( x[, p$variables$TIME])
-
+      if ( p$variables$TIME != "yr" ) x$yr = trunc( x[, p$variables$TIME])
       if (exists("nw", p)) {
         x$dyear = x[, p$variables$TIME] - x$yr
-        x$cos.w  = cos( 2*pi*x$tiyr )
-        x$sin.w  = sin( 2*pi*x$tiyr )
+        x$cos.w  = cos( 2*pi*x[,p$variables$TIME] )
+        x$sin.w  = sin( 2*pi*x[,p$variables$TIME] )
         if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
-          x$cos.w2 = cos( 2*x$tiyr )
-          x$sin.w2 = sin( 2*x$tiyr )
+          x$cos.w2 = cos( 2*x[,p$variables$TIME] )
+          x$sin.w2 = sin( 2*x[,p$variables$TIME] )
         }
         if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
-          x$cos.w3 = cos( 3*x$tiyr )
-          x$sin.w3 = sin( 3*x$tiyr )
+          x$cos.w3 = cos( 3*x[,p$variables$TIME] )
+          x$sin.w3 = sin( 3*x[,p$variables$TIME] )
         }
       }
     }
@@ -254,14 +255,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
 
     if (0) {
-      lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions$tiyr==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+      lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
       
-      for( i in sort(unique(res$predictions$tiyr)))  print(lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions$tiyr==i,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" ) )
-
-      lattice::levelplot( P[pa$i,2] ~ Ploc[pa$i,1] + Ploc[ pa$i, 2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+      for( i in sort(unique(res$predictions[,p$variables$TIME])))  print(lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==i,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" ) )
     }
 
-    rm(x, pa); gc()
+    rm(x); gc()
     if ( is.null(res)) next()
    
     if (exists( "quantile_bounds", p)) {
@@ -307,9 +306,13 @@ spacetime_interpolate = function( ip=NULL, p ) {
             if (length(which (is.finite(pac$mean))) > 5 ) {
               ar1 = try( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 0, na.action="na.omit") )
               if (!("try-error" %in% class(ts.stat))) res$spacetime_stats["ar_1"] = coef( ar1 )
-    } } } } }
-    pac = NULL
-    pac_i = NULL
+        } } } 
+        rm ( pac, piid )
+      } 
+      rm(pac_i)
+    }
+    
+    
 
     # save stats
     for ( k in 1: length(p$statsvars) ) {
@@ -355,6 +358,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
           logit_stdev_update = NULL
           logit_means_update = NULL
         }
+        rm(ui, mm, iumm)
       }
 
       # first time # no data yet
@@ -375,7 +379,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
       u = which( is.finite( P[res$predictions$i,1] ) )  # these have data already .. update
       nu = length( u ) 
       if ( nu > 0 ) {
-        ui = res$predictions$i[u]  # locations of P to modify
+        # locations of P to modify
+        ui = sort(unique(res$predictions$i[u]))
         nc = ncol(P)
         if (p$storage.backend == "ff" ) {
           add.ff(Pn, 1, ui, 1:nc ) # same as Pn[ui,] = Pn[ui]+1 but 2X faster
@@ -388,30 +393,32 @@ spacetime_interpolate = function( ip=NULL, p ) {
         mm = which( is.finite( rowSums(means_update + stdev_update )))  # created when preds go outside quantile bounds .. this removes all data from a given location rather than the space-time .. severe but likely due to a poor prediction and so remove all (it is also faster this way as few manipulations)
         if( length(mm)> 0) {
           iumm = ui[mm] 
-          Psd[iumm,] = stdev_update[mm]
-          P  [iumm,] = means_update[mm]
+          Psd[iumm,] = stdev_update[mm,]
+          P  [iumm,] = means_update[mm,]
         } 
         stdev_update = NULL
         means_update = NULL
         if (p$spacetime_engine=="habitat") {
           logit_stdev_update =  Plogitsd[ui,] + ( res$predictions$logitsd[u] -  Plogitsd[ui,] ) / Pn[ui]
           logit_means_update = ( Plogit[ui,] / Plogitsd[ui,]^2 + res$predictions$logitmean[u] / res$predictions$logitsd[u]^2 ) / ( Plogitsd[ui,]^(-2) + res$predictions$logitsd[u]^(-2) )
-          mm = which(is.finite( logit_means_update + logit_stdev_update ))
+          mm = which(is.finite( rowSums( logit_means_update + logit_stdev_update )))
           if( length(mm)> 0) {
             iumm = ui[mm]
-            Plogitsd[iumm,] = logit_stdev_update[mm]
-            Plogit  [iumm,] = logit_means_update[mm]
+            Plogitsd[iumm,] = logit_stdev_update[mm,]
+            Plogit  [iumm,] = logit_means_update[mm,]
           } 
           logit_stdev_update = NULL
           logit_means_update = NULL
         }
+        rm(ui, mm, iumm)
       }
 
       # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
+      u = which( is.finite( P[res$predictions$i,1] ) )  # these have data already .. update
       v = setdiff(1:npred, u) 
       nv = length(v)          # no data yet
       if ( nv > 0 ) {
-        vi = res$predictions$i[v]
+        vi = sort(unique(res$predictions$i[v]))
         Pn [vi,] = 1
         P  [vi,] = res$predictions$mean[v]
         Psd[vi,] = res$predictions$sd[v]
@@ -419,10 +426,20 @@ spacetime_interpolate = function( ip=NULL, p ) {
           Plogit  [vi,] = res$predictions$logitmean[v]
           Plogitsd[vi,] = res$predictions$logitsd[v]
         }
+        rm(vi)
       } 
     }
     
       if (0) {
+     
+        lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+        
+        for( i in sort(unique(res$predictions[,p$variables$TIME])))  print(lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==i,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" ) )
+      
+        for (i in 1:p$nt) {
+          print( lattice::levelplot( P[pa$i,i] ~ Ploc[pa$i,1] + Ploc[ pa$i, 2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" ) )
+        }
+
         v = res$predictions
         if ( exists("TIME", p$variables) ){
           v = v[which( v[,p$variables$TIME]==1990.55),]
@@ -432,6 +449,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
       }
    
     res = NULL
+    pa = NULL
 
     # ----------------------
     # do last. it is an indicator of completion of all tares$predictionssks .. restarts would be broken otherwise

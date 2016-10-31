@@ -1,14 +1,20 @@
 
 spacetime__LaplacesDemon = function( p, x, pa ) {
+   #\\ this is the core engine of spacetime .. localised space-time habiat modelling
+ 
+    if ( exists("spacetime_model_distance_weighted", p) ) {
+      if (p$spacetime_model_distance_weighted) {
+        Hmodel = try( gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","optim")  ) )
+      } else {
+        Hmodel = try( gam( p$spacetime_engine_modelformula, data=x, optimizer=c("outer","optim")  ) )
+      }
+    } else {
+        Hmodel = try( gam( p$spacetime_engine_modelformula, data=x ) )
+    } 
+    if ( "try-error" %in% class(Hmodel) ) return( NULL )
 
 
-    # estimate model parameters
-    hmod = try(
-      gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","bfgs")  ) )
-
-    if ( "try-error" %in% class(hmod) ) next()
-
-    out = try( predict( hmod, newdata=newdata, type="response", se.fit=T ) )
+    out = try( predict( Hmodel, newdata=newdata, type="response", se.fit=T ) )
 
     if ( "try-error" %in% class( out ) ) return( NULL )
 
@@ -24,7 +30,7 @@ spacetime__LaplacesDemon = function( p, x, pa ) {
       }
     }
 
-    ss = summary(hmod)
+    ss = summary(Hmodel)
     spacetime_stats = list( sdTotal=sd(Y[], na.rm=T), rsquared=ss$r.sq, ndata=ss$n ) # must be same order as p$statsvars
 
     return( list( predictions=newdata, spacetime_stats=spacetime_stats ) )

@@ -92,10 +92,10 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
     #   message( "Verify that the spacetime_engine_modelformula is/should be:" )
     #   message( p$spacetime_engine_modelformula )
     # }
-
+    
     # permit passing a function rather than data directly .. less RAM usage
     if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
-
+    
     # number of time slices
     if (!exists("nt", p)) {
       p$nt = 1  
@@ -546,9 +546,17 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
 
   }
 
+  # misc intermediate calcs to be done outside of parallel loops
+  p$dist.median = (p$dist.max + p$dist.min ) / 2
+  p$upsampling = sort( p$sampling[ which( p$sampling > 1 ) ] )
+  p$upsampling = p$upsampling[ which(p$upsampling*p$dist.median <= p$dist.max )]
+  p$downsampling = sort( p$sampling[ which( p$sampling < 1) ] , decreasing=TRUE )
+  p$downsampling = p$downsampling[ which(p$downsampling*p$dist.median >= p$dist.min )]
+
+
   # -------------------------------------
   # localized space-time modelling/interpolation/prediction
-  
+
   o = spacetime_db( p, DS="statistics.status" )
   p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
   parallel.run( spacetime_interpolate, p=p ) 

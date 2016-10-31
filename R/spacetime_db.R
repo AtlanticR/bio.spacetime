@@ -82,7 +82,6 @@
       if ( DS=="statistics.status" ) {
         # find locations for statistic computation and trim area based on availability of data
         # stats:
-        S = spacetime_attach( p$storage.backend, p$ptr$S )
         Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
         
         i = which( is.infinite( Sflag[] )  )  # not yet completed (due to a failed attempt)
@@ -94,11 +93,13 @@
             l =  which( bnds$inside.polygon == 0 ) # outside boundary
             if (0) {
               # to reset the flags
+              i = which( is.infinite( Sflag[] )  )  # not yet completed (due to a failed attempt)
+              Sflag[i] = NaN
               if (length(l)>0) Sflag[l] = Inf  # outside of data area
             }
         }}
 
-        out = list(problematic=i, incomplete=j, completed=k, n.total=nrow(S) ,
+        out = list(problematic=i, incomplete=j, completed=k, n.total=length(Sflag) ,
                      n.incomplete=length(j), n.problematic=length(i), 
                      n.complete=length(k) )
         out$prop_incomp=out$n.incomplete / ( out$n.incomplete + out$n.complete)
