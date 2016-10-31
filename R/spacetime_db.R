@@ -90,11 +90,12 @@
         bnds = try( spacetime_db( p, DS="boundary" ) )
         if (!is.null(bnds)) {
           if( !("try-error" %in% class(bnds) ) ) {
-            l =  which( bnds$inside.polygon == 0 ) # outside boundary
             if (0) {
               # to reset the flags
               i = which( is.infinite( Sflag[] )  )  # not yet completed (due to a failed attempt)
               Sflag[i] = NaN
+  
+              l =  which( bnds$inside.polygon == 0 ) # outside boundary
               if (length(l)>0) Sflag[l] = Inf  # outside of data area
             }
         }}
