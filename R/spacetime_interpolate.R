@@ -319,13 +319,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
     }
        
 
-    # save stats
-    for ( k in 1: length(p$statsvars) ) {
-      if (exists( p$statsvars[k], res$spacetime_stats )) {
-        S[Si,k] = res$spacetime_stats[[ p$statsvars[k] ]]
-      }
-    }
-
     # update SD estimates of predictions with those from other locations via the
     # incremental  method ("online algorithm") of mean estimation after Knuth ;
     # see https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
@@ -395,7 +388,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
         stdev_update =  Psd[ui,] + ( res$predictions$sd[u] -  Psd[ui,] ) / Pn[ui,]
         means_update = ( P[ui,] / Psd[ui,]^2 + res$predictions$mean[u] / res$predictions$sd[u]^2 ) / 
           ( Psd[ui,]^(-2) + res$predictions$sd[u]^(-2) )
-        mm = which( is.finite( rowSums(means_update + stdev_update )))  # created when preds go outside quantile bounds .. this removes all data from a given location rather than the space-time .. severe but likely due to a poor prediction and so remove all (it is also faster this way as few manipulations)
+        
+        updates = means_update + stdev_update 
+        if (!is.matrix(updates)) next()
+
+        mm = which( is.finite( rowSums(updates)))  # created when preds go outside quantile bounds .. this removes all data from a given location rather than the space-time .. severe but likely due to a poor prediction and so remove all (it is also faster this way as few manipulations)
         if( length(mm)> 0) {
           iumm = ui[mm] 
           Psd[iumm,] = stdev_update[mm,]
@@ -407,7 +404,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
         if (p$spacetime_engine=="habitat") {
           logit_stdev_update =  Plogitsd[ui,] + ( res$predictions$logitsd[u] -  Plogitsd[ui,] ) / Pn[ui]
           logit_means_update = ( Plogit[ui,] / Plogitsd[ui,]^2 + res$predictions$logitmean[u] / res$predictions$logitsd[u]^2 ) / ( Plogitsd[ui,]^(-2) + res$predictions$logitsd[u]^(-2) )
-          mm = which(is.finite( rowSums( logit_means_update + logit_stdev_update )))
+          updates = logit_means_update + logit_stdev_update
+          if (!is.matrix(updates)) next()
+          mm = which( is.finite( rowSums(updates)))  # created when preds go outside quantile bounds .. this removes 
           if( length(mm)> 0) {
             iumm = ui[mm]
             Plogitsd[iumm,] = logit_stdev_update[mm,]
@@ -435,6 +434,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
         }
         rm(vi)
       } 
+    }
+
+
+    # save stats
+    for ( k in 1: length(p$statsvars) ) {
+      if (exists( p$statsvars[k], res$spacetime_stats )) {
+        S[Si,k] = res$spacetime_stats[[ p$statsvars[k] ]]
+      }
     }
     
       if (0) {

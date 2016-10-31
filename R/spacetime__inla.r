@@ -29,7 +29,18 @@ spacetime__inla = function( p, x, pa ) {
 
   #-----------------
   # row, col indices
-
+  if ( !exists("spacetime.posterior.extract", p)) {
+    # example for simplest form 
+    p$spacetime.posterior.extract = function(s, rnm) {
+      # rnm are the rownames that will contain info about the indices ..
+      # optimally the grep search should only be done once but doing so would
+      # make it difficult to implement in a simple structure/manner ...
+      # the overhead is minimal relative to the speed of modelling and posterior sampling
+      i_intercept = grep("intercept", rnm, fixed=TRUE ) # matching the model index "intercept" above .. etc
+      i_spatial.field = grep("spatial.field", rnm, fixed=TRUE )
+      return(  s$latent[i_intercept,1] + s$latent[ i_spatial.field,1] )
+    }
+  }
 
   locs_noise = runif( nrow(x)*2, min=-p$pres*p$spacetime.noise, max=p$pres*p$spacetime.noise ) # add  noise  to prevent a race condition
 
