@@ -90,9 +90,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
             }
           }
         }
-      } 
-
-      if ( ndata >= p$n.min ) {
+      } else {
         if ( ndata <= p$n.max * 1.5 ) { # if close to p$n.max, subsample quickly 
           if ( ndata > p$n.max) { 
             U = U[ .Internal( sample( length(U), p$n.max, replace=FALSE, prob=NULL)) ] 
@@ -267,19 +265,23 @@ spacetime_interpolate = function( ip=NULL, p ) {
     rm(x); gc()
     if ( is.null(res)) next()
    
-    if (exists( "quantile_bounds", p)) {
-      tq = quantile( Y[YiU], probs=p$quantile_bounds, na.rm=TRUE  )
-      bad = which( res$mean < tq[1] | res$mean > tq[2]  )
-      if (length( bad) > 0) {
-        res$mean[ bad] = NA
-        res$sd[ bad] = NA
-      }
+    if (exists("spacetime_family", p)) {
+      res$predictions$mean = p$spacetime_family()$linkinv( res$predictions$mean )
+      res$predictions$sd  =  p$spacetime_family()$linkinv( res$predictions$sd )
     }
 
-    if (exists("spacetime_family", p)) {
-      res$mean = p$spacetime_family()$linkinv( res$mean )
-      res$sd  =  p$spacetime_family()$linkinv( res$sd )
+    if (exists( "quantile_bounds", p)) {
+      tq = quantile( Y[YiU], probs=p$quantile_bounds, na.rm=TRUE  )
+      bad = which( res$predictions$mean < tq[1] | res$predictions$mean > tq[2]  )
+      if (length( bad) > 0) {
+        res$predictions$mean[ bad] = NA
+        res$predictions$sd[ bad] = NA
+      }
     }
+    
+    ii = which( is.finite(res$predictions$mean+res$predictions$sd))
+    if (length(ii) < 5) next()  # looks to be a faulty solution
+
 
     # stats collator
     if (!exists("spacetime_stats",  res) ) res$spacetime_stats = list()
@@ -315,8 +317,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
       } 
       rm(pac_i)
     }
-    
-    
+       
 
     # save stats
     for ( k in 1: length(p$statsvars) ) {
@@ -336,7 +337,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ( ! exists("TIME", p$variables) ) {
 
       u = which( is.finite( P[res$predictions$i] ) )  # these have data already .. update
-      if ( length( u ) > 0 ) {
+      if ( length( u ) > 1 ) {
         ui = res$predictions$i[u]  # locations of P to modify
         Pn[ui] = Pn[ui] + 1 # update counts
         stdev_update =  Psd[ui] + ( res$predictions$sd[u] -  Psd[ui] ) / Pn[ui]
@@ -382,7 +383,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ( exists("TIME", p$variables) ) {
       u = which( is.finite( P[res$predictions$i,1] ) )  # these have data already .. update
       nu = length( u ) 
-      if ( nu > 0 ) {
+      if ( nu > 1 ) {  # ignore if only one point .. mostly because it can cause issues with matrix form .. 
         # locations of P to modify
         ui = sort(unique(res$predictions$i[u]))
         nc = ncol(P)
@@ -399,6 +400,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
           iumm = ui[mm] 
           Psd[iumm,] = stdev_update[mm,]
           P  [iumm,] = means_update[mm,]
+          iumm = NULL
         } 
         stdev_update = NULL
         means_update = NULL
@@ -410,16 +412,17 @@ spacetime_interpolate = function( ip=NULL, p ) {
             iumm = ui[mm]
             Plogitsd[iumm,] = logit_stdev_update[mm,]
             Plogit  [iumm,] = logit_means_update[mm,]
+            iumm = NULL
           } 
           logit_stdev_update = NULL
           logit_means_update = NULL
         }
-        rm(ui, mm, iumm)
+        rm(ui, mm)
+
       }
 
       # do this as a second pass in case NA's were introduced by the update .. unlikely , but just in case
-      u = which( is.finite( P[res$predictions$i,1] ) )  # these have data already .. update
-      v = setdiff(1:npred, u) 
+      v = which( !is.finite( P[res$predictions$i,1] ) )  # these have data already .. update
       nv = length(v)          # no data yet
       if ( nv > 0 ) {
         vi = sort(unique(res$predictions$i[v]))

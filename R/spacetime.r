@@ -108,7 +108,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
     if (p$spacetime_engine == "habitat") p$statsvars = c( p$statsvars)
     if (p$spacetime_engine=="inla") p$statsvars = c(p$statsvars, "varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
     if (exists("spacetime_variogram_engine", p) ) p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
-    if ( exists("TIME", p$variables) ) p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
+    if (exists("TIME", p$variables) ) p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
    
 
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
@@ -544,6 +544,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
 
     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     message( "Finished. Moving onto analysis... ")
+    gc()
 
   } else {
 
@@ -558,8 +559,11 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
 
   o = spacetime_db( p, DS="statistics.status" )
   p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
+  p$time.start =  Sys.time()
   parallel.run( spacetime_interpolate, p=p ) 
-
+  p$time.end =  Sys.time()
+  difftime( p$time.end, p$time.start )
+  
   # 2. fast/simple spatial interpolation for anything not resolved by the local analysis
   p = make.list( list( tiyr_index=p$ncP ), Y=p ) 
   parallel.run( spacetime_interpolate_xy_simple_multiple, p=p )  # this a kernel density method using fft
