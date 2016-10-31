@@ -111,11 +111,6 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
     if ( exists("TIME", p$variables) ) p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
    
 
-    # limits based on quantiles to permit in predictions 
-    Y = spacetime_attach( p$storage.backend, p$ptr$Y )
-    p$qs = quantile( Y, probs=p$quantile_bounds, na.rm=TRUE  )
-
-
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
     message( "These are large files (4 to 6 X 5GB), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
     spacetime_db( p=p, DS="cleanup" )
@@ -189,6 +184,10 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           p$ptr$Y = ff( Y, dim=dim(Y), file=p$cache$Y, overwrite=TRUE )
         }
       rm(Y)
+
+      # limits based on quantiles to permit in predictions 
+      Y = spacetime_attach( p$storage.backend, p$ptr$Y )
+      p$qs = quantile( Y[], probs=p$quantile_bounds, na.rm=TRUE  )
 
 
       if (p$spacetime_engine == "habitat") {
@@ -536,6 +535,13 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
         Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
         Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
 
+    # misc intermediate calcs to be done outside of parallel loops
+    p$dist.median = (p$dist.max + p$dist.min ) / 2
+    p$upsampling = sort( p$sampling[ which( p$sampling > 1 ) ] )
+    p$upsampling = p$upsampling[ which(p$upsampling*p$dist.median <= p$dist.max )]
+    p$downsampling = sort( p$sampling[ which( p$sampling < 1) ] , decreasing=TRUE )
+    p$downsampling = p$downsampling[ which(p$downsampling*p$dist.median >= p$dist.min )]
+
     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     message( "Finished. Moving onto analysis... ")
 
@@ -545,13 +551,6 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
     RLibrary( p$libs )
 
   }
-
-  # misc intermediate calcs to be done outside of parallel loops
-  p$dist.median = (p$dist.max + p$dist.min ) / 2
-  p$upsampling = sort( p$sampling[ which( p$sampling > 1 ) ] )
-  p$upsampling = p$upsampling[ which(p$upsampling*p$dist.median <= p$dist.max )]
-  p$downsampling = sort( p$sampling[ which( p$sampling < 1) ] , decreasing=TRUE )
-  p$downsampling = p$downsampling[ which(p$downsampling*p$dist.median >= p$dist.min )]
 
 
   # -------------------------------------

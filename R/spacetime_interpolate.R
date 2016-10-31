@@ -58,9 +58,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
     dlon = abs( Sloc[Si,1] - Yloc[Yi,1] ) 
     dlat = abs( Sloc[Si,2] - Yloc[Yi,2] ) 
     U =  which( dlon  <= p$dist.max  & dlat <= p$dist.max )
+    dist.cur = p$dist.max
     ndata = length(U)
  
     sp.stat = NULL
+
     if (ndata > p$n.min) {
       if (exists("spacetime_variogram_engine", p) ) {
         sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
@@ -75,7 +77,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (ndata < p$n.min | ndata > p$n.max | is.null(sp.stat) | dist.cur < p$dist.min | dist.cur > p$dist.max ) { 
       # as a backup .. find data withing a given distance / number 
 
-      if ( ndata < p$n.min | dist.cur < p$dist.min )  {
+      if ( ndata < p$n.min )  {
         for ( usamp in p$upsampling )  {
           dist.cur = p$dist.median * usamp
           U = which( dlon < dist.cur & dlat < dist.cur ) # faster to take a block 
@@ -88,29 +90,31 @@ spacetime_interpolate = function( ip=NULL, p ) {
             }
           }
         }
-      } else if ( ndata >= p$n.min ) {
+      } 
+
+      if ( ndata >= p$n.min ) {
         if ( ndata <= p$n.max * 1.5 ) { # if close to p$n.max, subsample quickly 
           if ( ndata > p$n.max) { 
             U = U[ .Internal( sample( length(U), p$n.max, replace=FALSE, prob=NULL)) ] 
             ndata = p$n.max
-            break()
-          } else {
-              for ( dsamp in downsampling )  {
-              dist.cur = p$dist.median * dsamp
-              U = which( dlon < dist.cur & dlat < dist.cur )# faster to take a block 
+          } 
+        } else {
+          for ( dsamp in p$downsampling )  { # lots of data .. downsample
+            dist.cur = p$dist.median * dsamp
+            U = which( dlon < dist.cur & dlat < dist.cur )# faster to take a block 
+            ndata = length(U)
+            if ( ndata <= p$n.max ) break()
+            if ( dist.cur <= p$dist.min ) {
+              # reached lower limit in distance, taking a subsample instead
+              U = which( dlon < p$dist.min & dlat < p$dist.min ) # faster to take a block 
+              U = U[ .Internal( sample( length(U), p$n.max, replace=FALSE, prob=NULL)) ]
               ndata = length(U)
-              if ( ndata <= p$n.max ) break()
-              if ( dist.cur <= p$dist.min ) {
-                # reached lower limit in distance, taking a subsample instead
-                U = which( dlon < p$dist.min & dlat < p$dist.min ) # faster to take a block 
-                U = U[ .Internal( sample( length(U), p$n.max, replace=FALSE, prob=NULL)) ]
-                ndata = length(U)
-                break()
-              }
+              break()
             }
           }
         }
-      }
+      } 
+
     }
 
     rm (dlon, dlat); gc()
