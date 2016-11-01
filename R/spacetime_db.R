@@ -82,30 +82,35 @@
       if ( DS=="statistics.status" ) {
         # find locations for statistic computation and trim area based on availability of data
         # stats:
-        Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
-        
-        i = which( is.infinite( Sflag[] )  )  # not yet completed (due to a failed attempt)
-        j = which( is.nan( Sflag[] )   )      # incomplete
-        k = which( is.finite (Sflag[] )  )     # completed
         bnds = try( spacetime_db( p, DS="boundary" ) )
+        ioutside = NA
         if (!is.null(bnds)) {
           if( !("try-error" %in% class(bnds) ) ) {
-            if (0) {
-              # to reset the flags
-              i = which( is.infinite( Sflag[] )  )  # not yet completed (due to a failed attempt)
-              Sflag[i] = NaN
-  
-              l =  which( bnds$inside.polygon == 0 ) # outside boundary
-              if (length(l)>0) Sflag[l] = Inf  # outside of data area
-            }
+            ioutside = which( bnds$inside.polygon == 0 ) # outside boundary
         }}
 
-        out = list(problematic=i, incomplete=j, completed=k, n.total=length(Sflag) ,
-                     n.incomplete=length(j), n.problematic=length(i), 
-                     n.complete=length(k) )
+        Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
+
+        itodo = which( is.nan( Sflag[] )   )      # incomplete
+        idone = which( is.finite (Sflag[] )  )     # completed
+        iskipped = which( is.infinite( Sflag[] )  ) # skipped due to problems or out of bounds
+        iproblems = setdiff( iskipped, ioutside)    # not completed due to a failed attempt
+                
+        out = list(problematic=iproblems, skipped=iskipped, incomplete=itodo, completed=idone, outside=ioutside,
+                   n.total=length(Sflag) , n.skipped=length(iskipped),
+                   n.incomplete=length(itodo), n.problematic=length(iproblems), 
+                   n.outside=length(which(is.finite(o$outside)),
+                   n.complete=length(idone) )
         out$prop_incomp=out$n.incomplete / ( out$n.incomplete + out$n.complete)
         message( paste("Proportion incomplete:", round(out$prop_incomp,5), "\n" )) 
         return( out )
+
+          if (0) {
+            o = out
+            if (length(which(is.finite(o$skipped))) > 0) Sflag[o$skipped] = NaN  # to reset all the flags
+            if (length(which(is.finite(o$outside))) > 0) Sflag[o$outside] = Inf  # flag area outside of data boundary to skip
+          }
+
       }
     }
 

@@ -1,5 +1,5 @@
 
-spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend="bigmemory.ram" ) {
+spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend="bigmemory.ram", boundary=TRUE ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
   #\\ speed ratings: bigmemory.ram (1), ff (2), bigmemory.filebacked (3)
@@ -98,7 +98,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
     
     # number of time slices
     if (!exists("nt", p)) {
-      p$nt = 1  
+      p$nt = 1  # default to 1 == no time
       if (exists( "ny", p)) p$nt = p$nt * p$ny  # annual time slices
       if (exists( "nw", p)) p$nt = p$nt * p$nw  # sub-annual time slices
     } 
@@ -456,19 +456,19 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
 
     rm(DATA); gc()
 
-    message( "Defining boundary polygon for data .. this reduces the number of points to analyse") 
-    message( "but takes a few minutes to set up ...")
-    spacetime_db( p, DS="boundary.redo" ) # ~ 5 min on nfs
-
+    if (boundary) {
+      message( "Defining boundary polygon for data .. this reduces the number of points to analyse") 
+      message( "but takes a few minutes to set up ...")
+      spacetime_db( p, DS="boundary.redo" ) # ~ 5 min on nfs
     # last set of filters to reduce problem size
-      S = spacetime_attach( p$storage.backend, p$ptr$S )
+      Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
       bnds = try( spacetime_db( p, DS="boundary" ) )
       if (!is.null(bnds)) {
         if( !("try-error" %in% class(bnds) ) ) {
-          # problematic and/or no data (e.g., land, etc.) and skipped
-          to.ignore =  which( bnds$inside.polygon == 0 ) # outside boundary
-          if (length(to.ignore)>0) S[to.ignore,] = Inf
+          to.ignore = which( bnds$inside.polygon == 0 ) # outside boundary
+          if (length(to.ignore)>0) Sflag[to.ignore,] = Inf
       }}
+    }
 
       Y = spacetime_attach( p$storage.backend, p$ptr$Y )
       Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
