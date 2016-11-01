@@ -75,7 +75,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
       if (! inherits(vEm, "try-error")) {
         Yvar = var( Yyy$y, na.rm=TRUE )
         vMod0 = try( vgm(psill=Yvar*0.8, model="Gau", range=p$dist.max, nugget=Yvar*0.2 ) )
-        if ( !inherits(vMod0, "try-error") {
+        if ( !inherits(vMod0, "try-error")) {
           vFitgs =  try( fit.variogram( vEm, vMod0, fit.sills=TRUE, fit.ranges=TRUE ) ) 
           # plot(vEm, model=vFitgs, add=T)
           if  (! inherits(vFitgs, "try-error") ) {
@@ -302,7 +302,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (!exists("spacetime_stats",  res) ) res$spacetime_stats = list()
     if (exists("spacetime_variogram_engine", p) ) {
       sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
-      if (!is.null(sp.stat) && !("try-error" %in% class(sp.stat)) ){
+      if (!is.null(sp.stat) && !inherits(sp.stat, "try-error") ) ){
         res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
         res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )
         res$spacetime_stats["range"] = sp.stat[[p$spacetime_variogram_engine]]$range
@@ -325,11 +325,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
         if (length(piid) > 5 ) {
           ts.stat = NULL
           ts.stat = try( spacetime_timeseries( pac$mean, method="fft" ) )
-          if (!is.null(ts.stat) && !("try-error" %in% class(ts.stat)) ){
+          if (!is.null(ts.stat) && !inherits(ts.stat, "try-error") ) {
             res$spacetime_stats["ar_timerange"] = ts.stat$quantilePeriod 
             if (length(which (is.finite(pac$mean))) > 5 ) {
               ar1 = try( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 0, na.action="na.omit") )
-              if (!("try-error" %in% class(ts.stat))) res$spacetime_stats["ar_1"] = coef( ar1 )
+              if (!inherits(ts.stat, "try-error")) res$spacetime_stats["ar_1"] = coef( ar1 )
         } } } 
         rm ( pac, piid )
       } 
