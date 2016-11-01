@@ -302,7 +302,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (!exists("spacetime_stats",  res) ) res$spacetime_stats = list()
     if (exists("spacetime_variogram_engine", p) ) {
       sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
-      if (!is.null(sp.stat) && !inherits(sp.stat, "try-error") ) ){
+      if (!is.null(sp.stat) && !inherits(sp.stat, "try-error") ) {
         res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
         res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )
         res$spacetime_stats["range"] = sp.stat[[p$spacetime_variogram_engine]]$range
