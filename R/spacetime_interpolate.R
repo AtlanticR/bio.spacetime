@@ -61,22 +61,36 @@ spacetime_interpolate = function( ip=NULL, p ) {
     dist.cur = p$dist.max
     ndata = length(U)
  
-    sp.stat = NULL
 
-    if (ndata > p$n.min) {
-      if (exists("spacetime_variogram_engine", p) ) {
-        sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
-        if (!is.null(sp.stat) && !("try-error" %in% class(sp.stat)) ){
-          dist.cur = sp.stat[[p$spacetime_variogram_engine]]$range
-          U = which( dlon  <= dist.cur  & dlat <= dist.cur )
-          ndata =length(U)
+    if (ndata > p$n.min ) {
+      if (ndata > p$n.max ) {
+        Uj = U[ .Internal( sample( ndata, p$n.max, replace=FALSE, prob=NULL)) ]  
+      } else {
+        Uj = U
+      }
+      #fast model with gstat to get a crude est of distance scale
+      Yyy = data.frame( cbind( p$spacetime_family$linkfun(Y[Uj]), Yloc[Uj,] ))
+      names( Yyy) = c("y", "plon", "plat" )
+      vEm = try( variogram( y ~ 1, locations=~plon+plat, data=Yyy, cutoff=p$dist.max, width=p$dist.max/15 ) ) # empirical variogram
+      if (! inherits(vEm, "try-error")) {
+        Yvar = var( Yyy$y, na.rm=TRUE )
+        vMod0 = try( vgm(psill=Yvar*0.8, model="Gau", range=p$dist.max, nugget=Yvar*0.2 ) )
+        if ( !inherits(vMod0, "try-error") {
+          vFitgs =  try( fit.variogram( vEm, vMod0, fit.sills=TRUE, fit.ranges=TRUE ) ) 
+          # plot(vEm, model=vFitgs, add=T)
+          if  (! inherits(vFitgs, "try-error") ) {
+            dist.cur = max(1, geoR::practicalRange("gaus", phi=vFitgs$range[2] ) )
+            U = which( dlon  <= dist.cur  & dlat <= dist.cur )
+            ndata =length(U)
+          }
         }
+        vFit = vMod0 = Yvar = vEm = Yyy = Uj = NULL
       }
     }
 
-    if (ndata < p$n.min | ndata > p$n.max | is.null(sp.stat) | dist.cur < p$dist.min | dist.cur > p$dist.max ) { 
-      # as a backup .. find data withing a given distance / number 
-
+    # as a backup .. find data withing a given distance / number 
+    if (ndata < p$n.min | ndata > p$n.max | dist.cur < p$dist.min | dist.cur > p$dist.max ) { 
+    
       if ( ndata < p$n.min )  {
         for ( usamp in p$upsampling )  {
           dist.cur = p$dist.median * usamp
@@ -161,7 +175,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
         points( p$plons[pa$iplon] ~ p$plats[ pa$iplat] , col="cyan", pch=".", cex=0.01 ) # check on Proc iplat indexing
         points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="black", pch=20, cex=0.7 ) # check on pa$i indexing -- prediction locations
       }
-    rm(U, rc_local)
+    rm(rc_local)
    
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
@@ -215,7 +229,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     x = data.frame( Y[YiU] )
     names(x) = p$variables$Y
     if ( exists("spacetime_family", p) ) {
-      x[, p$variables$Y] = p$spacetime_family()$linkfun ( x[, p$variables$Y] ) 
+      x[, p$variables$Y] = p$spacetime_family$linkfun ( x[, p$variables$Y] ) 
     }
 
     x$plon = Yloc[YiU,1]
@@ -258,7 +272,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     if (0) {
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
-      
+       
+      lattice::levelplot( mean ~ plon + plat, data=res$predictions, col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+   
       for( i in sort(unique(res$predictions[,p$variables$TIME])))  print(lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==i,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" ) )
     }
 
@@ -266,17 +282,16 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ( is.null(res)) next()
    
     if (exists("spacetime_family", p)) {
-      res$predictions$mean = p$spacetime_family()$linkinv( res$predictions$mean )
-      res$predictions$sd  =  p$spacetime_family()$linkinv( res$predictions$sd )
+      res$predictions$mean = p$spacetime_family$linkinv( res$predictions$mean )
+      res$predictions$sd  =  p$spacetime_family$linkinv( res$predictions$sd )
     }
 
     if (exists( "quantile_bounds", p)) {
       tq = quantile( Y[YiU], probs=p$quantile_bounds, na.rm=TRUE  )
-      bad = which( res$predictions$mean < tq[1] | res$predictions$mean > tq[2]  )
-      if (length( bad) > 0) {
-        res$predictions$mean[ bad] = NA
-        res$predictions$sd[ bad] = NA
-      }
+      toolow  = which( res$predictions$mean < tq[1] )
+      toohigh = which( res$predictions$mean > tq[2] )
+      if (length( toolow) > 0)  res$predictions$mean[ toolow] = tq[1]
+      if (length( toohigh) > 0) res$predictions$mean[ toohigh] = tq[2]
     }
     
     ii = which( is.finite(res$predictions$mean+res$predictions$sd))
@@ -286,13 +301,16 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # stats collator
     if (!exists("spacetime_stats",  res) ) res$spacetime_stats = list()
     if (exists("spacetime_variogram_engine", p) ) {
+      sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
       if (!is.null(sp.stat) && !("try-error" %in% class(sp.stat)) ){
         res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
         res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )
         res$spacetime_stats["range"] = sp.stat[[p$spacetime_variogram_engine]]$range
         res$spacetime_stats["phi"] = sp.stat[[p$spacetime_variogram_engine]]$phi
         res$spacetime_stats["nu"] = sp.stat[[p$spacetime_variogram_engine]]$nu
-    } }
+      } 
+      sp.stat = NULL
+    }
   
     if ( exists("TIME", p$variables) ){
       # annual ts, seasonally centered and spatially 

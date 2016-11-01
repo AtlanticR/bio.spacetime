@@ -16,7 +16,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
      p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
      RLibrary( p$libs )
      o = spacetime_db( p, DS="statistics.status" )
-     p = make.list( list( locs=sample( o$incomplete )) , Y=p ) 
+     p = make.list( list( locs=sample( o$todo )) , Y=p ) 
      spacetime_interpolate (p=p ) 
   }
 
@@ -558,7 +558,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
   # localized space-time modelling/interpolation/prediction
 
   o = spacetime_db( p, DS="statistics.status" )
-  p = make.list( list( locs=sample( o$incomplete )) , Y=p ) # random order helps use all cpus
+  p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
   p$time.start =  Sys.time()
   parallel.run( spacetime_interpolate, p=p ) 
   p$time.end =  Sys.time()

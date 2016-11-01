@@ -91,18 +91,18 @@
 
         Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
 
-        itodo = which( is.nan( Sflag[] )   )      # incomplete
-        idone = which( is.finite (Sflag[] )  )     # completed
+        itodo = setdiff( which( is.nan( Sflag[] )), ioutside)       # incomplete
+        idone = setdiff( which( is.finite (Sflag[] )  ), ioutside)      # completed
         iskipped = which( is.infinite( Sflag[] )  ) # skipped due to problems or out of bounds
         iproblems = setdiff( iskipped, ioutside)    # not completed due to a failed attempt
                 
-        out = list(problematic=iproblems, skipped=iskipped, incomplete=itodo, completed=idone, outside=ioutside,
+        out = list(problematic=iproblems, skipped=iskipped, todo=itodo, completed=idone, outside=ioutside,
                    n.total=length(Sflag) , n.skipped=length(iskipped),
-                   n.incomplete=length(itodo), n.problematic=length(iproblems), 
-                   n.outside=length(which(is.finite(o$outside)),
+                   n.todo=length(itodo), n.problematic=length(iproblems), 
+                   n.outside=length(which(is.finite(o$outside))),
                    n.complete=length(idone) )
-        out$prop_incomp=out$n.incomplete / ( out$n.incomplete + out$n.complete)
-        message( paste("Proportion incomplete:", round(out$prop_incomp,5), "\n" )) 
+        out$prop_incomp=out$n.todo / ( out$n.todo + out$n.complete)
+        message( paste("Proportion to do:", round(out$prop_incomp,5), "\n" )) 
         return( out )
 
           if (0) {

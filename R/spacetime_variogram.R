@@ -79,7 +79,6 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$kappa  )
       acov = out$geoR$varObs +  out$geoR$varSpatial * (1- acor)
       lines( out$varZ * acov ~ x , col="blue", lwd=2 )
-
   } 
 
   nc_max = 5  # max number of iterations
@@ -118,6 +117,10 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   # ------------------------
 
+  
+
+  # ------------------------
+
   if ("gstat" %in% methods){
     #\\ covariogram (||x||) = tau^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
     #\\ gstat::kappa == spBayes::nu
@@ -133,15 +136,15 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       nc = nc  + 1
       distx = distx * 1.25 # gradually increase distx until solution found
       vEm = try( variogram( z~1, locations=~plon+plat, data=xy, cutoff=distx, width=distx/nbreaks, cressie=TRUE ) ) # empirical variogram
-      if  ("try-error" %in% vEm) return(NULL)
+      if (inherits(vEm, "try-error") ) return(NULL)
       vMod0 = vgm(psill=0.75, model="Mat", range=distx, nugget=0.25, kappa=1 ) # starting model parameters
       #vMod0 = vgm("Mat")
       vFitgs =  try( fit.variogram( vEm, vMod0, fit.kappa =TRUE, fit.sills=TRUE, fit.ranges=TRUE ) ) ## gstat's kappa is the Bessel function's "nu" smoothness parameter
-      if  ("try-error" %in% vFitgs) return(NULL)
+      if (inherits(vFitgs, "try-error") )  return(NULL)
       vrange = max(1, geoR::practicalRange("matern", phi=vFitgs$range[2], kappa=vFitgs$kappa[2]  ) )
       if (nc > nc_max ) break()
     }
-    if  ("try-error" %in% vFitgs) return(NULL)
+    if (inherits(vFitgs, "try-error") )  return(NULL)
     vEm$dist = vEm$dist * out$maxdist
     vEm$gamma = vEm$gamma * out$varZ
     vFitgs$psill = vFitgs$psill * out$varZ
@@ -190,11 +193,11 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       nc = nc + 1
       distx = distx * 1.25
       vEm = try( variog( coords=xy, data=z, uvec=nbreaks, max.dist=distx ) )
-      if  ("try-error" %in% vEm) return(NULL)
+      if  (inherits(vEm, "try-error") )  return(NULL)
       vMod = try( variofit( vEm, nugget=0.5, kappa=1, cov.model="matern", ini.cov.pars=c(0.5, distx/4) ,
         fix.kappa=FALSE, fix.nugget=FALSE, max.dist=distx, weights="cressie" ) )
         # kappa is the smoothness parameter , also called "nu" by others incl. RF
-      if  ("try-error" %in% vMod) return(NULL)
+      if  (inherits(vMod, "try-error") )  return(NULL)
       # maximum likelihood method does not work well with Matern
       ML = FALSE
       if (ML) {
