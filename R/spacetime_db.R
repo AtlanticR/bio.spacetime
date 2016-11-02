@@ -106,6 +106,7 @@
         return( out )
 
           if (0) {
+            # to reset all rehected locations and redo ..
             o = out
             if (length(which(is.finite(o$skipped))) > 0) Sflag[o$skipped] = NaN  # to reset all the flags
             if (length(which(is.finite(o$outside))) > 0) Sflag[o$outside] = Inf  # flag area outside of data boundary to skip

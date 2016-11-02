@@ -71,7 +71,8 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
 
   if ( is.null(overwrite) || overwrite ) {
   
- #   if (!exists("spacetime_engine_modelformula", p) ) {
+  # these are some possible models:
+  #   if (!exists("spacetime_engine_modelformula", p) ) {
     # these are simple, generic defaults .. 
     # for more complex models (.i.e, with covariates) the formula should be passed directly 
     #   p$spacetime_engine_modelformula = switch( p$spacetime_engine ,
@@ -92,6 +93,8 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
     #   message( "Verify that the spacetime_engine_modelformula is/should be:" )
     #   message( p$spacetime_engine_modelformula )
     # }
+
+    p$variables$ALL = all.vars( p$spacetime_engine_modelformula )
     
     # permit passing a function rather than data directly .. less RAM usage
     if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
@@ -127,6 +130,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           sloc_   = big.matrix(nrow=nrow(Sloc), ncol=ncol(Sloc), type="double"  )
           sloc_[] = Sloc
           p$ptr$Sloc  = bigmemory::describe( sloc_  )
+          rm(sloc_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Sloc  = p$cache$Sloc
@@ -142,6 +146,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           s_ = big.matrix(nrow=nrow(Sloc), ncol=length( p$statsvars ), type="double"  )
           s_[] = S
           p$ptr$S  = bigmemory::describe( s_ )
+          rm(s_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$S  = p$cache$S
@@ -157,6 +162,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           sflag_ = big.matrix(nrow=nrow(Sloc), ncol=1, type="double" )
           sflag_[] = NaN
           p$ptr$Sflag  = bigmemory::describe( sflag_ )
+          rm(sflag_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Sflag  = p$cache$Sflag
@@ -175,6 +181,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           y_ = big.matrix( nrow=nrow(Y), ncol=1, type="double"  )
           y_[] = Y
           p$ptr$Y  = bigmemory::describe( y_ )
+          rm(y_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Y  = p$cache$Y
@@ -197,6 +204,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             yl_ = big.matrix( nrow=nrow(logitY), ncol=1, type="double" )
             yl_[] = logitY
             p$ptr$Ylogit  = bigmemory::describe( yl_ )
+            rm(yl_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ylogit  = p$cache$Ylogit
@@ -214,6 +222,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           yloc_ = big.matrix( nrow=nrow(Yloc), ncol=ncol(Yloc), type="double" )
           yloc_[] = Yloc
           p$ptr$Yloc = bigmemory::describe( yloc_ )
+          rm(yloc_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Yloc  = p$cache$Yloc
@@ -232,6 +241,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             ycov_ = big.matrix( nrow=nrow(Ycov), ncol=ncol(Ycov), type="double")
             ycov_[] = Ycov  
             p$ptr$Ycov  = bigmemory::describe( ycov_ )
+            rm(ycov_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ycov  = p$cache$Ycov
@@ -251,6 +261,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             ytime_ = big.matrix( nrow=nrow(Ytime), ncol=ncol(Ytime), type="double"  )
             ytime_[] = Ytime
             p$ptr$Ytime  = bigmemory::describe( ytime_ )
+            rm(ytime_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ytime  = p$cache$Ytime
@@ -274,6 +285,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             pcov_ = big.matrix( nrow=nrow(Pcov), ncol=ncol(Pcov), type="double"  )
             pcov_[] = Pcov
             p$ptr$Pcov  = bigmemory::describe( pcov_ )
+            rm(pcov_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Pcov  = p$cache$Pcov
@@ -293,6 +305,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             ptime_ = big.matrix( nrow=nrow(Ptime), ncol=ncol(Ptime), type="double" )
             ptime_[] = Ptime
             p$ptr$Ptime  = bigmemory::describe( ptime_ )
+            rm(ptime_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ptime  = p$cache$Ptime
@@ -311,6 +324,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           p_ = big.matrix( nrow=nrow(P), ncol=ncol(P), type="double" )
           p_[] = P
           p$ptr$P  = bigmemory::describe( p_ )
+          rm(p_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$P  = p$cache$P
@@ -325,6 +339,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           pn_ = big.matrix( nrow=nrow(P), ncol=ncol(P), type="double" )
           pn_[] = P
           p$ptr$Pn = bigmemory::describe( pn_ )
+          rm(pn_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Pn  = p$cache$Pn
@@ -339,6 +354,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           psd_ = big.matrix( nrow=nrow(P), ncol=ncol(P), type="double" )
           psd_[] = P
           p$ptr$Psd =bigmemory::describe( psd_ )
+          rm(psd_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Psd  = p$cache$Psd
@@ -353,6 +369,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             pl_= big.matrix( nrow=nrow(P), ncol=ncol(P) , type="double" )
             pl_[] = P
             p$ptr$Plogit = bigmemory::describe(pl_ )
+            rm(pl_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Plogit  = p$cache$Plogit
@@ -366,6 +383,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             pl_= big.matrix( nrow=nrow(P), ncol=ncol(P) , type="double" )
             pl_[] = P
             p$ptr$Plogitsd = bigmemory::describe(pl_ )
+            rm(pl_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Plogitsd  = p$cache$Plogitsd
@@ -384,6 +402,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             ploc_ = big.matrix( nrow=nrow(Ploc), ncol=ncol(Ploc), type="double" )
             ploc_[] = Ploc
             p$ptr$Ploc  = bigmemory::describe( ploc_ )
+            rm(ploc_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$Ploc  = p$cache$Ploc
@@ -403,6 +422,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
               m2p_ = big.matrix( nrow=nrow(Mat2Ploc), ncol=ncol(Mat2Ploc), type="double" )
               m2p_[] = Mat2Ploc
               p$ptr$Mat2Ploc  = bigmemory::describe( m2p_ )
+              rm(m2p_)
             }
             if (p$storage.backend == "bigmemory.filebacked" ) {
               p$ptr$Mat2Ploc  = p$cache$Mat2Ploc
@@ -424,6 +444,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
              p0_ = big.matrix( nrow=nrow(P0), ncol=ncol(P0), type="double" )
              p0_[] = P0
              p$ptr$P0  = bigmemory::describe( p0_ )
+             rm(p0_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$P0  = p$cache$P0
@@ -439,6 +460,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
             p0sd_ = big.matrix( nrow=nrow(P0), ncol=ncol(P0), type="double" )
             p0sd_[] = P0
             p$ptr$P0sd  = bigmemory::describe( p0sd_ )
+            rm(p0sd_)
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
             p$ptr$P0sd  = p$cache$P0sd
@@ -468,6 +490,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
           to.ignore = which( bnds$inside.polygon == 0 ) # outside boundary
           if (length(to.ignore)>0) Sflag[to.ignore,] = Inf
       }}
+      bnds = NULL
     }
 
       Y = spacetime_attach( p$storage.backend, p$ptr$Y )
@@ -492,7 +515,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
         if (length(bad)> 0 ) Yi[bad] = NA
         Yi = na.omit(Yi)
       }
-      
+
       # data locations
       if (exists("TIME", p$variables)) {
         Ytime = spacetime_attach( p$storage.backend, p$ptr$Ytime )
@@ -500,13 +523,14 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
         if (length(bad)> 0 ) Yi[bad] = NA
         Yi = na.omit(Yi)
       }
-      rm(bad)
+      bad = NULL
 
       Yi = as.matrix(Yi)
         if (p$storage.backend == "bigmemory.ram" ) {
           yi_ = big.matrix( nrow=nrow(Yi), ncol=ncol(Yi), type="double" )
           yi_[] = Yi
           p$ptr$Yi  = bigmemory::describe( yi_ )
+          rm(yi_)
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Yi  = p$cache$Yi

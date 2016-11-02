@@ -8,6 +8,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
   #---------------------
   # data for modelling
   # dependent vars # already link-transformed in spacetime_db("dependent")
+  
   S = spacetime_attach( p$storage.backend, p$ptr$S )
   Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
   
@@ -195,11 +196,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
                        rep.int(Ptime[], rep(pa_n,length(Ptime) )) )
       names(pa) = c( pvars, p$variables$TIME )
       if ( p$variables$TIME != "yr" ) pa$yr = trunc( pa[,p$variables$TIME] )
-      if (exists("nw", p)) {
         # where time exists and there are seasonal components, 
-        pa$dyear = pa[, p$variables$TIME] - pa$yr  # fractional year
-        # additional variables are needed: cos.w, sin.w, etc.. 
-        # to add an offset to a trig function (b) must add cos to a sin function
+        # additional variables are created/needed here: cos.w, sin.w, etc.. 
+        # for harmonic analysis: to add an offset to a trig function (b) must add cos to a sin function
         # y ~ a + c*sin(x+b)
         # y ~ a + c*sin(b)*cos(x) + c*cos(b)*sin(x)  
         #   .. as C*sin(x+b) = C*( cos(b) * sin(x) + sin(b) * cos(x) )
@@ -210,18 +209,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
         #   c = sqrt(b1^2 + b2^2)
         #   b1/b2 = tan(b)  
         #   b = arctan(b1/b2)
-        pa$cos.w  = cos( pa[,p$variables$TIME] )
-        pa$sin.w  = sin( pa[,p$variables$TIME] )
-        # compute aditional harmonics only if required (to try to speed things up a bit)
-        if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
-          pa$cos.w2 = cos( 2*pa[,p$variables$TIME] )
-          pa$sin.w2 = sin( 2*pa[,p$variables$TIME] )
-        }
-        if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
-          pa$cos.w3 = cos( 3*pa[,p$variables$TIME] )
-          pa$sin.w3 = sin( 3*pa[,p$variables$TIME] )
-        }
-      }
+        if ("dyear" %in% p$variables$ALL)  pa$dyear = pa[, p$variables$TIME] - pa$yr  # fractional year
+        if ("cos.w" %in% p$variables$ALL)  pa$cos.w  = cos( pa[,p$variables$TIME] )
+        if ("sin.w" %in% p$variables$ALL)  pa$sin.w  = sin( pa[,p$variables$TIME] )
+        if ("cos.w2" %in% p$variables$ALL) pa$cos.w2 = cos( 2*pa[,p$variables$TIME] )
+        if ("sin.w2" %in% p$variables$ALL) pa$sin.w2 = sin( 2*pa[,p$variables$TIME] )
+        if ("cos.w3" %in% p$variables$ALL) pa$cos.w3 = cos( 3*pa[,p$variables$TIME] )
+        if ("sin.w3" %in% p$variables$ALL) pa$sin.w3 = sin( 3*pa[,p$variables$TIME] )
+        # more than 3 harmonics would not be advisable .. but you would add them here..
     }
 
     # prep dependent data 
@@ -230,6 +225,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
     names(x) = p$variables$Y
     if ( exists("spacetime_family", p) ) {
       x[, p$variables$Y] = p$spacetime_family$linkfun ( x[, p$variables$Y] ) 
+      if (p$spacetime_engine=="habitat") {
+        x[, p$variables$Ylogit ] = p$spacetime_family_logit$linkfun ( x[, p$variables$Ylogit] ) ### -- need to conform with data structure ... check once ready
+      }
     }
 
     x$plon = Yloc[YiU,1]
@@ -244,20 +242,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
      
     if (exists("TIME", p$variables)) {
       x[, p$variables$TIME ] = Ytime[YiU,] 
-      if ( p$variables$TIME != "yr" ) x$yr = trunc( x[, p$variables$TIME])
-      if (exists("nw", p)) {
-        x$dyear = x[, p$variables$TIME] - x$yr
-        x$cos.w  = cos( 2*pi*x[,p$variables$TIME] )
-        x$sin.w  = sin( 2*pi*x[,p$variables$TIME] )
-        if ( p$spacetime_engine %in% c( "harmonics.2", "harmonics.3"  ) ) {
-          x$cos.w2 = cos( 2*x[,p$variables$TIME] )
-          x$sin.w2 = sin( 2*x[,p$variables$TIME] )
-        }
-        if ( p$spacetime_engine %in% c( "harmonics.3"  ) ) {
-          x$cos.w3 = cos( 3*x[,p$variables$TIME] )
-          x$sin.w3 = sin( 3*x[,p$variables$TIME] )
-        }
-      }
+      if ( p$variables$TIME != "yr" ) x$yr = trunc( x[, p$variables$TIME]) 
+      if ("dyear" %in% p$variables$ALL)  x$dyear = x[, p$variables$TIME] - x$yr
+      if ("cos.w" %in% p$variables$ALL)  x$cos.w  = cos( 2*pi*x[,p$variables$TIME] )
+      if ("sin.w" %in% p$variables$ALL)  x$sin.w  = sin( 2*pi*x[,p$variables$TIME] )
+      if ("cos.w2" %in% p$variables$ALL) x$cos.w2 = cos( 2*x[,p$variables$TIME] )
+      if ("sin.w2" %in% p$variables$ALL) x$sin.w2 = sin( 2*x[,p$variables$TIME] )
+      if ("cos.w3" %in% p$variables$ALL) x$cos.w3 = cos( 3*x[,p$variables$TIME] )
+      if ("sin.w3" %in% p$variables$ALL) x$sin.w3 = sin( 3*x[,p$variables$TIME] )
     }
 
     # model and prediction
@@ -268,7 +260,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity( p, x, pa )
     if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon( p, x, pa )
     if (p$spacetime_engine=="inla") res = spacetime__inla( p, x, pa )
-
 
     if (0) {
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
@@ -283,7 +274,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
    
     if (exists("spacetime_family", p)) {
       res$predictions$mean = p$spacetime_family$linkinv( res$predictions$mean )
-      res$predictions$sd  =  p$spacetime_family$linkinv( res$predictions$sd )
+      res$predictions$sd   = p$spacetime_family$linkinv( res$predictions$sd )
+      if (p$spacetime_engine=="habitat") {
+        res$predictions$logitmean = p$spacetime_family_logit$linkinv( res$predictions$logitmean )
+        res$predictions$logitsd   = p$spacetime_family_logit$linkinv( res$predictions$logitsd )
+      }
     }
 
     if (exists( "quantile_bounds", p)) {

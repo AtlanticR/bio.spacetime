@@ -24,7 +24,7 @@
         Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
         # vname = "ar_timerange"
         v = which( p$statsvars == vname) 
-        lattice::levelplot( log(S[,v]) ~ Sloc[,1] + Sloc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
+        lattice::levelplot( (S[,v]) ~ Sloc[,1] + Sloc[,2], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
       }
 
       pp = grep("predictions", obj )
