@@ -1,12 +1,12 @@
 
-spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend="bigmemory.ram", boundary=TRUE ) {
+spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backend="bigmemory.ram", boundary=TRUE ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
   #\\ speed ratings: bigmemory.ram (1), ff (2), bigmemory.filebacked (3)
 
   if(0) {
      p = bio.temperature::temperature.parameters( current.year=2016 )
-     family="gaussian"
+     family=gaussian()
      overwrite=NULL
      storage.backend="bigmemory.ram"
      DATA='hydro.db( p=p, DS="spacetime.input" )'
@@ -40,7 +40,7 @@ spacetime = function( p, DATA, family=gaussian, overwrite=NULL, storage.backend=
   # family handling copied from glm
   if (!exists( "spacetime_family", p)) {
     if (is.character(family)) 
-      family = get(family, mode = "function", envir = parent.frame())
+      stop( "Please send family as a function") 
     if (is.function(family)) 
       family = family()
     if (is.null(family$family)) {
