@@ -43,9 +43,15 @@
 
       p$cache$Mat2Ploc = file.path( p$stloc, "Mat2Ploc.cache" )
 
-      p$bm = p$cache
-      for (i in 1:length(p$bm)) p$bm[[i]] = gsub(".cache$", ".bigmemory", p$bm[[i]] )
+      if (p$storage.backend == "bigmemory.filebacked" ) {
+        p$bm = p$cache
+        for (i in 1:length(p$bm)) p$bm[[i]] = gsub(".cache$", ".bigmemory", p$bm[[i]] )
+      }
 
+      if (p$storage.backend == "bigmemory.ram" ) {
+        p$bm=list() # initial storage of ram objects
+      }      
+      
       return(p)
     }
 
