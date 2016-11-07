@@ -81,6 +81,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       lines( out$varZ * acov ~ x , col="blue", lwd=2 )
   } 
 
+
   nc_max = 5  # max number of iterations
 
   xy = as.data.frame(xy)
@@ -116,7 +117,46 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
 
   # ------------------------
+  if ("fields" %in% methods){
+    require(fields)
+    vg = vgram( xy, z, N=nbreaks, dmax=maxdist )
+    smoothness =nu = 2
+    # theta = range paramter
+    theta.grid =c(0.05, 0.1, 0.2, 0.4, 0.5, 0.75, 1, 2, 5, 10)
+    
+    res =NULL  
+    fsp = MLESpatialProcess.fast(xy, z, cov.function = "stationary.cov",  cov.args = list(Covariance = "Matern", smoothness = nu) )
+    if ( fsp$converge ==0 ) {
+      res = fsp$pars 
+      } else {
+      fsp = MLE.Matern(xy, z, smoothness=nu, theta.grid =theta.grid )
+      if( is.finite(sum(fsp$pars))) res = fsp$pars 
+    }
+    if (is.null(res)) {
+      # use the slower/more robust version
+      fsp = MLESpatialProcess(xy, z, theta.grid=theta.grid, 
+        cov.function = "stationary.cov",  cov.args = list(Covariance = "Matern", smoothness = nu), 
+        ngrid = 10, niter = 15, tol = 0.01, Distance = "rdist", nstep.cv = 50 )
+      if( is.finite(sum(fsp$pars))) res = fsp$pars 
+    }
+    if (is.null(res)) return(NULL)
 
+    vgm = Matern( d=vg$centers, range=res$theta, smoothness=nu )    
+    nugget = fsp$pars[3]
+    sill = fsp$pars[1]
+    cvg = nugget + sill * (1-vgm)
+    plot( cvg, vg$centers, type="l")
+  
+    if( plot.predictions){
+      lambda.MLE<- fsp$pars[3]/fsp$pars[1]  # ratio nugget / sill variance
+      fsp2<- Krig( xy, z, Covariance="Matern", theta=fsp$pars[2], smoothness=nu, lambda= lambda.MLE)
+      surface(fsp2)
+      fsp.p<- predictSurface(fsp2, lambda= lambda.MLE, nx=200, ny=200, )
+      surface(fsp.p, type="I")
+      fsp.p2<- predictSurfaceSE(fsp2,)
+      surface(fsp.p2, type="C")
+    }
+  }
   
 
   # ------------------------
@@ -168,6 +208,18 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       acor = geoR::matern( x, phi=out$gstat$phi, kappa=out$gstat$nu  )
       acov = out$gstat$varObs + out$gstat$varSpatial * (1- acor)
       lines( acov~x , col="red" )
+    
+      if (0) {
+        # looks at the predictions
+        gs <- gstat(id = "z", formula = z~1, locations=~plon+plat, data=xy, maxdist=distx, nmin=10, force=TRUE, model=vFitgs )
+        # variogram of residuals
+        predlocs = expand.grid( plon=seq(min(xy$plon), max(xy$plon), length.out=100), plat=seq(min(xy$plat), max(xy$plat),  length.out=100) )
+        gridded(predlocs) = ~plon+plat
+        # prediction from local neighbourhoods within radius of 170 m or at least 10 points
+        preds <- predict(gs, predlocs)
+        spplot(preds)
+
+      }
     }
     return(out)
   }

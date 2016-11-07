@@ -77,7 +77,7 @@
 
     # -----------------
     
-    if (DS %in% c( "statistics.status", "statistics.box" ) ) {
+    if (DS %in% c( "statistics.status", "statistics.box", "statistics.reset.problem.locations" ) ) {
           
       if (DS == "statistics.box")  {
         sbbox = list( plats = seq( p$corners$plat[1], p$corners$plat[2], by=p$spacetime_distance_statsgrid ),
@@ -94,30 +94,27 @@
           if( !("try-error" %in% class(bnds) ) ) {
             ioutside = which( bnds$inside.polygon == 0 ) # outside boundary
         }}
-
         Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
-
         itodo = setdiff( which( is.nan( Sflag[] )), ioutside)       # incomplete
         idone = setdiff( which( is.finite (Sflag[] )  ), ioutside)      # completed
         iskipped = which( is.infinite( Sflag[] )  ) # skipped due to problems or out of bounds
         iproblems = setdiff( iskipped, ioutside)    # not completed due to a failed attempt
-                
         out = list(problematic=iproblems, skipped=iskipped, todo=itodo, completed=idone, outside=ioutside,
                    n.total=length(Sflag) , n.skipped=length(iskipped),
                    n.todo=length(itodo), n.problematic=length(iproblems), 
-                   n.outside=length(which(is.finite(o$outside))),
+                   n.outside=length(which(is.finite(ioutside))),
                    n.complete=length(idone) )
         out$prop_incomp=out$n.todo / ( out$n.todo + out$n.complete)
         message( paste("Proportion to do:", round(out$prop_incomp,5), "\n" )) 
         return( out )
-
-          if (0) {
-            # to reset all rehected locations and redo ..
-            o = out
-            if (length(which(is.finite(o$skipped))) > 0) Sflag[o$skipped] = NaN  # to reset all the flags
-            if (length(which(is.finite(o$outside))) > 0) Sflag[o$outside] = Inf  # flag area outside of data boundary to skip
-          }
-
+      }
+      
+      if ( DS=="statistics.reset.problem.locations" ) {
+        # to reset all rejected locations 
+        Sflag = spacetime_attach( p$storage.backend, p$ptr$Sflag )
+        o = spacetime_db( p, DS="statistics.status" )
+        if (length(which(is.finite(o$skipped))) > 0) Sflag[o$skipped] = NaN  # to reset all the flags
+        if (length(which(is.finite(o$outside))) > 0) Sflag[o$outside] = Inf  # flag area outside of data boundary to skip
       }
     }
 

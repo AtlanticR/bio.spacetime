@@ -4,7 +4,8 @@ spacetime_interpolate_xy_simple = function( interp.method, data, locsout,
   trimquants=TRUE, trimprobs=c(0.025, 0.975), 
   nr=NULL, nc=NULL, theta=NULL, xwidth=theta*10, ywidth=theta*10 ) {
   #\\ reshape after interpolating to fit the output resolution 
-  
+  #\\ designed for interpolating statistics  ...
+
   # trim quaniles in case of extreme values
   if (trimquants) {
     vq = quantile( data$z, probs=trimprobs, na.rm=TRUE )

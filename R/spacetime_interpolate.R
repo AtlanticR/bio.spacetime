@@ -81,6 +81,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
           # plot(vEm, model=vFitgs, add=T)
           if  (! inherits(vFitgs, "try-error") ) {
             dist.cur = max(1, geoR::practicalRange("gaus", phi=vFitgs$range[2] ) )
+message("test with fields::Matern.cor.to.range")
+
             U = which( dlon  <= dist.cur  & dlat <= dist.cur )
             ndata =length(U)
           }
@@ -257,7 +259,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
   
     if (p$spacetime_engine=="gam" )  res = spacetime__gam( p, x, pa )
     if (p$spacetime_engine=="habitat") res = spacetime__habitat( p, x, pa )
-    if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity( p, x, pa )
+    # if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity( p, x, pa )
     if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon( p, x, pa )
     if (p$spacetime_engine=="inla") res = spacetime__inla( p, x, pa )
 

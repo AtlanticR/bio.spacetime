@@ -1,5 +1,5 @@
 
-spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backend="bigmemory.ram", boundary=TRUE ) {
+spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backend="bigmemory.ram", boundary=TRUE, do.secondstage="no" ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
   #\\ speed ratings: bigmemory.ram (1), ff (2), bigmemory.filebacked (3)
@@ -128,7 +128,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       Sloc = as.matrix( expand.grid( p$sbbox$plons, p$sbbox$plats ))
         if (p$storage.backend == "bigmemory.ram" ) {
           p$bm$Sloc = big.matrix(nrow=nrow(Sloc), ncol=ncol(Sloc), type="double"  )
-          p$bm$Slocsloc_[] = Sloc
+          p$bm$Sloc[] = Sloc
           p$ptr$Sloc  = bigmemory::describe( p$bm$Sloc  )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
@@ -155,7 +155,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         }
 
       
-      Sflag = matrix( NaN, nrow=nrow(Sloc), ncol=1 ) # NA forces into logical
+      Sflag = matrix( NaN, nrow=nrow(Sloc), ncol=1 ) 
         if (p$storage.backend == "bigmemory.ram" ) {
           p$bm$Sflag = big.matrix(nrow=nrow(Sloc), ncol=1, type="double" )
           p$bm$Sflag[] = NaN
@@ -565,15 +565,32 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
   p$time.start =  Sys.time()
   parallel.run( spacetime_interpolate, p=p ) 
-  p$time.end =  Sys.time()
-  difftime( p$time.end, p$time.start )
-  
-  # 2. fast/simple spatial interpolation for anything not resolved by the local analysis
-  p = make.list( list( tiyr_index=p$ncP ), Y=p ) 
-  parallel.run( spacetime_interpolate_xy_simple_multiple, p=p )  # this a kernel density method using fft
-  
+  p$time.end1 =  Sys.time()
+  message( paste( "Time taken:", difftime( p$time.end1, p$time.start ) )
+
+  # save solutions to disk before continuuing
   spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
   spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
+  
+  if ( do.secondstage != "no") {
+    # 2. fast/simple spatial interpolation for anything not resolved by the local analysis
+    if (do.secondstage=="simple") {
+      p = make.list( list( tiyr_index=p$ncP ), Y=p ) 
+      parallel.run( spacetime_interpolate_xy_simple_multiple, p=p )  # this a kernel density method using fft
+    } else {
+      # redo "problem" locations with slighltly more "permissive" settings
+      o = spacetime_db( p, DS="statistics.reset.problem.locations" )
+      if (length(o$todo) > 0) {
+        p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
+        parallel.run( spacetime_interpolate, p=p ) 
+        p$time.end2 =  Sys.time()
+        message( paste( "Time taken to stage 2:", difftime( p$time.end2, p$time.end1 ) )
+      }
+    }
+    # save solutions to disk (again .. overwrite)
+    spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
+    spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
+  }
   
   message ("Finished! \n")
   resp = readline( "To delete temporary files, type <Yes>:  ")
