@@ -566,7 +566,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   p$time.start =  Sys.time()
   parallel.run( spacetime_interpolate, p=p ) 
   p$time.end1 =  Sys.time()
-  message( paste( "Time taken:", difftime( p$time.end1, p$time.start ) )
+  message( paste( "Time taken:", difftime( p$time.end1, p$time.start ) ) )
 
   # save solutions to disk before continuuing
   spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
