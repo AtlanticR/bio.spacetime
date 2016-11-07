@@ -584,7 +584,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
         parallel.run( spacetime_interpolate, p=p ) 
         p$time.end2 =  Sys.time()
-        message( paste( "Time taken to stage 2:", difftime( p$time.end2, p$time.end1 ) )
+        message( paste( "Time taken to stage 2:", difftime( p$time.end2, p$time.end1 ) ) )
       }
     }
     # save solutions to disk (again .. overwrite)
