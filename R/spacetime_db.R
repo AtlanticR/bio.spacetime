@@ -70,8 +70,8 @@
 
     # --------------------------
     if (DS %in% "cleanup" ) {
-      for (fn in p$cache ) if (file.exists(fn)) file.remove(fn)
-      for (fn in p$bm ) if (file.exists(fn)) file.remove(fn)
+      for (fn in p$cache ) if (length(fn)>0) if (file.exists(fn)) file.remove(fn)
+      for (fn in p$bm ) if (length(fn)>0)  if (file.exists(fn)) file.remove(fn)
       return( "done" )
     }
 
@@ -264,9 +264,6 @@
       S = spacetime_attach( p$storage.backend, p$ptr$S )
       Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
     
-      ss = as.data.frame( cbind( Sloc[], S[] ) )
-      names(ss) = c( p$variables$LOCS, p$statsvars )
-
       # locations of the new (output) coord system
       locsout = expand.grid( p$plons, p$plats ) # final output grid
       attr( locsout , "out.attrs") = NULL
@@ -284,17 +281,18 @@
       for ( i in 1:length( p$statsvars ) ) {
         M = M[] * NA  # init
         M[l2M] = S[,i] # fill with data in correct locations
-        Z = fields::interp.surface( list( x=p$plons, y=p$plats, z=M ), loc=locsout )
-        ii = which( !is.finite( Z ) )
-        if ( length( ii) > 0 ) {
+        # Z = fields::interp.surface( list( x=p$plons, y=p$plats, z=M ), loc=locsout )
+        # ii = which( !is.finite( Z ) )
+        # if ( length( ii) > 0 ) {
           # try again ..
-          Z[ii] = fields::interp.surface( list( x=p$plons, y=p$plats, z=M ), loc=locsout[ii,] )
-        }
-        ii = which( !is.finite( Z ) )
-        if ( length( ii) > 0 ) {
-          Zii =  fields::image.smooth( M, dx=p$pres, dy=p$pres, wght=p$spatial_weights )$z  
-          Z[ii] = Zii[ii]
-        }
+          # Z[ii] = fields::interp.surface( list( x=p$plons, y=p$plats, z=M ), loc=locsout[ii,] )
+        # }
+        # ii = which( !is.finite( Z ) )
+        #if ( length( ii) > 0 ) {
+        Z =  fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta )$z  
+        Z[l2M] = S[,i]  # return raw data to predicted surface
+        #  Z[ii] = Zii[ii]
+        # }
         stats[,i] = Z
       }
 
@@ -314,9 +312,9 @@
 
       bad = which( !is.finite(good))
       if (length(bad) > 0 ) good = good[-bad]
-      Pstats = stats[ good, ]
+      stats = stats[ good, ]
 
-      save( Pstats,  file=p$fn.S, compress=TRUE )
+      save( stats, file=p$fn.S, compress=TRUE )
 
       # lattice::levelplot( Pstats[,1] ~ Ploc[,1]+Ploc[,2])
     }

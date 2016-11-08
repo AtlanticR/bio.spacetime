@@ -3,6 +3,21 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
   #\\ speed ratings: bigmemory.ram (1), ff (2), bigmemory.filebacked (3)
+  
+  if(0) {
+     p = bio.temperature::temperature.parameters( current.year=2016 )
+     overwrite=NULL
+     DATA='hydro.db( p=p, DS="spacetime.input" )'
+     storage.backend="bigmemory.ram"
+     boundary=TRUE
+
+     p = bio.bathymetry::bathymetry.parameters( )
+     p = bio.bathymetry::bathymetry.parameters( p=p, DS="bio.bathymetry.spacetime" )
+     overwrite=NULL
+     DATA='bathymetry.db( p=p, DS="bathymetry.spacetime.data" )'
+     storage.backend="bigmemory.ram"
+     boundary=FALSE
+  }
 
   p$stloc = file.path( p$project.root, "tmp" )
   # message( paste( "Temporary files are being created at:", p$stloc ) )
@@ -12,22 +27,6 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   
   # message( paste( "Final outputs will be palced at:", p$savedir ) )
   if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
-  
-  if(0) {
-     p = bio.temperature::temperature.parameters( current.year=2016 )
-     family=gaussian()
-     overwrite=NULL
-     storage.backend="bigmemory.ram"
-     DATA='hydro.db( p=p, DS="spacetime.input" )'
-
-     p = bio.temperature::temperature.parameters( current.year=2016 )
-     p$stloc = file.path( p$project.root, "tmp" )
-     p = bio.spacetime::spacetime_db( p=p, DS="load.parameters" ) 
-     RLibrary( p$libs )
-     o = spacetime_db( p, DS="statistics.status" )
-     p = make.list( list( locs=sample( o$todo )) , Y=p ) 
-     spacetime_interpolate (p=p ) 
-  }
 
   p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "fields" ) ) 
   
