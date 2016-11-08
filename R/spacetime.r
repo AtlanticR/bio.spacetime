@@ -21,12 +21,12 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
   p$stloc = file.path( p$project.root, "tmp" )
   # message( paste( "Temporary files are being created at:", p$stloc ) )
-  if( !file.exists(p$stloc)) dir.create( p$stloc, recursive=TRUE, showWarnings=FALSE )
+  if ( !file.exists(p$stloc)) dir.create( p$stloc, recursive=TRUE, showWarnings=FALSE )
 
   p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
   
   # message( paste( "Final outputs will be palced at:", p$savedir ) )
-  if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
+  if ( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
 
   p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "fields" ) ) 
   
