@@ -1,9 +1,18 @@
 
-spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backend="bigmemory.ram", boundary=TRUE, do.secondstage="no" ) {
+spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backend="bigmemory.ram", boundary=TRUE, do.secondstage=TRUE ) {
   #\\ localized modelling of space and time data to predict/interpolate upon a grid OUT
   #\\ overwrite = FALSE restarts from a saved state
   #\\ speed ratings: bigmemory.ram (1), ff (2), bigmemory.filebacked (3)
 
+  p$stloc = file.path( p$project.root, "tmp" )
+  # message( paste( "Temporary files are being created at:", p$stloc ) )
+  if( !file.exists(p$stloc)) dir.create( p$stloc, recursive=TRUE, showWarnings=FALSE )
+
+  p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
+  
+  # message( paste( "Final outputs will be palced at:", p$savedir ) )
+  if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
+  
   if(0) {
      p = bio.temperature::temperature.parameters( current.year=2016 )
      family=gaussian()
@@ -28,14 +37,6 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
   RLibrary( p$libs )
   
-  p$stloc = file.path( p$project.root, "tmp" )
-  # message( paste( "Temporary files are being created at:", p$stloc ) )
-  if( !file.exists(p$stloc)) dir.create( p$stloc, recursive=TRUE, showWarnings=FALSE )
-
-  p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
-  
-  # message( paste( "Final outputs will be palced at:", p$savedir ) )
-  if( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
   
   # family handling copied from glm
   if (!exists( "spacetime_family", p)) {
@@ -453,7 +454,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         rm(P0)
       }
 
-    if (0) {
+    if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
       p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
     }
 
@@ -572,22 +573,19 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
   spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
   
-  if ( do.secondstage != "no") {
-    # 2. fast/simple spatial interpolation for anything not resolved by the local analysis
-    if (do.secondstage=="simple") {
-      p = make.list( list( tiyr_index=p$ncP ), Y=p ) 
-      parallel.run( spacetime_interpolate_xy_simple_multiple, p=p )  # this a kernel density method using fft
-    } else {
-      # redo "problem" locations with slighltly more "permissive" settings
-      o = spacetime_db( p, DS="statistics.reset.problem.locations" )
-      if (length(o$todo) > 0) {
-        p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
-        parallel.run( spacetime_interpolate, p=p ) 
-        p$time.end2 =  Sys.time()
-        message( paste( "Time taken to stage 2:", difftime( p$time.end2, p$time.end1 ) ) )
-      }
+  if ( do.secondstage ) {
+    # 2. same interpolation method but relax the spatial extent
+    o = spacetime_db( p, DS="statistics.reset.problem.locations" )
+    if (length(o$todo) > 0) {
+      p$spacetime_distance_prediction = p$spacetime_distance_prediction * 2
+      p$dist.max = p$dist.max * 2 
+      p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
+      parallel.run( spacetime_interpolate, p=p ) 
+      p$time.end2 =  Sys.time()
+      message( paste( "Time taken to stage 2:", difftime( p$time.end2, p$time.end1 ) ) )
     }
-    # save solutions to disk (again .. overwrite)
+  }
+  # save solutions to disk (again .. overwrite)
     spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
     spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
   }

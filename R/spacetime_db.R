@@ -216,15 +216,19 @@
 
       PP = spacetime_attach( p$storage.backend, p$ptr$P )
       PPsd = spacetime_attach( p$storage.backend, p$ptr$Psd )
-      P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
-      P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
-    
-      PP = PP + P0 
-      PPsd = sqrt( P0sd^2 + PPsd^2) # simpleadditive independent errors assumed
+      
+
+      if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
+        P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
+        P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
+        PP = PP + P0 
+        PPsd = sqrt( P0sd^2 + PPsd^2) # simpleadditive independent errors assumed
+      }
 
       if ( exists("TIME", p)) {
-        for ( r in 1:length(p$tyears) ) {
-          y = p$tyears[r]
+        # outputs are on yearly breakdown
+        for ( r in 1:length(p$spacetime_yrs) ) {
+          y = p$spacetime_yrs[r]
           fn1 = file.path( p$savedir, paste("spacetime.prediction.mean",  y, "rdata", sep="." ) )
           fn2 = file.path( p$savedir, paste("spacetime.prediction.sd",  y, "rdata", sep="." ) )
           if (exists("nw", p)) {
@@ -262,32 +266,59 @@
     
       ss = as.data.frame( cbind( Sloc[], S[] ) )
       names(ss) = c( p$variables$LOCS, p$statsvars )
+
+      # locations of the new (output) coord system
       locsout = expand.grid( p$plons, p$plats ) # final output grid
       attr( locsout , "out.attrs") = NULL
       names( locsout ) = p$variables$LOCS
-      stats = matrix( NaN, ncol=nstatvars, nrow=nrow( locsout) )  # output data
+
+      stats = matrix( NaN, ncol=length( p$statsvars ), nrow=nrow( locsout) )  # output data
       colnames(stats)=p$statsvars
-    
-      for ( i in 1:nstatvars ) {
-        data = list( x=p$sbbox$plons, y=p$sbbox$plats, z=S[,i] )
-        res = spacetime_interpolate_xy_simple( interp.method="kernel.density", 
-          data=ss, locsout=locsout, nr=length(p$plons), nc=length( p$plats),  
-          theta=p$spacetime_distance_statsgrid, xwidth=p$spacetime_distance_statsgrid*10, ywidth=p$spacetime_distance_statsgrid*10 )
-        if (!is.null(res)) stats[i,] = res
+
+      # map of row, col indices of input data in the new (output) coordinate system
+      l2M = cbind( ( Sloc[,1]-p$plons[1])/p$pres + 1, (Sloc[,2]-p$plats[1])/p$pres + 1)
+     
+      # matrix representation of the output surface
+      M = matrix( NA, nrow=p$nplons, ncol=p$nplats) 
+      
+      for ( i in 1:length( p$statsvars ) ) {
+        M = M[] * NA  # init
+        M[l2M] = S[,i] # fill with data in correct locations
+        Z = fields::interp.surface( list( x=p$plons, y=p$plats, z=M ), loc=locsout )
+        ii = which( !is.finite( Z ) )
+        if ( length( ii) > 0 ) {
+          # try again ..
+          Z[ii] = fields::interp.surface( list( x=p$plons, y=p$plats, z=M ), loc=locsout[ii,] )
+        }
+        ii = which( !is.finite( Z ) )
+        if ( length( ii) > 0 ) {
+          Zii =  fields::image.smooth( M, dx=p$pres, dy=p$pres, wght=p$spatial_weights )$z  
+          Z[ii] = Zii[ii]
+        }
+        stats[,i] = Z
       }
-    
+
+      boundary = try( spacetime_db( p, DS="boundary" ) )
+      if (!is.null(boundary)) {
+        if( !("try-error" %in% class(boundary) ) ) {
+        inside.polygon = point.in.polygon( locsout[,1], locsout[,2],
+          boundary$polygon[,1], boundary$polygon[,2], mode.checked=TRUE )
+        o = which( inside.polygon == 0 ) # outside boundary
+        if (length(o) > 0) stats[o,] = NA         
+      }}
+
       # subset to match to Ploc
-      locsout_rc = paste( locsout$plon, locsout$plat, sep="~" )
-      Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
+      Ploc_id = paste( Ploc[,1], Ploc[,2], sep="~" )
+      locsout_id = paste( locsout$plon, locsout$plat, sep="~" )
+      good = match( Ploc_id, locsout_id )
 
-      bad = which( !is.finite(pa$i))
-      if (length(bad) > 0 ) pa = pa[-bad,]
-      if (nrow(pa)< 5) next()
-      pa$plon = Ploc[ pa$i, 1]
-      pa$plat = Ploc[ pa$i, 2]
+      bad = which( !is.finite(good))
+      if (length(bad) > 0 ) good = good[-bad]
+      Pstats = stats[ good, ]
 
-      save( stats,  file=p$fn.S, compress=TRUE )
+      save( Pstats,  file=p$fn.S, compress=TRUE )
 
+      # lattice::levelplot( Pstats[,1] ~ Ploc[,1]+Ploc[,2])
     }
 
     #-------------
