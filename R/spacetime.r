@@ -587,7 +587,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   # save solutions to disk (again .. overwrite)
     spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
     spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
-  }
+
   
   message ("Finished! \n")
   resp = readline( "To delete temporary files, type <Yes>:  ")
