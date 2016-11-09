@@ -564,6 +564,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   o = spacetime_db( p, DS="statistics.status" )
   p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
   p$time.start =  Sys.time()
+  # spacetime_interpolate (p=p )
   parallel.run( spacetime_interpolate, p=p ) 
   p$time.end1 =  Sys.time()
   message( paste( "Time taken:", difftime( p$time.end1, p$time.start ) ) )

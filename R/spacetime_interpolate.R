@@ -81,7 +81,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
           # plot(vEm, model=vFitgs, add=T)
           if  (! inherits(vFitgs, "try-error") ) {
             dist.cur = max(1, geoR::practicalRange("gaus", phi=vFitgs$range[2] ) )
-message("test with fields::Matern.cor.to.range")
+
+
+## message("test with fields::Matern.cor.to.range")
 
             U = which( dlon  <= dist.cur  & dlat <= dist.cur )
             ndata =length(U)
@@ -183,6 +185,7 @@ message("test with fields::Matern.cor.to.range")
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
 
+    
     # prediction covariates i.e., independent variables/ covariates
     pvars = c("plon", "plat", "i")
     if (exists("COV", p$variables)) {

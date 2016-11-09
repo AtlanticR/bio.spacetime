@@ -46,6 +46,11 @@ spacetime__kerneldensity = function( p, x, pa ) {
 
   preds = cbind( ( pa[,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
                   (pa[,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
+  
+  # make sure predictions exist .. kernel density can stop prediction beyond a given range if the xwidth/ywidth options are not used and/or the kernel distance (theta) is small 
+  if ( any( preds<1) ) return(NULL)
+  if ( any( preds[,1] > x_nr) ) return(NULL)
+  if ( any( preds[,2] > x_nc) ) return(NULL)
 
   pa$mean = Z$z[preds]
   pa$sd = 1
