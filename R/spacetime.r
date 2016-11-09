@@ -584,11 +584,12 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       message( paste( "Time taken to stage 2:", difftime( p$time.end2, p$time.end1 ) ) )
     }
   }
-  # save solutions to disk (again .. overwrite)
-    spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
-    spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
-
   
+  # save solutions to disk (again .. overwrite)
+  spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
+  spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
+
+
   message ("Finished! \n")
   resp = readline( "To delete temporary files, type <Yes>:  ")
   if (resp=="Yes") {
