@@ -229,12 +229,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
         # more than 3 harmonics would not be advisable .. but you would add them here..
     }
     
-    if (p$spacetime_engine=="bayesx") {
-      pa$weights = 1 / (( Sloc[Si,1] - pa$plat)**2 + (Sloc[Si,2] - pa$plon)**2 )# weight data in space: inverse distance squared
-      pa$weights[ which( pa$weights < 1e-3 ) ] = 1e-3
-      pa$weights[ which( pa$weights > 1 ) ] = 1
-    }
-
     # prep dependent data 
     # reconstruct data for modelling (x) and data for prediction purposes (pa)
     x = data.frame( Y[YiU] )

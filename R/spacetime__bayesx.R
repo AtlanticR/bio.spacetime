@@ -6,17 +6,9 @@ spacetime__bayesx = function( p, x, pa ) {
   #  logzinc ~  sx( x,y, bs="kr")  # "kr" is perhaps overly smooth
   #  logzinc ~  sx( x,y, bs="te")  # more detail .. "te" is preferred
 
-  if( !exists( "bayesx.method", p) ) p$bayesx.method="MCMC"  # slightly more smoothing than the REML method
+  if ( !exists( "bayesx.method", p) ) p$bayesx.method="MCMC"  # slightly more smoothing than the REML method
 
-  if ( exists("spacetime_model_distance_weighted", p) ) {
-    if (p$spacetime_model_distance_weighted) {
-      hmod = try( bayesx( p$spacetime_engine_modelformula, data=x, weights=weights, method=p$bayesx.method ) )
-    } else {
-      hmod = try( bayesx( p$spacetime_engine_modelformula, data=x, method=p$bayesx.method ) )
-    }
-  } else {
-      hmod = try( bayesx( p$spacetime_engine_modelformula, data=x, method=p$bayesx.method ) )
-  } 
+  hmod = try( bayesx( p$spacetime_engine_modelformula, data=x, method=p$bayesx.method ) )
 
   if ( "try-error" %in% class(hmod) ) return( NULL )
 
