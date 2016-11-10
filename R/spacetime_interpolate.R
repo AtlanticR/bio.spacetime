@@ -47,7 +47,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Yi = spacetime_attach( p$storage.backend, p$ptr$Yi )
   Yi = as.vector(Yi[])  #force copy to RAM as a vector
 
-  # main loop over each output location in S (stats output locations)
+  if (p$spacetime_engine=="kernel.density")  {
+    tsl = ifelse( exists("TIME", p$variables), Ptime[], 1 )
+  }
+
+
+# main loop over each output location in S (stats output locations)
   for ( iip in ip ) {
     Si = p$runs[ iip, "locs" ]
     if ( is.infinite( Sflag[Si] ) ) next() 
@@ -223,6 +228,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
         if ("sin.w3" %in% p$variables$ALL) pa$sin.w3 = sin( 3*pa[,p$variables$TIME] )
         # more than 3 harmonics would not be advisable .. but you would add them here..
     }
+    
+    if (p$spacetime_engine=="bayesx") {
+      pa$weights = 1 / (( Sloc[Si,1] - pa$plat)**2 + (Sloc[Si,2] - pa$plon)**2 )# weight data in space: inverse distance squared
+      pa$weights[ which( pa$weights < 1e-3 ) ] = 1e-3
+      pa$weights[ which( pa$weights > 1 ) ] = 1
+    }
 
     # prep dependent data 
     # reconstruct data for modelling (x) and data for prediction purposes (pa)
@@ -237,9 +248,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     x$plon = Yloc[YiU,1]
     x$plat = Yloc[YiU,2]
-    x$Y_wgt = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
-    x$Y_wgt[ which( x$Y_wgt < 1e-3 ) ] = 1e-3
-    x$Y_wgt[ which( x$Y_wgt > 1 ) ] = 1
+    x$weights = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
+    x$weights[ which( x$weights < 1e-3 ) ] = 1e-3
+    x$weights[ which( x$weights > 1 ) ] = 1
     
     if (exists("COV", p$variables)) {
       for (i in 1:length(p$variables$COV )) x[, p$variables$COV[i] ] = Ycov[YiU,i]
@@ -259,13 +270,17 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     # model and prediction
     res =NULL
-  
     if (p$spacetime_engine=="gam" )  res = spacetime__gam( p, x, pa )
     if (p$spacetime_engine=="habitat") res = spacetime__habitat( p, x, pa )
-    if (p$spacetime_engine=="kernel.density")  res = spacetime__kerneldensity( p, x, pa, timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 ) )
-    if (p$spacetime_engine=="bayesx") res = spacetime__bayesx( p, x, pa )
+    if (p$spacetime_engine=="kernel.density")  {
+      res = spacetime__kerneldensity( p, x, pa, timeslices=tsl  )
+    }
+    if (p$spacetime_engine=="bayesx") {
+      res = spacetime__bayesx( p, x, pa )
+    }
     if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon( p, x, pa )
     if (p$spacetime_engine=="inla") res = spacetime__inla( p, x, pa )
+
 
     if (0) {
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )

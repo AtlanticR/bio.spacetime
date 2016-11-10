@@ -4,7 +4,7 @@ spacetime__LaplacesDemon = function( p, x, pa ) {
  
     if ( exists("spacetime_model_distance_weighted", p) ) {
       if (p$spacetime_model_distance_weighted) {
-        Hmodel = try( gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","optim")  ) )
+        Hmodel = try( gam( p$spacetime_engine_modelformula, data=x, weights=weights, optimizer=c("outer","optim")  ) )
       } else {
         Hmodel = try( gam( p$spacetime_engine_modelformula, data=x, optimizer=c("outer","optim")  ) )
       }

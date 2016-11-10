@@ -10,7 +10,7 @@ spacetime__bayesx = function( p, x, pa ) {
 
   if ( exists("spacetime_model_distance_weighted", p) ) {
     if (p$spacetime_model_distance_weighted) {
-      hmod = try( bayesx( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, method=p$bayesx.method ) )
+      hmod = try( bayesx( p$spacetime_engine_modelformula, data=x, weights=weights, method=p$bayesx.method ) )
     } else {
       hmod = try( bayesx( p$spacetime_engine_modelformula, data=x, method=p$bayesx.method ) )
     }

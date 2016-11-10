@@ -5,7 +5,7 @@ spacetime__gam = function( p, x, pa ) {
     
   if ( exists("spacetime_model_distance_weighted", p) ) {
     if (p$spacetime_model_distance_weighted) {
-      hmod = try( gam( p$spacetime_engine_modelformula, data=x, weights=Y_wgt, optimizer=c("outer","optim")  ) )
+      hmod = try( gam( p$spacetime_engine_modelformula, data=x, weights=weights, optimizer=c("outer","optim")  ) )
     } else {
       hmod = try( gam( p$spacetime_engine_modelformula, data=x, optimizer=c("outer","optim")  ) )
     }
