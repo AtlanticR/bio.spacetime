@@ -262,7 +262,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
   
     if (p$spacetime_engine=="gam" )  res = spacetime__gam( p, x, pa )
     if (p$spacetime_engine=="habitat") res = spacetime__habitat( p, x, pa )
-    if (p$spacetime_engine=="kernel.density") res = spacetime__kerneldensity( p, x, pa )
+    if (p$spacetime_engine=="kernel.density")  res = uspacetime__kerneldensity( p, x, pa, timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 ) )
+    if (p$spacetime_engine=="bayesx") res = spacetime__bayesx( p, x, pa )
     if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon( p, x, pa )
     if (p$spacetime_engine=="inla") res = spacetime__inla( p, x, pa )
 

@@ -28,14 +28,18 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   # message( paste( "Final outputs will be palced at:", p$savedir ) )
   if ( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
 
-  p$libs = unique( c( p$libs, "gstat", "sp", "rgdal", "parallel", "mgcv", "fields" ) ) 
+  p$libs = unique( c( p$libs, "sp", "rgdal", "parallel" ) ) 
   
   p$storage.backend = storage.backend
   if (any( grepl ("ff", p$storage.backend)))         p$libs = c( p$libs, "ff", "ffbase" )
   if (any( grepl ("bigmemory", p$storage.backend)))  p$libs = c( p$libs, "bigmemory" )
+  if (p$spacetime_engine=="bayesx")  p$libs = c( p$libs, "R2BayesX" )
+  if (p$spacetime_engine %in% c("gam", "mgcv", "habitat") )  p$libs = c( p$libs, "mgcv" )
+  if (p$spacetime_engine %in% c("LaplacesDemon") )  p$libs = c( p$libs, "LaplacesDemonCpp" )
+  if (p$spacetime_engine %in% c("inla") )  p$libs = c( p$libs, "INLA" )
+  if (p$spacetime_engine %in% c("kernel.density") )  p$libs = c( p$libs, "fields" )
 
   RLibrary( p$libs )
-  
   
   # family handling copied from glm
   if (!exists( "spacetime_family", p)) {
@@ -557,6 +561,10 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
   }
 
+  if ( exists("TIME", p$variables) & (p$spacetime_engine=="kernel.density") ) {
+    message( "The kernel.density method really should not be used in a timeseries context,")
+    message( "unless you have a lot of data in each time slice ..")
+  }
 
   # -------------------------------------
   # localized space-time modelling/interpolation/prediction

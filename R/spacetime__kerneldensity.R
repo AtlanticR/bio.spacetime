@@ -1,5 +1,5 @@
 
-spacetime__kerneldensity = function( p, x, pa ) {
+spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
   #\\ this is the core engine of spacetime .. localised space (no-time) modelling interpolation 
   #\\ note: time is being ignored .. 
   #\\ to fit into the calling mechanism some data tables are created unnecessarily ..
@@ -17,6 +17,8 @@ spacetime__kerneldensity = function( p, x, pa ) {
   attr( x_locs , "out.attrs") = NULL
   names( x_locs ) = p$variables$LOCS
 
+  x$pred = NA
+
   # locations of the new (output) coord system .. smaller than the data range of x
   pa_r = range(pa[,p$variables$LOCS[1]])
   pa_c = range(pa[,p$variables$LOCS[2]])
@@ -31,34 +33,47 @@ spacetime__kerneldensity = function( p, x, pa ) {
   attr( pa_locs , "out.attrs") = NULL
   names( pa_locs ) = p$variables$LOCS
 
-  # map of row, col indices of input data in the new (output) coordinate system
-  l2M = cbind( ( x[,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
-                (x[,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
+  for ( ti in timeslices ) {
+    
+    if ( exists("TIME", p$variables) ) {
+      xi = which( x[ , p$variables$TIME ] == timeslices )
+    } else {
+      xi = 1:nrow(x) # all data as p$nt==1
+    }
+
+    # map of row, col indices of input data in the new (output) coordinate system
+    l2M = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
+                  (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
+   
+    # matrix representation of the output surface
+    M = matrix( NA, nrow=x_nr, ncol=x_nc) 
+    M[l2M] = x[xi,p$variables$Y] # fill with data in correct locations
+
+    stats = rep( NA, nrow( pa_locs) )  # output data
+       
+    Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta) )
+    if ( "try-error" %in% class(Z) ) return( NULL )
+
+    preds = cbind( ( pa[,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
+                    (pa[,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
+    
+    # make sure predictions exist .. kernel density can stop prediction beyond a given range if the xwidth/ywidth options are not used and/or the kernel distance (theta) is small 
+    if ( any( preds<1) ) return(NULL)
+    if ( any( preds[,1] > x_nr) ) return(NULL)
+    if ( any( preds[,2] > x_nc) ) return(NULL)
  
-  # matrix representation of the output surface
-  M = matrix( NA, nrow=x_nr, ncol=x_nc) 
-  M[l2M] = x[,p$variables$Y] # fill with data in correct locations
+    pa$mean = NA
+    pa$sd = NA
 
-  stats = rep( NA, nrow( pa_locs) )  # output data
-     
-  Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta) )
-  if ( "try-error" %in% class(Z) ) return( NULL )
+    pa$mean = Z$z[preds]
+    pa$sd = 1
 
-  preds = cbind( ( pa[,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
-                  (pa[,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-  
-  # make sure predictions exist .. kernel density can stop prediction beyond a given range if the xwidth/ywidth options are not used and/or the kernel distance (theta) is small 
-  if ( any( preds<1) ) return(NULL)
-  if ( any( preds[,1] > x_nr) ) return(NULL)
-  if ( any( preds[,2] > x_nc) ) return(NULL)
+    # match prediction to input data 
+    x_id = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
+                   (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
+    x$pred[xi] = Z$z[x_id]
+  }
 
-  pa$mean = Z$z[preds]
-  pa$sd = 1
-
-  # match prediction to input data 
-  x_id = cbind( ( x[,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
-                 (x[,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-  x$pred = Z$z[x_id]
   # plot(pred ~ z , x)
   ss = lm( x$pred ~ x[,p$variables$Y], na.action=na.omit)
   if ( "try-error" %in% class( ss ) ) return( NULL )
