@@ -422,7 +422,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       rm(Ploc)
 
       p$spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
-        theta=p$theta, xwidth=p$nsd*p$theta, ywidth=p$nsd*p$theta )
+        theta=p$theta )
 
       if (0) {
         # to add gloabl covariate model ?? 
