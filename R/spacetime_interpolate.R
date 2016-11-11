@@ -47,8 +47,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Yi = spacetime_attach( p$storage.backend, p$ptr$Yi )
   Yi = as.vector(Yi[])  #force copy to RAM as a vector
 
-  if (p$spacetime_engine=="kernel.density")  {
-    tsl = ifelse( exists("TIME", p$variables), Ptime[], 1 )
+  if (p$spacetime_engine %in% c("kernel.density", "gaussianprocess2D" ) )  {
+    # for these 2D methods, treat time as independent timeslices
+    p$timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 )
   }
 
 
@@ -263,18 +264,23 @@ spacetime_interpolate = function( ip=NULL, p ) {
     }
 
     # model and prediction
-    res =NULL
-    if (p$spacetime_engine=="gam" )  res = spacetime__gam( p, x, pa )
-    if (p$spacetime_engine=="habitat") res = spacetime__habitat( p, x, pa )
-    if (p$spacetime_engine=="kernel.density")  {
-      res = spacetime__kerneldensity( p, x, pa, timeslices=tsl  )
+    # the following permits user-defined models (might want to use compiler::cmpfun )
+    if ( !exists("spacetime__model", p)) {
+      spacetime__model = switch( p$spacetime_engine, 
+        gam = spacetime__gam, 
+        habitat = spacetime__habitat, 
+        kernel.density = spacetime__kerneldensity,
+        bayesx = spacetime__bayesx,
+        LaplacesDemon = spacetime__LaplacesDemon,
+        gaussianprocess2Dt = spacetime_gaussianprocess2Dt, 
+        gaussianprocess = spacetime_gaussianprocess, 
+        inla = spacetime__inla
+      )
     }
-    if (p$spacetime_engine=="bayesx") {
-      res = spacetime__bayesx( p, x, pa )
-    }
-    if (p$spacetime_engine=="LaplacesDemon") res = spacetime__LaplacesDemon( p, x, pa )
-    if (p$spacetime_engine=="inla") res = spacetime__inla( p, x, pa )
 
+    res =NULL
+    res = spacetime__model( p, x, pa )
+    
 
     if (0) {
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )

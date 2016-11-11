@@ -1,5 +1,5 @@
 
-spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
+spacetime__kerneldensity = function( p, x, pa ) {
   #\\ this is the core engine of spacetime .. localised space (no-time) modelling interpolation 
   #\\ note: time is not being modelled and treated independently 
   #\\      .. you had better have enough data in each time slice
@@ -36,7 +36,7 @@ spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
   attr( pa_locs , "out.attrs") = NULL
   names( pa_locs ) = p$variables$LOCS
 
-  for ( ti in timeslices ) {
+  for ( ti in p$timeslices ) {
     
     if ( exists("TIME", p$variables) ) {
       xi = which( x[ , p$variables$TIME ] == ti )
