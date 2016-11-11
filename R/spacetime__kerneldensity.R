@@ -1,8 +1,8 @@
 
 spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
   #\\ this is the core engine of spacetime .. localised space (no-time) modelling interpolation 
-  #\\ note: time is being ignored .. 
-  #\\ to fit into the calling mechanism some data tables are created unnecessarily ..
+  #\\ note: time is not being modelled and treated independently 
+  #\\      .. you had better have enough data in each time slice
 
   x_r = range(x[,p$variables$LOCS[1]])
   x_c = range(x[,p$variables$LOCS[2]])
@@ -17,7 +17,10 @@ spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
   attr( x_locs , "out.attrs") = NULL
   names( x_locs ) = p$variables$LOCS
 
-  x$pred = NA
+  x$mean = NA
+
+  pa$mean = NA
+  pa$sd = NA
 
   # locations of the new (output) coord system .. smaller than the data range of x
   pa_r = range(pa[,p$variables$LOCS[1]])
@@ -33,10 +36,20 @@ spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
   attr( pa_locs , "out.attrs") = NULL
   names( pa_locs ) = p$variables$LOCS
 
+
+    pa_i = cbind( ( pa[,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
+                   (pa[,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
+    
+    # make sure predictions exist .. kernel density can stop prediction beyond a given range if the xwidth/ywidth options are not used and/or the kernel distance (theta) is small 
+    if ( any( pa_i<1) ) return(NULL)  
+    if ( any( pa_i[,1] > x_nr) ) return(NULL)
+    if ( any( pa_i[,2] > x_nc) ) return(NULL)
+ 
+
   for ( ti in timeslices ) {
     
     if ( exists("TIME", p$variables) ) {
-      xi = which( x[ , p$variables$TIME ] == timeslices )
+      xi = which( x[ , p$variables$TIME ] == ti )
     } else {
       xi = 1:nrow(x) # all data as p$nt==1
     }
@@ -54,32 +67,27 @@ spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
     Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta) )
     if ( "try-error" %in% class(Z) ) return( NULL )
 
-    preds = cbind( ( pa[,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
-                    (pa[,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-    
-    # make sure predictions exist .. kernel density can stop prediction beyond a given range if the xwidth/ywidth options are not used and/or the kernel distance (theta) is small 
-    if ( any( preds<1) ) return(NULL)
-    if ( any( preds[,1] > x_nr) ) return(NULL)
-    if ( any( preds[,2] > x_nc) ) return(NULL)
- 
-    pa$mean = NA
-    pa$sd = NA
-
-    pa$mean = Z$z[preds]
-    pa$sd = 1
-
     # match prediction to input data 
     x_id = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
                    (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-    x$pred[xi] = Z$z[x_id]
+    x$mean[xi] = Z$z[x_id]
+
+    ss = lm( x$mean[xi] ~ x[xi,p$variables$Y], na.action=na.omit)
+    if ( "try-error" %in% class( ss ) ) next()
+    rsquared = summary(ss)$r.squared
+    if (rsquared < p$spacetime_rsquared_threshold ) next()
+
+    pa_i = which( pa[, p$variables$TIME]==ti)
+    Z_i = cbind( ( pa[pa_i,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
+                  (pa[pa_i,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
+    pa$mean[pa_i] = Z$z[pa_i]
+    pa$sd[pa_i] = 1
   }
 
-  # plot(pred ~ z , x)
-  ss = lm( x$pred ~ x[,p$variables$Y], na.action=na.omit)
+  # plot(mean ~ z , x)
+  ss = lm( x$mean ~ x[,p$variables$Y], na.action=na.omit)
   if ( "try-error" %in% class( ss ) ) return( NULL )
-
   rsquared = summary(ss)$r.squared
-
   if (rsquared < p$spacetime_rsquared_threshold ) return(NULL)
 
   spacetime_stats = list( sdTotal=sd(x[,p$variable$Y], na.rm=T), rsquared=rsquared, ndata=nrow(x) ) # must be same order as p$statsvars
