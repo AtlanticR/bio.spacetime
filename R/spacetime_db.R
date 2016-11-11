@@ -260,7 +260,9 @@
         stats = NULL
         if (file.exists(p$fn.S)) {}
       }
-
+    
+      Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
+  
       S = spacetime_attach( p$storage.backend, p$ptr$S )
       Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
     
@@ -341,12 +343,12 @@
       s1 = which( Yq >= p$habitat.threshold.quantile )
 
       # determine presence-absence
-      YPA =  rep( NA, length(Y) )
-      YPA[s1] = 1  
-      YPA[s0] = 0
-      YPA[z] = 0
+      Ybin =  rep( NA, length(Y) )
+      Ybin[s1] = 1  
+      Ybin[s0] = 0
+      Ybin[z] = 0
 
-      return(YPA)
+      return(Ybin)
     }
 
   }

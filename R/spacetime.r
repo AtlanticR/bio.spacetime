@@ -13,6 +13,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
      p = bio.bathymetry::bathymetry.parameters( )
      p = bio.bathymetry::bathymetry.parameters( p=p, DS="bio.bathymetry.spacetime" )
+     
      overwrite=NULL
      DATA='bathymetry.db( p=p, DS="bathymetry.spacetime.data" )'
      storage.backend="bigmemory.ram"
