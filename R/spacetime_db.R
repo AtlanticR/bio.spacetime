@@ -186,11 +186,18 @@
       if (p$spacetime_covariate_modeltype=="gam") {
         covmodel = try( 
           gam( p$spacetime_covariate_modelformula, data=B, optimizer=c("outer","bfgs"), family=p$spacetime_family ) ) 
-        if ( "try-error" %in% class(covmodel) ) stop( "The covariate model was problematic" )
-        print( summary( covmodel ) )
-        save( covmodel, file= fn.covmodel, compress=TRUE )
       }
-     
+
+      if (p$spacetime_covariate_modeltype=="bayesx") {
+        if ( !exists( "bayesx.method", p) ) p$bayesx.method="MCMC"  # slightly more smoothing than the REML method
+        covmodel = try( 
+          bayesx( p$spacetime_covariate_modelformula, data=B, family=p$spacetime_family,  method=p$bayesx.method ) ) 
+      }
+
+      if ( "try-error" %in% class(covmodel) ) stop( "The covariate model was problematic" )
+      print( summary( covmodel ) )
+      save( covmodel, file= fn.covmodel, compress=TRUE )
+    
       return ( p )
     }
 

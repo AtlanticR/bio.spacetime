@@ -3,7 +3,7 @@ spacetime__bayesx = function( p, x, pa ) {
   #\\ this is the core engine of spacetime .. localised space-time modelling interpolation and prediction .. using bayesx 
    
   # EG: 
-  #  logzinc ~  sx( x,y, bs="kr")  # "kr" is perhaps overly smooth
+  #  logzinc ~  sx( x,y, bs="kr")  # "kr" is perhaps overly smooth  ..  ie guassian process  .. kriging
   #  logzinc ~  sx( x,y, bs="te")  # more detail .. "te" is preferred
 
   if ( !exists( "bayesx.method", p) ) p$bayesx.method="MCMC"  # slightly more smoothing than the REML method
@@ -23,7 +23,7 @@ spacetime__bayesx = function( p, x, pa ) {
   # summary(hmod)
   # lattice::levelplot( out ~ plon+plat, data=k, aspect="iso" )
 
-  if ( "try-error" %in% class( out ) ) return( NULL )
+  if (!inherits(out, "try-error")) return( NULL )
 
   pa$mean = out
   pa$sd = 1 # no option right now to estim posterior prediction errors .. may be possible with type="terms" but would be slow to simulate  and do not know how to do it yet .. please fix this ..

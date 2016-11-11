@@ -425,8 +425,9 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       p$spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
         theta=p$theta )
 
-      if (0) {
-        # to add gloabl covariate model ?? 
+      if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
+        # to add global covariate model ??  .. simplistic this way but faster
+
         P0   = matrix( 0, nrow=nrow(DATA$output$LOCS), ncol=p$nt )
           if (p$storage.backend == "bigmemory.ram" ) {
              p$bm$P0 = big.matrix( nrow=nrow(P0), ncol=ncol(P0), type="double" )
@@ -456,11 +457,31 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
             p$ptr$P0sd = ff( P0, dim=dim(P0), file=p$cache$P0sd, overwrite=TRUE )
           }
         rm(P0)
+
+        P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
+        P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
+
+        p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) 
+        covmodel = spacetime_db( p=p, DS="model.covariates") 
+        if (!is.null(covmodel)) {
+          if (p$spacetime_covariate_modeltype=="gam") {
+            Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=T ) ) 
+            if (!inherits(Pbaseline, "try-error")) {
+              P0[] = Pbaseline$fit
+              P0sd[] = Pbaseline$se.fit
+            }
+          }
+          if (p$spacetime_covariate_modeltype=="bayesx") {
+            Pbaseline = try( predict( covmodel, newdata=pa, type="response" ) ) 
+            if (!inherits(Pbaseline, "try-error")) {
+              P0[] = Pbaseline
+              P0sd[] = 1  # need to figure this one out TODO
+            }
+          }
+        }
+
       }
 
-    if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
-      p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) # first pass to model covars only
-    }
 
     rm(DATA); gc()
 
