@@ -36,16 +36,6 @@ spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
   attr( pa_locs , "out.attrs") = NULL
   names( pa_locs ) = p$variables$LOCS
 
-
-    pa_i = cbind( ( pa[,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
-                   (pa[,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-    
-    # make sure predictions exist .. kernel density can stop prediction beyond a given range if the xwidth/ywidth options are not used and/or the kernel distance (theta) is small 
-    if ( any( pa_i<1) ) return(NULL)  
-    if ( any( pa_i[,1] > x_nr) ) return(NULL)
-    if ( any( pa_i[,2] > x_nc) ) return(NULL)
- 
-
   for ( ti in timeslices ) {
     
     if ( exists("TIME", p$variables) ) {
@@ -65,7 +55,7 @@ spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
     stats = rep( NA, nrow( pa_locs) )  # output data
        
     Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta) )
-    if ( "try-error" %in% class(Z) ) return( NULL )
+    if ( "try-error" %in% class(Z) ) next()
 
     # match prediction to input data 
     x_id = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
@@ -80,12 +70,18 @@ spacetime__kerneldensity = function( p, x, pa, timeslices=1 ) {
     pa_i = which( pa[, p$variables$TIME]==ti)
     Z_i = cbind( ( pa[pa_i,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
                   (pa[pa_i,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-    pa$mean[pa_i] = Z$z[pa_i]
+
+    # make sure predictions exist .. kernel density can stop prediction beyond a given range if the xwidth/ywidth options are not used and/or the kernel distance (theta) is small 
+    if ( any( Z_i<1) ) next()  
+    if ( any( Z_i[,1] > x_nr) ) next()
+    if ( any( Z_i[,2] > x_nc) ) next()
+
+    pa$mean[pa_i] = Z$z[Z_i]
     pa$sd[pa_i] = 1
   }
 
   # plot(mean ~ z , x)
-  ss = lm( x$mean ~ x[,p$variables$Y], na.action=na.omit)
+  ss = lm( x$mean ~ x[,p$variables$Y], na.action=na.omit )
   if ( "try-error" %in% class( ss ) ) return( NULL )
   rsquared = summary(ss)$r.squared
   if (rsquared < p$spacetime_rsquared_threshold ) return(NULL)

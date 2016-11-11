@@ -12,37 +12,7 @@ spacetime__gaussianprocess = function( p, x, pa, timeslices=1, method="fields.Kr
      # If m is the degree of derivative in penalty then p=2m-d 
      # where d is the dimension of x. p must be greater than 0. 
    
-  x_r = range(x[,p$variables$LOCS[1]])
-  x_c = range(x[,p$variables$LOCS[2]])
-
-  x_nr = diff(x_r)/p$pres + 1
-  x_nc = diff(x_c)/p$pres + 1
-
-  x_plons = seq( x_r[1], x_r[2], length.out=x_nr )
-  x_plats = seq( x_c[1], x_c[2], length.out=x_nc )
-
-  x_locs = expand.grid( x_plons, x_plats ) # final output grid
-  attr( x_locs , "out.attrs") = NULL
-  names( x_locs ) = p$variables$LOCS
-
-  x$pred = NA
-
-  # locations of the new (output) coord system .. smaller than the data range of x
-  pa_r = range(pa[,p$variables$LOCS[1]])
-  pa_c = range(pa[,p$variables$LOCS[2]])
-  
-  pa_nr = diff(pa_r)/p$pres + 1
-  pa_nc = diff(pa_c)/p$pres + 1
-
-  pa_plons = seq( pa_r[1], pa_r[2], length.out=pa_nr )
-  pa_plats = seq( pa_c[1], pa_c[2], length.out=pa_nc )
-  
-  pa_locs = expand.grid( pa_plons, pa_plats ) # final output grid
-  attr( pa_locs , "out.attrs") = NULL
-  names( pa_locs ) = p$variables$LOCS
-
   x$mean = NA
-
   pa$mean = NA
   pa$sd = NA
 
@@ -76,10 +46,10 @@ spacetime__gaussianprocess = function( p, x, pa, timeslices=1, method="fields.Kr
 
     if ( 0 ){
       # debugging plots
-      surface(fsp2)
-      fsp.p<- predictSurface(fsp2, lambda= lambda.MLE, nx=200, ny=200, )
+      surface(fspmodel)
+      fsp.p<- predictSurface(fspmodel, lambda= lambda.MLE, nx=200, ny=200, )
       surface(fsp.p, type="I")
-      fsp.p2<- predictSurfaceSE(fsp2,)
+      fsp.p2<- predictSurfaceSE(fspmodel)
       surface(fsp.p2, type="C")
     }
  
