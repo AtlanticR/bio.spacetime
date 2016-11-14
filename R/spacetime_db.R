@@ -254,6 +254,8 @@
           y = "0000"
           fn1 = file.path( p$savedir, paste("spacetime.prediction.mean",  y, "rdata", sep="." ) )
           fn2 = file.path( p$savedir, paste("spacetime.prediction.sd",  y, "rdata", sep="." ) )
+          P = PP
+          V = PPsd
           save( P, file=fn1, compress=T )
           save( V, file=fn2, compress=T )
       }

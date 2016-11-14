@@ -32,11 +32,11 @@ spacetime__bayesx = function( p, x, pa ) {
   varObs = hmod$fixed.effects[1,"Std. Error"]  
   nu = nu
   phi=1/hmod$smooth.hyp[,"Smooth Par."] 
+  range = geoR::practicalRange("matern", phi=phi, kappa=nu  )
 
   spacetime_stats = list( sdTotal=sd(x[,p$variable$Y], na.rm=T), rsquared=ss$r.squared, ndata=nrow(x),
-    varSpatial=varSpatial, varObs=varObs, phi=phi, nu=nu
-  ) # must be same order as p$statsvars .. pseudo rsquared for logistic .. for poisson {1- logLik(mod) / logLik(mod_saturated)} might be better
-  
+    sdSpatial=sqrt(varSpatial), sdObs=sqrt(varObs), phi=phi, nu=nu, range=range ) 
+
   # lattice::levelplot( mean ~ plon + plat, data=pa[pa$tiyr==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
   
   return( list( predictions=pa, spacetime_stats=spacetime_stats ) )  

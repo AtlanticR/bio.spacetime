@@ -112,12 +112,23 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     } 
 
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
-    p$statsvars = c( "sdTotal", "rsquared", "ndata" )
-    if (p$spacetime_engine == "habitat") p$statsvars = c( p$statsvars)
-    if (p$spacetime_engine == "inla") p$statsvars = c(p$statsvars, "sdSpatial", "sdObs", "range", "range.sd" )# not used .. just for posterity
-    if (exists("spacetime_variogram_engine", p) ) p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
-    if (exists("TIME", p$variables) ) p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
-   
+    othervars = NULL
+    if (p$spacetime_engine == "habitat") {
+      othervars = c( )
+    }
+    if (p$spacetime_engine == "bayesx") {
+      othervars = c( "sdTotal", "rsquared", "ndata", "sdSpatial", "sdObs", "range", "phi", "nu" )# not used .. just for posterity
+    }
+    if (p$spacetime_engine == "inla") {
+      othervars = c( "sdSpatial", "sdObs", "range", "range.sd" )# not used .. just for posterity
+    }
+    if (exists("spacetime_variogram_engine", p) ) {
+      othervars = c( "sdSpatial", "sdObs", "range", "phi", "nu")
+    }
+    if (exists("TIME", p$variables) ) {
+      othervars = c( "ar_timerange", "ar_1" )
+    }
+    p$statsvars = unique( c( "sdTotal", "rsquared", "ndata", othervars ) )
 
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
     message( "These are large files (4 to 6 X 5GB), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
