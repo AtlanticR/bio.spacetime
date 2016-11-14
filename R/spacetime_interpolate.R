@@ -316,18 +316,22 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     # stats collator
     if (!exists("spacetime_stats",  res) ) res$spacetime_stats = list()
-    if (exists("spacetime_variogram_engine", p) ) {
-      sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
-      if (!is.null(sp.stat) && !inherits(sp.stat, "try-error") ) {
-        res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
-        res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )
-        res$spacetime_stats["range"] = sp.stat[[p$spacetime_variogram_engine]]$range
-        res$spacetime_stats["phi"] = sp.stat[[p$spacetime_variogram_engine]]$phi
-        res$spacetime_stats["nu"] = sp.stat[[p$spacetime_variogram_engine]]$nu
-      } 
-      sp.stat = NULL
+    
+    if (!exists("sdSpatial", res$spacetime_stats)) {
+      # some methods generate these internally so no need to do again ..
+      if (exists("spacetime_variogram_engine", p) ) {
+        sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
+        if (!is.null(sp.stat) && !inherits(sp.stat, "try-error") ) {
+          res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
+          res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )
+          res$spacetime_stats["range"] = sp.stat[[p$spacetime_variogram_engine]]$range
+          res$spacetime_stats["phi"] = sp.stat[[p$spacetime_variogram_engine]]$phi
+          res$spacetime_stats["nu"] = sp.stat[[p$spacetime_variogram_engine]]$nu
+        } 
+        sp.stat = NULL
+      }
     }
-  
+    
     if ( exists("TIME", p$variables) ){
       # annual ts, seasonally centered and spatially 
       # pa_i = which( Sloc[Si,1]==Ploc[,1] & Sloc[Si,2]==Ploc[,2] )
@@ -346,7 +350,16 @@ spacetime_interpolate = function( ip=NULL, p ) {
             if (length(which (is.finite(pac$mean))) > 5 ) {
               ar1 = try( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 0, na.action="na.omit") )
               if (!inherits(ts.stat, "try-error")) res$spacetime_stats["ar_1"] = coef( ar1 )
-        } } } 
+            } 
+          } 
+
+          ### Do the logistic model here ! -- if not already done ..
+          if (!exists("ts_K", res$spacetime_stats)) {
+            # model as a logistic with ts_r, ts_K, etc .. as stats outputs
+            
+          } 
+
+        } 
         rm ( pac, piid )
       } 
       rm(pac_i)

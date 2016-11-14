@@ -177,8 +177,8 @@ spacetime__inla = function( p, x, pa ) {
   stats$sdTotal=sd(x[,p$variable$Y], na.rm=T)
   stats$rsquared=NA
   stats$ndata=nrow(x)
-  stats$varSpatial = inla.summary["spatial error", "mode"]
-  stats$varObs = inla.summary["observation error", "mode"]
+  stats$sdSpatial = sqrt(inla.summary["spatial error", "mode"])
+  stats$sdObs = sqrt(inla.summary["observation error", "mode"])
   stats$range = inla.summary["range", "mode"]
   stats$range.sd  = inla.summary["range", "sd"]
 

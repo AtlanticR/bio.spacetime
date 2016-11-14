@@ -114,7 +114,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
     p$statsvars = c( "sdTotal", "rsquared", "ndata" )
     if (p$spacetime_engine == "habitat") p$statsvars = c( p$statsvars)
-    if (p$spacetime_engine=="inla") p$statsvars = c(p$statsvars, "varSpatial", "varObs", "range", "range.sd" )# not used .. just for posterity
+    if (p$spacetime_engine == "inla") p$statsvars = c(p$statsvars, "sdSpatial", "sdObs", "range", "range.sd" )# not used .. just for posterity
     if (exists("spacetime_variogram_engine", p) ) p$statsvars = c( p$statsvars, "sdSpatial", "sdObs", "range", "phi", "nu")
     if (exists("TIME", p$variables) ) p$statsvars = c( p$statsvars, "ar_timerange", "ar_1" )
    

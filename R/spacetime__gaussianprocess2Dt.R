@@ -1,7 +1,7 @@
 
 spacetime__gaussianprocess2Dt = function( p, x, pa ) {
   #\\ this is the core engine of spacetime .. localised space (no-time) modelling interpolation 
-  # \ as a gaussian process (basically, simple krigimg )
+  # \ as a 2D gaussian process (basically, simple krigimg or TPS -- time is treated as being independent)
   #\\ note: time is not being modelled and treated independently 
   #\\      .. you had better have enough data in each time slice
 

@@ -26,6 +26,10 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     maxdist = NA
     edge=c(1/3, 1)
     nbreaks = 15
+
+
+
+
         # tests
     gr = spacetime_variogram( xy, z, methods="geoR" )
     gs = spacetime_variogram( xy, z, methods="gstat" )
@@ -141,19 +145,28 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     }
     if (is.null(res)) return(NULL)
 
-    vgm = Matern( d=vg$centers, range=res$theta, smoothness=nu )    
-    nugget = fsp$pars[3]
-    sill = fsp$pars[1]
-    cvg = nugget + sill * (1-vgm)
-    plot( cvg, vg$centers, type="l")
-  
-    if( plot.predictions){
+    vgm = Matern( d=vg$centers, range=res["theta"], smoothness=nu )    
+    nugget = res["sigma"] * out$varZ
+    sill = res["rho"] * out$varZ 
+    cvg = data.frame( cbind( x=vg$centers*out$maxdist, cvgm= (nugget + sill * (1-vgm)) ))
+    out$fields = list( fit=fsp, vgm=cvg, range=NA, nu=nu, phi=res["theta"]*out$maxdist ,
+        varSpatial=sill, varObs=nugget  )  # fields::"range" == range parameter == phi
+    
+    out$fields$range = geoR::practicalRange("matern", phi=out$fields$phi, kappa=out$fields$nu  )
+
+    if( 0){
+      x11()
+      plot( cvg, type="b", ylim=range( c(0, cvg$cvgm) ) )
+      abline( h=out$fields$varSpatial + out$fields$varObs)  
+      abline( h=out$fields$varObs )
+      abline( v=out$fields$range )
+      
       lambda.MLE<- fsp$pars[3]/fsp$pars[1]  # ratio nugget / sill variance
       fsp2<- Krig( xy, z, Covariance="Matern", theta=fsp$pars[2], smoothness=nu, lambda= lambda.MLE)
       surface(fsp2)
       fsp.p<- predictSurface(fsp2, lambda= lambda.MLE, nx=200, ny=200, )
       surface(fsp.p, type="I")
-      fsp.p2<- predictSurfaceSE(fsp2,)
+      fsp.p2<- predictSurfaceSE(fsp2)
       surface(fsp.p2, type="C")
     }
   }
@@ -213,10 +226,11 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
         # looks at the predictions
         gs <- gstat(id = "z", formula = z~1, locations=~plon+plat, data=xy, maxdist=distx, nmin=10, force=TRUE, model=vFitgs )
         # variogram of residuals
-        predlocs = expand.grid( plon=seq(min(xy$plon), max(xy$plon), length.out=100), plat=seq(min(xy$plat), max(xy$plat),  length.out=100) )
-        gridded(predlocs) = ~plon+plat
-        # prediction from local neighbourhoods within radius of 170 m or at least 10 points
-        preds <- predict(gs, predlocs)
+        data(meuse.grid)
+        meuse.grid$plon = meuse.grid$x/out$maxdist
+        meuse.grid$plat = meuse.grid$y/out$maxdist
+
+        preds <- predict(gs, newdata=meuse.grid )
         spplot(preds)
 
       }
@@ -341,12 +355,18 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
       x = seq( 0, max(px ), length.out=100 )
       acor = geoR::matern( x, phi=out$RandomFields$phi, kappa=out$RandomFields$nu  )
-      acov = out$RandomFields$varObs  +  out$RandomFields$varSpatial*(1- acor)
+      acov = out$RandomFields$varObs  + out$RandomFields$varSpatial*(1- acor)
       lines( acov~x , col="red" )
 
       # compare with:
+        data(meuse.grid)
+        meuse.grid$plon = meuse.grid$x/out$maxdist
+        meuse.grid$plat = meuse.grid$y/out$maxdist
+
+
       x11()
       plot(o)
+      RFinterpolate(o, ...  )
     }
     return(out)
 
@@ -538,19 +558,38 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   # -------------------------
 
-  if ("BayesX" %in% methods){
-    library("R2BayesX")
-    # fixes nu=1.5
+  if ("bayesx" %in% methods){
+    library("R2bayesx")
+    # by default, bayesx fixes nu=1.5  , see: bayesx.term.options( bs="kr", method="REML" )
     # phi = max(distance) / const, such that Corr(distance=const) = 0.001; 
     # i.e. range at distance where covar ~0.999 .. but not sure how to recover the correct phi/range from this ...
+    nu = 1.5 
 
-    fm1 <- bayesx( z ~ sx(plon, plat, bs="kr" ), family="gaussian", method="REML", data =xy )
-    out$BayesX = list( fit=fm1, range=NA, jagsmodel=fm1, 
-        varSpatial=fm1$smooth.hyp[,"Variance"]*out$varZ, 
-        varObs=fm1$variance*out$varZ, 
-        nu=1.5, phi=NA )
-    # out$BayesX$range = geoR::practicalRange("matern", phi=out$BayesX$phi, kappa=out$BayesX$nu  )
-    return(fm1)
+    fm <- bayesx( z ~ sx(plon, plat, nu=nu,  bs="kr" ), family="gaussian", method="REML", data =xy )
+
+    out$bayesx = list( fit=fitted(fm), range=NA, model=fm, 
+        varSpatial = fm$smooth.hyp[,"Variance"]*out$varZ, 
+        varObs = fm$fixed.effects[1,"Std. Error"] *out$varZ, 
+        nu =nu, phi=out$maxdist/fm$smooth.hyp[,"Smooth Par."] )
+
+    out$bayesx$range = geoR::practicalRange("matern", phi=out$bayesx$phi, kappa=out$bayesx$nu  )
+    out
+
+    if(0){
+      plot( fm, term = "sx(plon,plat)", image=TRUE, contour=TRUE )
+      # summary(fm)
+      # lattice::levelplot( out ~ plon+plat, data=k, aspect="iso" )
+      x = seq( 0, maxdist, length.out=100 )
+      acor = geoR::matern( x, phi=out$bayesx$phi, kappa=out$bayesx$nu  )
+      acov = out$bayesx$varObs  + out$bayesx$varSpatial*(1- acor)
+      plot( acov~x , col="red", type="b", xlim=c(0, maxdist * 1.5), 
+        ylim=c(0,(out$bayesx$varSpatial + out$bayesx$varObs) *1.5) )
+      abline( h=out$bayesx$varSpatial + out$bayesx$varObs  )
+      abline( h=out$bayesx$varObs )
+      abline( v=out$bayesx$range )
+    }
+
+    return(out)
   }
 
 
@@ -561,7 +600,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     require(jagsUI)
     # assume nu = 1 (due to identifiability issues)
 
-    print( "Slow ... 7.5 min for meuse test data")
+    print( "Slow ... 7.5 min for meuse test data" )
 
     jagsmodel = paste0("
     model{
@@ -707,7 +746,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       if ( !is.positive.definite(corSpatial)) {
         cat("correlation matrix is not positive definite, adding a bit of noise ...\n")
         corSpatial = as.positive.definite(corSpatial) 
-      # browser()
+        # browser()
       }
 
       eSp = rmvn( 1, rep(0, Data$N), sigmasq*corSpatial )# psill

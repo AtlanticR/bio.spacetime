@@ -2,8 +2,9 @@
 spacetime__bayesx = function( p, x, pa ) {
   #\\ this is the core engine of spacetime .. localised space-time modelling interpolation and prediction .. using bayesx 
    
-  # EG: 
-  #  logzinc ~  sx( x,y, bs="kr")  # "kr" is perhaps overly smooth  ..  ie guassian process  .. kriging
+  # EG: see: bayesx.term.options( bs="kr", method="REML" )
+  
+  #  logzinc ~  sx( x,y, nu=1.5, bs="kr")  # "kr" is perhaps overly smooth  ..  ie guassian process  .. kriging
   #  logzinc ~  sx( x,y, bs="te")  # more detail .. "te" is preferred
 
   if ( !exists( "bayesx.method", p) ) p$bayesx.method="MCMC"  # slightly more smoothing than the REML method
@@ -27,8 +28,14 @@ spacetime__bayesx = function( p, x, pa ) {
 
   pa$mean = out
   pa$sd = 1 # no option right now to estim posterior prediction errors .. may be possible with type="terms" but would be slow to simulate  and do not know how to do it yet .. please fix this ..
+  varSpatial = hmod$smooth.hyp[,"Variance"]
+  varObs = hmod$fixed.effects[1,"Std. Error"]  
+  nu = nu
+  phi=1/hmod$smooth.hyp[,"Smooth Par."] 
 
-  spacetime_stats = list( sdTotal=sd(x[,p$variable$Y], na.rm=T), rsquared=ss$r.squared, ndata=nrow(x) ) # must be same order as p$statsvars .. pseudo rsquared for logistic .. for poisson {1- logLik(mod) / logLik(mod_saturated)} might be better
+  spacetime_stats = list( sdTotal=sd(x[,p$variable$Y], na.rm=T), rsquared=ss$r.squared, ndata=nrow(x),
+    varSpatial=varSpatial, varObs=varObs, phi=phi, nu=nu
+  ) # must be same order as p$statsvars .. pseudo rsquared for logistic .. for poisson {1- logLik(mod) / logLik(mod_saturated)} might be better
   
   # lattice::levelplot( mean ~ plon + plat, data=pa[pa$tiyr==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
   
