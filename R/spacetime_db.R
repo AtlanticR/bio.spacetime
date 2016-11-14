@@ -174,13 +174,15 @@
   
     if (DS %in% c("model.covariates", "model.covariates.redo") ) {
       
-      fn.covmodel =  file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_engine, p$spacetime_family, "rdata", sep=".") )
+      fn.covmodel =  file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "rdata", sep=".") )
 
       if (DS =="model.covariates") {
         covmodel = NULL
         if (file.exists( fn.covmodel ))  load(fn.covmodel)
         return(covmodel)
       }  
+
+       good = which( is.finite (rowSums(B[ , c(p$variables$Y,p$variables$COV) ])) )
    
       # as a first pass, model the time-independent factors as a user-defined model
       if (p$spacetime_covariate_modeltype=="gam") {
@@ -189,9 +191,9 @@
       }
 
       if (p$spacetime_covariate_modeltype=="bayesx") {
-        if ( !exists( "bayesx.method", p) ) p$bayesx.method="MCMC"  # slightly more smoothing than the REML method
+        if ( !exists( "bayesx_covariate_method", p) ) p$bayesx_covariate_method="REML"  # slightly more smoothing than the REML method
         covmodel = try( 
-          bayesx( p$spacetime_covariate_modelformula, data=B, family=p$spacetime_family,  method=p$bayesx.method ) ) 
+          bayesx( p$spacetime_covariate_modelformula, data=B, family=p$bayesx_covariate_family,  method=p$bayesx_covariate_method, na.action="na.omit" ) ) 
       }
 
       if ( "try-error" %in% class(covmodel) ) stop( "The covariate model was problematic" )

@@ -471,10 +471,13 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
         P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
         P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
+        Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
 
         p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) 
         covmodel = spacetime_db( p=p, DS="model.covariates") 
         if (!is.null(covmodel)) {
+          pa = as.data.frame( Pcov[] )
+          names(pa) = p$variables$COV
           if (p$spacetime_covariate_modeltype=="gam") {
             Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=T ) ) 
             if (!inherits(Pbaseline, "try-error")) {
