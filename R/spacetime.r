@@ -220,7 +220,8 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         # to add global covariate model ??  .. simplistic this way but faster
         covmodel = spacetime_db( p=p, DS="model.covariates") 
         if (!is.null(covmodel)) {
-        Ydata = predict(covmodel, type="response", se.fit=FALSE )
+          Ydata = predict(covmodel, type="response", se.fit=FALSE )
+        }
         rm(covmodel)
       }
  
