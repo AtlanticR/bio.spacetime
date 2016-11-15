@@ -17,7 +17,7 @@
       p$fn$stats =  file.path( p$project.root, "spacetime", paste( "spatial", "covariance", "rdata", sep=".") )
      
       p$cache =list()
-      p$cache$Y0 =    file.path( p$stloc, "input.Y0.cache" ) # raw data
+      p$cache$Yraw =    file.path( p$stloc, "input.Yraw.cache" ) # raw data
       p$cache$Y =     file.path( p$stloc, "input.Y.cache" ) # residuals of covar model or raw data if none
       p$cache$Ycov =  file.path( p$stloc, "input.Ycov.cache"  )
       p$cache$Yloc =  file.path( p$stloc, "input.Yloc.cache" )
@@ -182,25 +182,20 @@
         return(covmodel)
       }  
 
-       good = which( is.finite (rowSums(B[ , c(p$variables$Y,p$variables$COV) ])) )
-   
+      good = which( is.finite (rowSums(B[ , c(p$variables$Y,p$variables$COV) ])) )
+      if (length(good)>0) B= B[good,]
+
       # as a first pass, model the time-independent factors as a user-defined model
       if (p$spacetime_covariate_modeltype=="gam") {
         covmodel = try( 
-          gam( p$spacetime_covariate_modelformula, data=B, optimizer=c("outer","bfgs"), family=p$spacetime_family ) ) 
-      }
-
-      if (p$spacetime_covariate_modeltype=="bayesx") {
-        if ( !exists( "bayesx_covariate_method", p) ) p$bayesx_covariate_method="REML"  # slightly more smoothing than the REML method
-        covmodel = try( 
-          bayesx( p$spacetime_covariate_modelformula, data=B, family=p$bayesx_covariate_family,  method=p$bayesx_covariate_method, na.action="na.omit" ) ) 
+          gam( formula=p$spacetime_covariate_modelformula, data=B, optimizer=c("outer","bfgs"), family=p$spacetime_family ) ) 
       }
 
       if ( "try-error" %in% class(covmodel) ) stop( "The covariate model was problematic" )
       print( summary( covmodel ) )
       save( covmodel, file= fn.covmodel, compress=TRUE )
-    
-      return ( p )
+
+      return (fn.covmodel)
     }
 
     # -----
@@ -231,7 +226,7 @@
         P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
         P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
         PP = PP + P0 
-        PPsd = sqrt( P0sd^2 + PPsd^2) # simpleadditive independent errors assumed
+        PPsd = sqrt( P0sd^2 + PPsd^2) # simple additive independent errors assumed
       }
 
       if ( exists("TIME", p)) {

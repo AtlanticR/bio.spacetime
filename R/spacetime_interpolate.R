@@ -81,16 +81,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
       vEm = try( variogram( y ~ 1, locations=~plon+plat, data=Yyy, cutoff=p$dist.max, width=p$dist.max/15 ) ) # empirical variogram
       if (! inherits(vEm, "try-error")) {
         Yvar = var( Yyy$y, na.rm=TRUE )
-        vMod0 = try( vgm(psill=Yvar*0.8, model="Gau", range=p$dist.max, nugget=Yvar*0.2 ) )
+        vMod0 = try( vgm(psill=Yvar*0.8, model="Exp", range=p$dist.max, nugget=Yvar*0.2 ) )
         if ( !inherits(vMod0, "try-error")) {
           vFitgs =  try( fit.variogram( vEm, vMod0, fit.sills=TRUE, fit.ranges=TRUE ) ) 
           # plot(vEm, model=vFitgs, add=T)
           if  (! inherits(vFitgs, "try-error") ) {
-            dist.cur = max(1, geoR::practicalRange("gaus", phi=vFitgs$range[2] ) )
-
-
-## message("test with fields::Matern.cor.to.range")
-
+            dist.cur = max(1, geoR::practicalRange("exp", phi=vFitgs$range[2] ) )
             U = which( dlon  <= dist.cur  & dlat <= dist.cur )
             ndata =length(U)
           }

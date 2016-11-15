@@ -100,9 +100,11 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     # }
 
     p$variables$ALL = all.vars( p$spacetime_engine_modelformula )
-    
+    testvars = c(p$variables$Y, p$variables$COV, p$variables$TIME)
     # permit passing a function rather than data directly .. less RAM usage
     if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
+    withdata = which(is.finite( (rowSums(DATA$input[, testvars] )) ) )
+    DATA$input = DATA$input[withdata, ] 
     
     # number of time slices
     if (!exists("nt", p)) {
@@ -133,7 +135,11 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
     message( "These are large files (4 to 6 X 5GB), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
     spacetime_db( p=p, DS="cleanup" )
-    
+ 
+    if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
+        # to add global covariate model ??  .. simplistic this way but faster
+        spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) 
+    }
 
     # NOTE:: must not sink this into a deeper funcion as bigmemory RAM seems to losse the pointers if they are not made simultaneously (at the same namespace depth) ..
 
@@ -189,22 +195,51 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
 
       # dependent variable
-      Y = as.matrix(DATA$input[, p$variables$Y ])
+      Yraw = as.matrix(DATA$input[, p$variables$Y ])
         if (p$storage.backend == "bigmemory.ram" ) {
-          p$bm$Y = big.matrix( nrow=nrow(Y), ncol=1, type="double"  )
-          p$bm$Y[] = Y
+          p$bm$Yraw = big.matrix( nrow=nrow(Yraw), ncol=1, type="double"  )
+          p$bm$Yraw[] = Yraw
+          p$ptr$Yraw  = bigmemory::describe( p$bm$Yraw )
+        }
+        if (p$storage.backend == "bigmemory.filebacked" ) {
+          p$ptr$Yraw  = p$cache$Yraw
+          bigmemory::as.big.matrix( Yraw, type="double", backingfile=basename(p$bm$Yraw), descriptorfile=basename(p$cache$Yraw), backingpath=p$stloc )
+        }
+        if (p$storage.backend == "ff" ) {
+          p$ptr$Yraw = ff( Yraw, dim=dim(Yraw), file=p$cache$Yraw, overwrite=TRUE )
+        }
+      rm(Yraw)
+
+      # limits based on quantiles to permit in predictions 
+      Yraw = spacetime_attach( p$storage.backend, p$ptr$Yraw )
+      p$qs0 = quantile( Yraw[], probs=p$quantile_bounds, na.rm=TRUE  )
+
+     # default just copy Yraw ... but if covars are modelled then overwrite with residuals (below) 
+      Ydata = Yraw[]
+      if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
+        # to add global covariate model ??  .. simplistic this way but faster
+        covmodel = spacetime_db( p=p, DS="model.covariates") 
+        if (!is.null(covmodel)) {
+        Ydata = predict(covmodel, type="response", se.fit=FALSE )
+        rm(covmodel)
+      }
+ 
+      # data to be worked upon .. either the raw data or covariate-residuals
+      Ydata = as.matrix( Ydata )
+        if (p$storage.backend == "bigmemory.ram" ) {
+          p$bm$Y = big.matrix( nrow=nrow(Ydata), ncol=1, type="double"  )
+          p$bm$Y[] = Ydata
           p$ptr$Y  = bigmemory::describe( p$bm$Y )
         }
         if (p$storage.backend == "bigmemory.filebacked" ) {
           p$ptr$Y  = p$cache$Y
-          bigmemory::as.big.matrix( Y, type="double", backingfile=basename(p$bm$Y), descriptorfile=basename(p$cache$Y), backingpath=p$stloc )
+          bigmemory::as.big.matrix( Ydata, type="double", backingfile=basename(p$bm$Y), descriptorfile=basename(p$cache$Y), backingpath=p$stloc )
         }
         if (p$storage.backend == "ff" ) {
-          p$ptr$Y = ff( Y, dim=dim(Y), file=p$cache$Y, overwrite=TRUE )
+          p$ptr$Y = ff( Ydata, dim=dim(Ydata), file=p$cache$Y, overwrite=TRUE )
         }
-      rm(Y)
-
-      # limits based on quantiles to permit in predictions 
+      rm(Ydata)
+      
       Y = spacetime_attach( p$storage.backend, p$ptr$Y )
       p$qs = quantile( Y[], probs=p$quantile_bounds, na.rm=TRUE  )
 
@@ -226,6 +261,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           }
         rm(logitY)        
       }
+
 
      # data coordinates
       Yloc = as.matrix( DATA$input[, p$variables$LOCS ])
@@ -436,9 +472,9 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       p$spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
         theta=p$theta )
 
+
       if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
         # to add global covariate model ??  .. simplistic this way but faster
-
         P0   = matrix( 0, nrow=nrow(DATA$output$LOCS), ncol=p$nt )
           if (p$storage.backend == "bigmemory.ram" ) {
              p$bm$P0 = big.matrix( nrow=nrow(P0), ncol=ncol(P0), type="double" )
@@ -472,30 +508,23 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
         P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
         Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
-
+        
         p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) 
         covmodel = spacetime_db( p=p, DS="model.covariates") 
         if (!is.null(covmodel)) {
           pa = as.data.frame( Pcov[] )
           names(pa) = p$variables$COV
           if (p$spacetime_covariate_modeltype=="gam") {
-            Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=T ) ) 
+            Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=TRUE ) ) 
+            rm(pa)
             if (!inherits(Pbaseline, "try-error")) {
               P0[] = Pbaseline$fit
               P0sd[] = Pbaseline$se.fit
             }
           }
-          if (p$spacetime_covariate_modeltype=="bayesx") {
-            Pbaseline = try( predict( covmodel, newdata=pa, type="response" ) ) 
-            if (!inherits(Pbaseline, "try-error")) {
-              P0[] = Pbaseline
-              P0sd[] = 1  # need to figure this one out TODO
-            }
-          }
         }
-
+        covmodel = NULL
       }
-
 
     rm(DATA); gc()
 
