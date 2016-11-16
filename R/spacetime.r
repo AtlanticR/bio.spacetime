@@ -515,7 +515,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
         Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
         
-        ## TODO:: NEED to adjust methods for when there is a time-varying covariate .. for the correct filling of predictions
+        message("## TODO:: NEED to adjust methods for when there is a time-varying covariate .. for the correct filling of predictions ")
 
         covmodel = spacetime_db( p=p, DS="model.covariates") 
         if (!is.null(covmodel)) {
