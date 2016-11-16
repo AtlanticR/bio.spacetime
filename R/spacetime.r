@@ -104,6 +104,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     # permit passing a function rather than data directly .. less RAM usage
     if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
     withdata = which(is.finite( (rowSums(DATA$input[, testvars] )) ) )
+    if (length(withdata) < 1) stop( "Missing data or insufficient data")
     DATA$input = DATA$input[withdata, ] 
     
     # number of time slices
@@ -221,6 +222,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         covmodel = spacetime_db( p=p, DS="model.covariates") 
         if (!is.null(covmodel)) {
           Ydata = predict(covmodel, type="response", se.fit=FALSE )
+          Ydata = Yraw[] - Ydata
         }
         rm(covmodel)
       }
@@ -319,6 +321,9 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       }
   
 
+      message" ## TODO:: NEED to adjust methods for when there is a time-varying covariate and/or a static variable .. right now it is only for static variables.. ")
+
+        
       if (exists("COV", p$variables)) {
         if (is.vector(DATA$output$COV) ) {
           Pcov = as.matrix( DATA$output$COV ) 
@@ -510,7 +515,8 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
         Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
         
-        p = spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) 
+        ## TODO:: NEED to adjust methods for when there is a time-varying covariate .. for the correct filling of predictions
+
         covmodel = spacetime_db( p=p, DS="model.covariates") 
         if (!is.null(covmodel)) {
           pa = as.data.frame( Pcov[] )

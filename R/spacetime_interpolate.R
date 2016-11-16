@@ -173,6 +173,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ( pa_n < 5) next()
 
       if (0) {
+        # check that position indices are working properly
         Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
         Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
         plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data
@@ -332,6 +333,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
       # annual ts, seasonally centered and spatially 
       # pa_i = which( Sloc[Si,1]==Ploc[,1] & Sloc[Si,2]==Ploc[,2] )
       pac_i = which( res$predictions$plon==Sloc[Si,1] & res$predictions$plat==Sloc[Si,2] )
+      # plot( mean~tiyr, res$predictions[pac_i,])
+      # plot( mean~tiyr, res$predictions, pch="." )
       if (length(pac_i) > 5) {
         pac = res$predictions[ pac_i, ]
         pac$dyr = pac[, p$variables$TIME] - trunc(pac[, p$variables$TIME] )
