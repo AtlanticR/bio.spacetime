@@ -52,6 +52,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
     p$timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 )
   }
 
+  theta.grid = c(0.001, 0.01, 0.1, 1, 10 ) * p$dist.max 
+  theta.grid = theta.grid[ which(theta.grid > p$pres )] 
 
 # main loop over each output location in S (stats output locations)
   for ( iip in ip ) {
@@ -75,29 +77,18 @@ spacetime_interpolate = function( ip=NULL, p ) {
       } else {
         Uj = U
       }
-      #fast model with gstat to get a crude est of distance scale
-      Yyy = data.frame( cbind( p$spacetime_family$linkfun(Y[Uj]), Yloc[Uj,] ))
-      names( Yyy) = c("y", "plon", "plat" )
-      vEm = try( variogram( y ~ 1, locations=~plon+plat, data=Yyy, cutoff=p$dist.max, width=p$dist.max/15 ) ) # empirical variogram
-      if (! inherits(vEm, "try-error")) {
-        Yvar = var( Yyy$y, na.rm=TRUE )
-        vMod0 = try( vgm(psill=Yvar*0.8, model="Exp", range=p$dist.max, nugget=Yvar*0.2 ) )
-        if ( !inherits(vMod0, "try-error")) {
-          vFitgs =  try( fit.variogram( vEm, vMod0, fit.sills=TRUE, fit.ranges=TRUE ) ) 
-          # plot(vEm, model=vFitgs, add=T)
-          if  (! inherits(vFitgs, "try-error") ) {
-            dist.cur = max(1, geoR::practicalRange("exp", phi=vFitgs$range[2] ) )
-            U = which( dlon  <= dist.cur  & dlat <= dist.cur )
-            ndata =length(U)
-          }
-        }
-        vFit = vMod0 = Yvar = vEm = Yyy = Uj = NULL
-      }
+      fsp = try( fields::MLESpatialProcess( Yloc[Uj,], p$spacetime_family$linkfun(Y[Uj]), theta.grid=theta.grid, 
+        cov.function="stationary.cov", cov.args = list(Covariance="Exponential") ) )
+        if ( !inherits(fsp, "try-error")) {
+          dist.cur = min( max(1, geoR::practicalRange("exp", phi=fsp$pars["theta"] ) ), p$dist.max )
+          U = which( dlon  <= dist.cur  & dlat <= dist.cur )
+          ndata =length(U)
+        }   
+      fsp = NULL
     }
 
     # as a backup .. find data withing a given distance / number 
     if (ndata < p$n.min | ndata > p$n.max | dist.cur < p$dist.min | dist.cur > p$dist.max ) { 
-    
       if ( ndata < p$n.min )  {
         for ( usamp in p$upsampling )  {
           dist.cur = p$dist.median * usamp
@@ -133,7 +124,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
           }
         }
       } 
-
     }
 
     rm (dlon, dlat); gc()
@@ -231,12 +221,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # reconstruct data for modelling (x) and data for prediction purposes (pa)
     x = data.frame( Y[YiU] )
     names(x) = p$variables$Y
-    if ( exists("spacetime_family", p) ) {
-      x[, p$variables$Y] = p$spacetime_family$linkfun ( x[, p$variables$Y] ) 
-      if (p$spacetime_engine=="habitat") {
-        x[, p$variables$Ylogit ] = p$spacetime_family_logit$linkfun ( x[, p$variables$Ylogit] ) ### -- need to conform with data structure ... check once ready
-      }
+    x[, p$variables$Y] = p$spacetime_family$linkfun ( x[, p$variables$Y] ) 
+    if (p$spacetime_engine=="habitat") {
+      x[, p$variables$Ylogit ] = p$spacetime_family_logit$linkfun ( x[, p$variables$Ylogit] ) ### -- need to conform with data structure ... check once ready
     }
+  
 
     x$plon = Yloc[YiU,1]
     x$plat = Yloc[YiU,2]
@@ -290,15 +279,13 @@ spacetime_interpolate = function( ip=NULL, p ) {
     rm(x); gc()
     if ( is.null(res)) next()
    
-    if (exists("spacetime_family", p)) {
-      res$predictions$mean = p$spacetime_family$linkinv( res$predictions$mean )
-      res$predictions$sd   = p$spacetime_family$linkinv( res$predictions$sd )
-      if (p$spacetime_engine=="habitat") {
-        res$predictions$logitmean = p$spacetime_family_logit$linkinv( res$predictions$logitmean )
-        res$predictions$logitsd   = p$spacetime_family_logit$linkinv( res$predictions$logitsd )
-      }
+    res$predictions$mean = p$spacetime_family$linkinv( res$predictions$mean )
+    res$predictions$sd   = p$spacetime_family$linkinv( res$predictions$sd )
+    if (p$spacetime_engine=="habitat") {
+      res$predictions$logitmean = p$spacetime_family_logit$linkinv( res$predictions$logitmean )
+      res$predictions$logitsd   = p$spacetime_family_logit$linkinv( res$predictions$logitsd )
     }
-
+ 
     if (exists( "quantile_bounds", p)) {
       tq = quantile( Y[YiU], probs=p$quantile_bounds, na.rm=TRUE  )
       toolow  = which( res$predictions$mean < tq[1] )
@@ -315,18 +302,19 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (!exists("spacetime_stats",  res) ) res$spacetime_stats = list()
     
     if (!exists("sdSpatial", res$spacetime_stats)) {
-      # some methods generate these internally so no need to do again ..
-      if (exists("spacetime_variogram_engine", p) ) {
-        sp.stat = try( spacetime_variogram(  xy=Yloc[U,], z=Y[U], methods=p$spacetime_variogram_engine ) )
-        if (!is.null(sp.stat) && !inherits(sp.stat, "try-error") ) {
-          res$spacetime_stats["sdSpatial"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varSpatial )
-          res$spacetime_stats["sdObs"] = sqrt( sp.stat[[p$spacetime_variogram_engine]]$varObs )
-          res$spacetime_stats["range"] = sp.stat[[p$spacetime_variogram_engine]]$range
-          res$spacetime_stats["phi"] = sp.stat[[p$spacetime_variogram_engine]]$phi
-          res$spacetime_stats["nu"] = sp.stat[[p$spacetime_variogram_engine]]$nu
+      # some methods can generate spatial stats simultaneously .. 
+      # it is faster to keep them all together instead of repeating here
+      # field and RandomFields gaussian processes seem most promising ... 
+      # default to fields for speed:
+      fsp = try( fields::MLESpatialProcess( Yloc[U,], p$spacetime_family$linkfun(Y[U]), theta.grid=theta.grid,
+        cov.function="stationary.cov", cov.args = list(Covariance="Exponential") ) )
+        if ( !inherits(fsp, "try-error")) {
+          res$spacetime_stats["sdSpatial"] = fsp$pars["rho"] 
+          res$spacetime_stats["sdObs"] = fsp$pars["sigma"]^2 
+          res$spacetime_stats["range"] = geoR::practicalRange("exp", phi=fsp$pars["theta"] )
+          res$spacetime_stats["phi"] = fsp$pars["theta"] # range parameter
         } 
-        sp.stat = NULL
-      }
+      fsp = NULL
     }
     
     if ( exists("TIME", p$variables) ){
@@ -421,8 +409,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     if ( exists("TIME", p$variables) ) {
       u = which( is.finite( P[res$predictions$i,1] ) )  # these have data already .. update
-      nu = length( u ) 
-      if ( nu > 1 ) {  # ignore if only one point .. mostly because it can cause issues with matrix form .. 
+      u_n = length( u ) 
+      if ( u_n > 1 ) {  # ignore if only one point .. mostly because it can cause issues with matrix form .. 
         # locations of P to modify
         ui = sort(unique(res$predictions$i[u]))
         nc = ncol(P)

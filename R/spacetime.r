@@ -115,18 +115,15 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     } 
 
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
-    othervars = NULL
+    othervars = c("sdSpatial", "sdObs", "range", "phi")
     if (p$spacetime_engine == "habitat") {
       othervars = c( )
     }
     if (p$spacetime_engine == "bayesx") {
-      othervars = c( "sdTotal", "rsquared", "ndata", "sdSpatial", "sdObs", "range", "phi", "nu" )# not used .. just for posterity
+      othervars = c( "sdTotal", "rsquared", "ndata", "sdSpatial", "sdObs", "range", "phi" )# not used .. just for posterity
     }
     if (p$spacetime_engine == "inla") {
       othervars = c( "sdSpatial", "sdObs", "range", "range.sd" )# not used .. just for posterity
-    }
-    if (exists("spacetime_variogram_engine", p) ) {
-      othervars = c( "sdSpatial", "sdObs", "range", "phi", "nu")
     }
     if (exists("TIME", p$variables) ) {
       othervars = c( "ar_timerange", "ar_1" )

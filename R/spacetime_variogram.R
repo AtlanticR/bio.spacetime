@@ -123,14 +123,14 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   # ------------------------
   if ("fields" %in% methods){
     require(fields)
-    vg = vgram( xy, z, N=nbreaks, dmax=maxdist )
-    smoothness =nu = 2
+    vg = vgram( xy, z, N=nbreaks, dmax=out$maxdist )
+    smoothness =nu = 0.5
     # theta = range paramter
     theta.grid =c(0.05, 0.1, 0.2, 0.4, 0.5, 0.75, 1, 2, 5, 10)
     
     res =NULL  
     fsp = MLESpatialProcess.fast(xy, z, cov.function = "stationary.cov",  cov.args = list(Covariance = "Matern", smoothness = nu) )
-    if ( fsp$converge ==0 ) {
+    if ( fsp$converge[1] ==0 ) {
       res = fsp$pars 
       } else {
       fsp = MLE.Matern(xy, z, smoothness=nu, theta.grid =theta.grid )
@@ -146,7 +146,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     if (is.null(res)) return(NULL)
 
     vgm = Matern( d=vg$centers, range=res["theta"], smoothness=nu )    
-    nugget = res["sigma"] * out$varZ
+    nugget = res["sigma"]^2 * out$varZ
     sill = res["rho"] * out$varZ 
     cvg = data.frame( cbind( x=vg$centers*out$maxdist, cvgm= (nugget + sill * (1-vgm)) ))
     out$fields = list( fit=fsp, vgm=cvg, range=NA, nu=nu, phi=res["theta"]*out$maxdist ,
