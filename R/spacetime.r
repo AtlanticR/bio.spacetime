@@ -318,7 +318,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       }
   
 
-      message" ## TODO:: NEED to adjust methods for when there is a time-varying covariate and/or a static variable .. right now it is only for static variables.. ")
+      message( " ## TODO:: NEED to adjust methods for when there is a time-varying covariate and/or a static variable .. right now it is only for static variables.. ")
 
         
       if (exists("COV", p$variables)) {
