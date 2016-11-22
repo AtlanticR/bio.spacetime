@@ -1,5 +1,5 @@
 
-spacetime__gaussianprocess2Dt = function( p, x, pa ) {
+spacetime__gaussianprocess = function( p, x, pa ) {
   #\\ this is the core engine of spacetime .. localised space  and time modelling/ interpolation 
   # \ as a gaussian process
   # TODO 
