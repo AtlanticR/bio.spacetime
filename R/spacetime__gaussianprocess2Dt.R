@@ -5,10 +5,10 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
   #\\ note: time is not being modelled and treated independently 
   #\\      .. you had better have enough data in each time slice ..  essentially this is kriging 
 
-  if (!exists("fields.cov.function", p)) p$cov.function="stationary.cov"
+  if (!exists("fields.cov.function", p)) p$fields.cov.function="stationary.cov"
   if (!exists("fields.Covariance", p)) p$fields.Covariance="Exponential" # note that "Rad.cov" is TPS
   if (!exists("fields.cov.args", p) & p$fields.Covariance=="Matern") {
-    if (!exists("nu", p)) p$fields.nu=2  # note: this is the smoothness or shape parameter (fix at 2 if not calculated or given )   
+    if (!exists("fields.nu", p)) p$fields.nu=0.5  # note: this is the smoothness or shape parameter (fix at 0.5 if not calculated or given -- exponential)   
     p$fields.cov.args=list( Covariance=p$fields.Covariance, smoothness=p$fields.nu ) # this is exponential covariance 
   }
   
@@ -30,14 +30,14 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
     xy = x[xi, p$variables$LOCS]
     z = x[xi, p$variables$Y]
     
-    fsp = try( MLESpatialProcess(xy, z, cov.function=p$cov.function, cov.args=p$fields.cov.args ,
+    fsp = try( MLESpatialProcess(xy, z, cov.function=p$fields.cov.function, cov.args=p$fields.cov.args ,
       theta.grid=theta.grid, lambda.grid=lambda.grid, ngrid = 10, niter = 15, tol = 0.01, 
       Distance = "rdist", nstep.cv = 50 ) )
 
     if (inherits(fsp, "try-error") )  next()
     if ( fsp$converge != 0 ) next()
 
-    fspmodel <- try( Krig( xy, z, cov.function=p$cov.function, cov.args=p$fields.cov.args, 
+    fspmodel <- try( Krig( xy, z, cov.function=p$fields.cov.function, cov.args=p$fields.cov.args, 
       theta=fsp$pars["theta"], lambda=fsp$pars["lambda"] ) )
     if (inherits(fspmodel, "try-error") )  next()
 

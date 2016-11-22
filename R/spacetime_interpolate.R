@@ -81,7 +81,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
       # force exponential as it is about 1/3 faster than matern with nu=0.5
       fsp = try( fields::MLESpatialProcess( Yloc[Uj,], p$spacetime_family$linkfun(Y[Uj]), 
         theta.grid=theta.grid, lambda.grid=lambda.grid, 
-        cov.function=p$cov.function, cov.args=list(Covariance="Exponential") ) )
+        cov.function=p$fields.cov.function, cov.args=list(Covariance="Exponential") ) )
         if ( !inherits(fsp, "try-error")) {
           dist.cur = min( max(1, geoR::practicalRange("exp", phi=fsp$pars["theta"] ) ), p$dist.max )
           U = which( dlon  <= dist.cur  & dlat <= dist.cur )
@@ -311,7 +311,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
       # default to fields for speed:
       fsp = try( fields::MLESpatialProcess( Yloc[U,], p$spacetime_family$linkfun(Y[U]), 
         theta.grid=theta.grid, lambda.grid=lambda.grid,
-        cov.function=p$cov.function, cov.args = list(Covariance="Exponential") ) )
+        cov.function=p$fields.cov.function, cov.args = list(Covariance="Exponential") ) )
         if ( !inherits(fsp, "try-error")) {
           res$spacetime_stats["sdSpatial"] = fsp$pars["rho"] 
           res$spacetime_stats["sdObs"] = fsp$pars["sigma"]^2 
