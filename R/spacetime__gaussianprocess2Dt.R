@@ -3,18 +3,21 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
   #\\ this is the core engine of spacetime .. localised space (no-time) modelling interpolation 
   # \ as a 2D gaussian process (basically, simple krigimg or TPS -- time is treated as being independent)
   #\\ note: time is not being modelled and treated independently 
-  #\\      .. you had better have enough data in each time slice
+  #\\      .. you had better have enough data in each time slice ..  essentially this is kriging 
 
-  if (!exists("fields.covariancefunction", p)) p$fields.covariancefunction="Matern"  # note: "Rad.cov" is TPS
-  if (!exists("nu", p)) p$nu=2  # note: this is the smoothness or shape parameter (fix at 2 if not calculated or given )   
-  if (!exists("tps_p", p)) p$tps_p=2 # power in the radial basis function (with a log term added for 
-     # even dimensions). 
-     # If m is the degree of derivative in penalty then p=2m-d 
-     # where d is the dimension of x. p must be greater than 0. 
-   
+  if (!exists("fields.cov.function", p)) p$cov.function="stationary.cov"
+  if (!exists("fields.Covariance", p)) p$fields.Covariance="Exponential" # note that "Rad.cov" is TPS
+  if (!exists("fields.cov.args", p) & p$fields.Covariance=="Matern") {
+    if (!exists("nu", p)) p$fields.nu=2  # note: this is the smoothness or shape parameter (fix at 2 if not calculated or given )   
+    p$fields.cov.args=list( Covariance=p$fields.Covariance, smoothness=p$fields.nu ) # this is exponential covariance 
+  }
+  
   x$mean = NA
   pa$mean = NA
   pa$sd = NA
+
+  theta.grid = 10^seq( -6, 6, by=0.5) * out$maxdist # maxdist is aprox magnitude of the phi parameter
+  lambda.grid = 10^seq( -9, 3, by=0.5) 
 
   for ( ti in p$timeslices ) {
     
@@ -26,13 +29,17 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
 
     xy = x[xi, p$variables$LOCS]
     z = x[xi, p$variables$Y]
-    fsp = try( MLESpatialProcess.fast(xy, z, cov.function = "stationary.cov",  cov.args = list(Covariance=p$fields.covariancefunction, smoothness=p$nu ) ) )
+    
+    fsp = try( MLESpatialProcess(xy, z, cov.function=p$cov.function, cov.args=p$fields.cov.args ),
+      theta.grid=theta.grid, lambda.grid=lambda.grid, ngrid = 10, niter = 15, tol = 0.01, 
+      Distance = "rdist", nstep.cv = 50 ) )
 
-    if (inherits(vFitgs, "try-error") )  next()
+    if (inherits(fsp, "try-error") )  next()
     if ( fsp$converge != 0 ) next()
 
-    lambda.MLE<- fsp$pars[3]/fsp$pars[1]  # ratio nugget / sill variance
-    fspmodel <- Krig( xy, z, Covariance=p$fields.covariancefunction, theta=fsp$pars[2], smoothness=p$nu, lambda= lambda.MLE, p=p$tps_p )
+    fspmodel <- try( Krig( xy, z, cov.function=p$cov.function, cov.args=p$fields.cov.args, 
+      theta=fsp$pars["theta"], lambda=fsp$pars["lambda"] ) )
+    if (inherits(fspmodel, "try-error") )  next()
 
     x$mean[xi] = predict(fspmodel, x=x[xi, p$variables$LOCS] )
     ss = lm( x$mean[xi] ~ x[xi,p$variables$Y], na.action=na.omit)
@@ -40,14 +47,14 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
     rsquared = summary(ss)$r.squared
     if (rsquared < p$spacetime_rsquared_threshold ) next()
 
-    pa_i = which( pa[, p$variables$TIME]==ti)
+    pa_i = which( pa[, p$variables$TIME]==ti )
     pa$mean[pa_i] = predict(fspmodel, x=pa[pa_, p$variables$LOCS] )
-    pa$sd[pa_i]   = predict(fspmodel, x=pa[pa_, p$variables$LOCS] )
+    pa$sd[pa_i]   = predictSE(fspmodel, x=pa[pa_, p$variables$LOCS] )
 
     if ( 0 ){
       # debugging plots
       surface(fspmodel)
-      fsp.p<- predictSurface(fspmodel, lambda= lambda.MLE, nx=200, ny=200, )
+      fsp.p<- predictSurface(fspmodel, lambda=fsp$pars["lambda"], nx=200, ny=200, )
       surface(fsp.p, type="I")
       fsp.p2<- predictSurfaceSE(fspmodel)
       surface(fsp.p, type="C")

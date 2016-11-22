@@ -52,8 +52,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
     p$timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 )
   }
 
-  theta.grid = c(0.001, 0.01, 0.1, 1, 10 ) * p$dist.max 
-  theta.grid = theta.grid[ which(theta.grid > p$pres )] 
+  # used by "fields":
+  theta.grid = 10^seq( -6, 6, by=0.5) * p$dist.max # maxdist is aprox magnitude of the phi parameter
+  lambda.grid = 10^seq( -9, 3, by=0.5) 
 
 # main loop over each output location in S (stats output locations)
   for ( iip in ip ) {
@@ -77,8 +78,10 @@ spacetime_interpolate = function( ip=NULL, p ) {
       } else {
         Uj = U
       }
-      fsp = try( fields::MLESpatialProcess( Yloc[Uj,], p$spacetime_family$linkfun(Y[Uj]), theta.grid=theta.grid, 
-        cov.function="stationary.cov", cov.args = list(Covariance="Exponential") ) )
+      # force exponential as it is about 1/3 faster than matern with nu=0.5
+      fsp = try( fields::MLESpatialProcess( Yloc[Uj,], p$spacetime_family$linkfun(Y[Uj]), 
+        theta.grid=theta.grid, lambda.grid=lambda.grid, 
+        cov.function=p$cov.function, cov.args=list(Covariance="Exponential") ) )
         if ( !inherits(fsp, "try-error")) {
           dist.cur = min( max(1, geoR::practicalRange("exp", phi=fsp$pars["theta"] ) ), p$dist.max )
           U = which( dlon  <= dist.cur  & dlat <= dist.cur )
@@ -306,8 +309,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
       # it is faster to keep them all together instead of repeating here
       # field and RandomFields gaussian processes seem most promising ... 
       # default to fields for speed:
-      fsp = try( fields::MLESpatialProcess( Yloc[U,], p$spacetime_family$linkfun(Y[U]), theta.grid=theta.grid,
-        cov.function="stationary.cov", cov.args = list(Covariance="Exponential") ) )
+      fsp = try( fields::MLESpatialProcess( Yloc[U,], p$spacetime_family$linkfun(Y[U]), 
+        theta.grid=theta.grid, lambda.grid=lambda.grid,
+        cov.function=p$cov.function, cov.args = list(Covariance="Exponential") ) )
         if ( !inherits(fsp, "try-error")) {
           res$spacetime_stats["sdSpatial"] = fsp$pars["rho"] 
           res$spacetime_stats["sdObs"] = fsp$pars["sigma"]^2 
@@ -335,8 +339,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
           if (!is.null(ts.stat) && !inherits(ts.stat, "try-error") ) {
             res$spacetime_stats["ar_timerange"] = ts.stat$quantilePeriod 
             if (length(which (is.finite(pac$mean))) > 5 ) {
-              ar1 = try( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 0, na.action="na.omit") )
-              if (!inherits(ts.stat, "try-error")) res$spacetime_stats["ar_1"] = coef( ar1 )
+              ar1 = NULL
+              ar1 = try( ar( pac$mean[ piid ] ) )
+              if (!inherits(ts.stat, "try-error")) {
+                res$spacetime_stats["ar_1"] = ar1$ar 
+              } else {
+                ar1 = try( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 0, na.action="na.omit") )
+                if (!inherits(ts.stat, "try-error")) res$spacetime_stats["ar_1"] = coef( ar1 )
+              }
             } 
           } 
 

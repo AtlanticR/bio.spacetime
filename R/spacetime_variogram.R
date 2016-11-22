@@ -4,7 +4,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   #\\ estimate empirical variograms (actually correlation functions) and then model them using a number of different approaches .. mostly using Matern as basis
   #\\ returns empirical variogram and parameter estimates, and the models themselves
   #\\ expect xy = c(p/lon, p/lat), z= variable
-  #\\ ---> removed--> varZ is the total variance which needs to be mulitplied to the curve if you want the "true" semivariance
+
   #\\ NOTE:: the default parameterization is as in spBayes and gstat which is:
 
   #\\ matern covariogram (||x||) = sigma^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
@@ -26,9 +26,6 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     maxdist = NA
     edge=c(1/3, 1)
     nbreaks = 15
-
-
-
 
         # tests
     gr = spacetime_variogram( xy, z, methods="geoR" )
@@ -72,19 +69,18 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     # plot( out$geoR$vgm )
     # lines( out$geoR$fit, lwd=2, col="slateblue" )
     xRange = c( 0, max(out$geoR$range*2.1 ) )
-    yRange = c( 0, max(out$geoR$vgm$v*out$varZ )*1.05 )
-    plot ( out$varZ * out$geoR$vgm$v ~ out$geoR$vgm$u, pch=20, xlim=xRange, ylim=yRange, ylab="Semivariance", xlab="Distance" )
+    yRange = c( 0, max(out$geoR$vgm$v )*1.05 )
+    plot ( out$geoR$vgm$v ~ out$geoR$vgm$u, pch=20, xlim=xRange, ylim=yRange, ylab="Semivariance", xlab="Distance" )
       abline( h=0,  col="gray", lwd=2 )
-      abline( h= out$varZ *(out$geoR$varSpatial + out$geoR$varObs), lty="dashed", col="slategray"  )
-      abline( h= out$varZ * out$geoR$varObs , lty="dashed", col="slategray")
+      abline( h= (out$geoR$varSpatial + out$geoR$varObs), lty="dashed", col="slategray"  )
+      abline( h=  out$geoR$varObs , lty="dashed", col="slategray")
       abline( v=out$geoR$range, lty="dotted", col="slateblue" )
       abline( v=0,  col="gray", lwd=2 )
       x = seq( 0, 2*out$geoR$range, length.out=100 )
       acor = geoR::matern( x, phi=out$geoR$phi, kappa=out$geoR$kappa  )
       acov = out$geoR$varObs +  out$geoR$varSpatial * (1- acor)
-      lines( out$varZ * acov ~ x , col="blue", lwd=2 )
+      lines( acov ~ x , col="blue", lwd=2 )
   } 
-
 
   nc_max = 5  # max number of iterations
 
@@ -94,13 +90,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
   out = list()
   out$varZ = var( z, na.rm=TRUE )  # this is the scaling factor for semivariance .. diving by sd, below reduces numerical floating point issues
-  out$meanZ = mean(z, na.rm=TRUE)
-  out$minX = min( xy$plon, na.rm=TRUE )
-  out$minY = min( xy$plat, na.rm=TRUE )
 
-  #scaling xyz helps stabilize and speed up solutions
-  z = (z - out$meanZ )/ sqrt( out$varZ ) # (centered and scaled by sd to avoid floating point issues)
-  zrange = range( z, na.rm=TRUE )   
   xr = range( xy$plon, na.rm=TRUE )
   yr = range( xy$plat, na.rm=TRUE )
   drange = min( diff( xr), diff( yr)  )
@@ -114,42 +104,38 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   out$drange = drange
   out$maxdist = maxdist
 
-  # positions and distances are scaled to max dist .. with a small error term
-  derr = maxdist / 10^4
-  xy$plon = ( xy$plon - out$minX ) / maxdist + runif(xy_n, -derr, derr)
-  xy$plat = ( xy$plat - out$minY ) / maxdist + runif(xy_n, -derr, derr)
+  # a small error term 
+  derr = out$maxdist / 10^6
+  xy$plon = xy$plon + runif(xy_n, -derr, derr)
+  xy$plat = xy$plat + runif(xy_n, -derr, derr)
 
 
   # ------------------------
   if ("fields" %in% methods){
     require(fields)
-    vg = vgram( xy, z, N=nbreaks, dmax=out$maxdist )
-    smoothness =nu = 0.5
+    vg = vgram( xy, z, N=nbreaks, dmax=out$maxdist * 3 )
+    smoothness =nu = 0.5 # 0.5 == exponential
     # theta = range paramter
-    theta.grid =c(0.05, 0.1, 0.2, 0.4, 0.5, 0.75, 1, 2, 5, 10)
+    theta.grid = 10^seq( -6, 6, by=0.5) * out$maxdist
+    lambda.grid = 10^seq( -9, 1, by=0.5) * out$maxdist
     
     res =NULL  
-    fsp = MLESpatialProcess.fast(xy, z, cov.function = "stationary.cov",  cov.args = list(Covariance = "Matern", smoothness = nu) )
-    if ( fsp$converge[1] ==0 ) {
+    fsp = try( MLESpatialProcess(xy, z, theta.grid=theta.grid, lambda.grid=lambda.grid,
+      cov.function = "stationary.cov",  cov.args = list(Covariance = "Matern", smoothness = nu), 
+      ngrid = 10, niter = 15, tol = 0.01, Distance = "rdist", nstep.cv = 50 ) )
+    if (! inherits(fsp, "try-error") ) {
       res = fsp$pars 
-      } else {
+    } else {
       fsp = MLE.Matern(xy, z, smoothness=nu, theta.grid =theta.grid )
-      if( is.finite(sum(fsp$pars))) res = fsp$pars 
-    }
-    if (is.null(res)) {
-      # use the slower/more robust version
-      fsp = MLESpatialProcess(xy, z, theta.grid=theta.grid, 
-        cov.function = "stationary.cov",  cov.args = list(Covariance = "Matern", smoothness = nu), 
-        ngrid = 10, niter = 15, tol = 0.01, Distance = "rdist", nstep.cv = 50 )
       if( is.finite(sum(fsp$pars))) res = fsp$pars 
     }
     if (is.null(res)) return(NULL)
 
     vgm = Matern( d=vg$centers, range=res["theta"], smoothness=nu )    
-    nugget = res["sigma"]^2 * out$varZ
-    sill = res["rho"] * out$varZ 
-    cvg = data.frame( cbind( x=vg$centers*out$maxdist, cvgm= (nugget + sill * (1-vgm)) ))
-    out$fields = list( fit=fsp, vgm=cvg, range=NA, nu=nu, phi=res["theta"]*out$maxdist ,
+    nugget = res["sigma"]^2 
+    sill = res["rho"]  
+    cvg = data.frame( cbind( x=vg$centers, cvgm= (nugget + sill * (1-vgm)) ))
+    out$fields = list( fit=fsp, vgm=cvg, range=NA, nu=nu, phi=res["theta"] ,
         varSpatial=sill, varObs=nugget  )  # fields::"range" == range parameter == phi
     
     out$fields$range = geoR::practicalRange("matern", phi=out$fields$phi, kappa=out$fields$nu  )
@@ -161,11 +147,16 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       abline( h=out$fields$varObs )
       abline( v=out$fields$range )
       
-      lambda.MLE<- fsp$pars[3]/fsp$pars[1]  # ratio nugget / sill variance
-      fsp2<- Krig( xy, z, Covariance="Matern", theta=fsp$pars[2], smoothness=nu, lambda= lambda.MLE)
+      x11()
+      lambda.MLE<- fsp$pars["sigma"]^2/fsp$pars["rho"]  # ratio nugget / sill variance
+      fsp2<- Krig( xy, z, Covariance="Matern", theta=fsp$pars["theta"], smoothness=nu, lambda= lambda.MLE)
       surface(fsp2)
+      
+      x11()
       fsp.p<- predictSurface(fsp2, lambda= lambda.MLE, nx=200, ny=200, )
       surface(fsp.p, type="I")
+      
+      x11()
       fsp.p2<- predictSurfaceSE(fsp2)
       surface(fsp.p2, type="C")
     }
@@ -182,7 +173,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     require(gstat)
     require(sp)
 
-    vrange = 0.5 # starting est of range
+    vrange = 0.5*out$maxdist # starting est of range
     distx = vrange * 0.9 ## back it up a bit to enter smoothly into the loop
     nc = 0
     while ( distx < vrange ) {
@@ -198,10 +189,6 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       if (nc > nc_max ) break()
     }
     if (inherits(vFitgs, "try-error") )  return(NULL)
-    vEm$dist = vEm$dist * out$maxdist
-    vEm$gamma = vEm$gamma * out$varZ
-    vFitgs$psill = vFitgs$psill * out$varZ
-    vFitgs$range[2] = out$maxdist* vFitgs$range[2]
 
     out$gstat = list( fit=vFitgs, vgm=vEm, range=NA, nu=vFitgs$kappa[2], phi=vFitgs$range[2],
         varSpatial=vFitgs$psill[2], varObs=vFitgs$psill[1]  )  # gstat::"range" == range parameter == phi
@@ -212,12 +199,12 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       x11()
       plot(vEm, model=vFitgs, add=T)
       x11()
-      plot( gamma ~ dist, data=out$gstat$vgm, xlim=c(0,maxdist), 
+      plot( gamma ~ dist, data=out$gstat$vgm, xlim=c(0,out$maxdist), 
            ylim=c(0,max(out$gstat$vgm$gamma)*1.1), col="blue", pch=20 )
       abline( h=out$gstat$varSpatial + out$gstat$varObs ) 
       abline( h=out$gstat$varObs )
       abline( v=out$gstat$range )
-      x = seq( 0, maxdist, length.out=100 )
+      x = seq( 0, out$maxdist, length.out=100 )
       acor = geoR::matern( x, phi=out$gstat$phi, kappa=out$gstat$nu  )
       acov = out$gstat$varObs + out$gstat$varSpatial * (1- acor)
       lines( acov~x , col="red" )
@@ -227,8 +214,8 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
         gs <- gstat(id = "z", formula = z~1, locations=~plon+plat, data=xy, maxdist=distx, nmin=10, force=TRUE, model=vFitgs )
         # variogram of residuals
         data(meuse.grid)
-        meuse.grid$plon = meuse.grid$x/out$maxdist
-        meuse.grid$plat = meuse.grid$y/out$maxdist
+        meuse.grid$plon = meuse.grid$x
+        meuse.grid$plat = meuse.grid$y
 
         preds <- predict(gs, newdata=meuse.grid )
         spplot(preds)
@@ -252,7 +239,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       #\\ geoR:: rho(h) = (1/(2^(kappa-1) * Gamma(kappa))) * ((h/phi)^kappa) * K_{kappa}(h/phi)
 
     require( geoR )
-    vrange = 0.5
+    vrange = 0.5 * out$maxdist
     distx = vrange * 0.9 ## back it up a bit to enter smoothly into the loop
     nc = 0
     while ( distx  < vrange ) {
@@ -274,9 +261,9 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
      if (nc > nc_max ) break()
     }
   
-    out$geoR = list( fit=vMod, vgm=vEm, model=vMod, range=vMod$practicalRange*out$maxdist,
-              varSpatial= vMod$cov.pars[1]*out$varZ, varObs=vMod$nugget*out$varZ, 
-              nu=vMod$kappa,  phi=vMod$cov.pars[2]*out$maxdist )
+    out$geoR = list( fit=vMod, vgm=vEm, model=vMod, range=vMod$practicalRange,
+              varSpatial= vMod$cov.pars[1], varObs=vMod$nugget, 
+              nu=vMod$kappa,  phi=vMod$cov.pars[2] )
 
     if (plotdata) {
       # not rescaled ...
@@ -286,8 +273,8 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       x11()
       plot( out$geoR$vgm )
       x11()
-      plot( out$geoR$vgm$v*out$varZ ~ c(out$geoR$vgm$u*out$maxdist), pch=20 , 
-           xlim=c(0,maxdist), ylim=c(0, out$varZ*1.25) )
+      plot( out$geoR$vgm$v ~ c(out$geoR$vgm$u), pch=20 , 
+           xlim=c(0,out$maxdist), ylim=c(0, 1.25) )
       abline( h=out$geoR$varSpatial + out$geoR$varObs)  
       abline( h=out$geoR$varObs )
       abline( v=out$geoR$range )
@@ -323,7 +310,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
    # RFoptions(
    #   allowdistanceZero=TRUE,
     #  modus_operandi="precise", #‘"careless"’,‘"sloppy"’, ‘"easygoing"’, ‘"normal"’, ‘"precise"’,        ‘"pedantic"’, ‘"neurotic"’
-   #   bin_dist_factor=maxdist/2,
+   #   bin_dist_factor=out$maxdist/2,
       #bins=nbreaks,
       #critical=TRUE, 
    #   approx_zero=0.05, #  Value below which a correlation is considered to be essentially zero.
@@ -336,9 +323,9 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     oo=summary(o)
 
     out$RandomFields = list ( fit=o, vgm=o[2], model=oo, range=NA,
-              varSpatial=oo$param["value", "matern.var"]*out$varZ,
-              varObs=oo$param["value", "nugget.var"]*out$varZ,
-              phi=(out$maxdist* oo$param["value", "matern.s"] )/(sqrt(oo$param["value", "matern.nu"]*2) ), 
+              varSpatial=oo$param["value", "matern.var"],
+              varObs=oo$param["value", "nugget.var"],
+              phi=(oo$param["value", "matern.s"] )/(sqrt(oo$param["value", "matern.nu"]*2) ), 
               nu=oo$param["value", "matern.nu"], # RF::nu == geoR:: kappa (bessel smoothness param)
               error=NA )
 
@@ -346,9 +333,9 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
     if (plotdata) {
       x11()
-      py = as.vector(out$RandomFields$vgm@emp.vario) *out$varZ 
-      px = out$RandomFields$vgm@centers*out$maxdist
-      plot(  py ~ px, pch=20, ylim=c(0,out$varZ*1.25) )
+      py = as.vector(out$RandomFields$vgm@emp.vario) 
+      px = out$RandomFields$vgm@centers
+      plot(  py ~ px, pch=20, ylim=c(0, 1.25) )
       abline( h=out$RandomFields$varSpatial + out$RandomFields$varObs  )
       abline( h=out$RandomFields$varObs )
       abline( v=out$RandomFields$range )
@@ -360,8 +347,8 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
       # compare with:
         data(meuse.grid)
-        meuse.grid$plon = meuse.grid$x/out$maxdist
-        meuse.grid$plat = meuse.grid$y/out$maxdist
+        meuse.grid$plon = meuse.grid$x
+        meuse.grid$plat = meuse.grid$y
 
 
       x11()
@@ -405,9 +392,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     m.1 <- spRecover(model, start=burn.in )
 
     u = apply(m.1$p.theta.recover.samples, 2, mean)
-    u["phi"] = out$maxdist/u["phi"]
-    u["sigma.sq"] = u["sigma.sq"]*out$varZ
-    u["tau.sq"] = u["tau.sq"]*out$varZ
+    u["phi"] = 1/u["phi"]
 
     vrange = geoR::practicalRange("matern", phi=u["phi"], kappa=u["nu"]  )
 
@@ -463,7 +448,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     locs0  = as.matrix( xy )
     xy$b0 = 1  # intercept for inla
 
-    vRange = maxdist * 0.1
+    vRange = out$maxdist * 0.1
 
     M0.domain = inla.nonconvex.hull( locs0 )
     MESH = inla.mesh.2d (
@@ -531,10 +516,10 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     colnames( inla.summary) = inames
 
     out$inla = list(summary=inla.summary, 
-      mesh=MESH, res=RES, range.inla90=inla.summary[["range","mean"]]*out$maxdist,
-      varSpatial=inla.summary[["spatial error","mean"]]*out$varZ, 
-      varObs=inla.summary[["observation error","mean"]]*out$varZ,
-      phi = out$maxdist/inla.summary[["kappa","mean"]] , nu=alpha-1, error=NA )
+      mesh=MESH, res=RES, range.inla90=inla.summary[["range","mean"]] ,
+      varSpatial=inla.summary[["spatial error","mean"]] , 
+      varObs=inla.summary[["observation error","mean"]] ,
+      phi = 1/inla.summary[["kappa","mean"]] , nu=alpha-1, error=NA )
 
     # kappa{geoR} = lambda{INLA} == alpha-1 {INLA} and alpha=2 by default in INLA
     out$inla$range = geoR::practicalRange("matern", phi=out$inla$phi, kappa=out$inla$nu  )
@@ -559,7 +544,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   # -------------------------
 
   if ("bayesx" %in% methods){
-    library("R2bayesx")
+    library("R2BayesX")
     # by default, bayesx fixes nu=1.5  , see: bayesx.term.options( bs="kr", method="REML" )
     # phi = max(distance) / const, such that Corr(distance=const) = 0.001; 
     # i.e. range at distance where covar ~0.999 .. but not sure how to recover the correct phi/range from this ...
@@ -568,9 +553,9 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     fm <- bayesx( z ~ sx(plon, plat, nu=nu,  bs="kr" ), family="gaussian", method="REML", data =xy )
 
     out$bayesx = list( fit=fitted(fm), range=NA, model=fm, 
-        varSpatial = fm$smooth.hyp[,"Variance"]*out$varZ, 
-        varObs = fm$fixed.effects[1,"Std. Error"] *out$varZ, 
-        nu =nu, phi=out$maxdist/fm$smooth.hyp[,"Smooth Par."] )
+        varSpatial = fm$smooth.hyp[,"Variance"] , 
+        varObs = fm$fixed.effects[1,"Std. Error"] , 
+        nu =nu, phi=1/fm$smooth.hyp[,"Smooth Par."] )
 
     out$bayesx$range = geoR::practicalRange("matern", phi=out$bayesx$phi, kappa=out$bayesx$nu  )
     out
@@ -579,10 +564,10 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       plot( fm, term = "sx(plon,plat)", image=TRUE, contour=TRUE )
       # summary(fm)
       # lattice::levelplot( out ~ plon+plat, data=k, aspect="iso" )
-      x = seq( 0, maxdist, length.out=100 )
+      x = seq( 0, out$maxdist, length.out=100 )
       acor = geoR::matern( x, phi=out$bayesx$phi, kappa=out$bayesx$nu  )
       acov = out$bayesx$varObs  + out$bayesx$varSpatial*(1- acor)
-      plot( acov~x , col="red", type="b", xlim=c(0, maxdist * 1.5), 
+      plot( acov~x , col="red", type="b", xlim=c(0, out$maxdist * 1.5), 
         ylim=c(0,(out$bayesx$varSpatial + out$bayesx$varObs) *1.5) )
       abline( h=out$bayesx$varSpatial + out$bayesx$varObs  )
       abline( h=out$bayesx$varObs )
@@ -678,9 +663,9 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
 
     out$jags = list(
       fit = fit, model=jagsmodel,
-      phi = out$maxdist / fit$summary["phi", "mean"],
-      sigmasq = fit$summary["sigmasq", "mean"]*out$varZ,
-      tausq = fit$summary["tausq", "mean"]*out$varZ
+      phi = 1 / fit$summary["phi", "mean"],
+      sigmasq = fit$summary["sigmasq", "mean"] ,
+      tausq = fit$summary["tausq", "mean"] 
     )
     out$jags$range = geoR::practicalRange("matern", phi=out$jags$phi, kappa=1  )
     return(out)
@@ -794,10 +779,10 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     }
 
     out$LaplacesDemon = list( fit=f, vgm=NA, model=Data$Model, range=NA,
-      varSpatial=f$Summary2["sigmasq", "Mean"] *out$varZ, 
-      varObs=f$Summary2["tausq", "Mean"]*out$varZ, 
+      varSpatial=f$Summary2["sigmasq", "Mean"] , 
+      varObs=f$Summary2["tausq", "Mean"], 
       nu=f$Summary2["nu", "Mean"],  
-      phi = out$maxdist * ( f$Summary2["phi", "Mean"]  / sqrt(2*f$Summary2["nu", "Mean"] ) ) 
+      phi = ( f$Summary2["phi", "Mean"]  / sqrt(2*f$Summary2["nu", "Mean"] ) ) 
     )   ## need to check parameterization...
  
     out$LaplacesDemon$range = geoR::practicalRange("matern", phi=out$LaplacesDemon$phi, kappa=out$LaplacesDemon$nu)
