@@ -30,7 +30,7 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
     xy = x[xi, p$variables$LOCS]
     z = x[xi, p$variables$Y]
     
-    fsp = try( MLESpatialProcess(xy, z, cov.function=p$cov.function, cov.args=p$fields.cov.args ),
+    fsp = try( MLESpatialProcess(xy, z, cov.function=p$cov.function, cov.args=p$fields.cov.args ,
       theta.grid=theta.grid, lambda.grid=lambda.grid, ngrid = 10, niter = 15, tol = 0.01, 
       Distance = "rdist", nstep.cv = 50 ) )
 
