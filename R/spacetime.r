@@ -12,12 +12,18 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
      boundary=TRUE
 
      p = bio.bathymetry::bathymetry.parameters( )
+
+    # p$spacetime_engine = "kernel.density"  # about 5 X faster than bayesx-mcmc method
+    p$spacetime_engine = "gaussianprocess2Dt"
+    # p$spacetime_engine = "gam"
+    # p$spacetime_engine = "bayesx"
      p = bio.bathymetry::bathymetry.parameters( p=p, DS="bio.bathymetry.spacetime" )
      
      overwrite=NULL
      DATA='bathymetry.db( p=p, DS="bathymetry.spacetime.data" )'
      storage.backend="bigmemory.ram"
      boundary=FALSE
+
   }
 
   p$stloc = file.path( p$project.root, "tmp" )
@@ -39,6 +45,9 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   if (p$spacetime_engine %in% c("LaplacesDemon") )  p$libs = c( p$libs, "LaplacesDemonCpp" )
   if (p$spacetime_engine %in% c("inla") )  p$libs = c( p$libs, "INLA" )
   if (p$spacetime_engine %in% c("kernel.density") )  p$libs = c( p$libs, "fields" )
+
+  
+  if( !exists( "spacetime_engine.variogram", p)) p$spacetime_engine.variogram="fast"
 
   RLibrary( p$libs )
   
@@ -115,7 +124,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     } 
 
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
-    othervars = c("sdSpatial", "sdObs", "range", "phi")
+    othervars = c("sdSpatial", "sdObs", "range", "phi", "nu" )
     if (p$spacetime_engine == "habitat") {
       othervars = c( )
     }

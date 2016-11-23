@@ -1,5 +1,5 @@
 
-spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("geoR"), maxdist=NA, nbreaks = 15, functionalform="matern" ) {
+spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c("fast"), maxdist=NA, nbreaks = 15, functionalform="matern" ) {
 
   #\\ estimate empirical variograms (actually correlation functions) and then model them using a number of different approaches .. mostly using Matern as basis
   #\\ returns empirical variogram and parameter estimates, and the models themselves
@@ -10,8 +10,6 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   #\\ matern covariogram (||x||) = sigma^2 * (2^{nu-1} * Gamma(nu) )^{-1} * (phi*||x||)^{nu} * K_{nu}(phi*||x||)
   #\\   where K_{nu} is the Bessel function with smooth nu and phi is the range parameter  
   # -------------------------
-
-
   if ( 0 ) {
    # just for debugging / testing ... and example of access method:
    bioLibrary("bio.utilities", "bio.spacetime")
@@ -82,6 +80,8 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       lines( acov ~ x , col="blue", lwd=2 )
   } 
 
+
+
   nc_max = 5  # max number of iterations
 
   xy = as.data.frame(xy)
@@ -104,10 +104,45 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
   out$drange = drange
   out$maxdist = maxdist
 
-  # a small error term 
+  # a small error term to prevent some errors in GRMF methods
   derr = out$maxdist / 10^6
   xy$plon = xy$plon + runif(xy_n, -derr, derr)
   xy$plat = xy$plat + runif(xy_n, -derr, derr)
+
+
+  if ( "fast" %in% methods)  {
+    # gives a fast stable empirical variogram
+
+    require( RandomFields ) ## max likilihood
+    RFoptions( allowdistanceZero=TRUE ) #, modus_operandi="easygoing" )
+
+    rownames( xy) = 1:nrow(xy)  # seems to require rownames ...
+    Yyy <- RFspatialPointsDataFrame( coords=xy, data=z, RFparams=list(vdim=1, n=1) )
+    vario = RFempiricalvariogram( data=Yyy )
+    vg = vario@emp.vario
+    vx = vario@centers
+    #nonlinear est
+    o = try( optim( par=c(tau.sq=max(vg)*0.5, sigma.sq=max(vg)*0.5, phi=max(vx)*0.75, nu=1), 
+      vg=vg, vx=vx, method="BFGS", 
+      fn=function(par, vg, vx){ 
+        vgm = par["tau.sq"] + par["sigma.sq"]*(1-fields::Matern(d=vx, range=par["phi"], smoothness=par["nu"]) )
+        dy = sum( (vg - vgm)^2) # vario normal errors, no weights , etc.. just the line
+      } ) 
+    )
+    # scale = o$par[3] * (sqrt(o$par[4]*2) )  
+    # plot(vario, model=RMmatern( nu=o$par[4], var=o$par[2], scale=scale) + RMnugget(var=o$par[1]) )
+
+    if ( !inherits(o, "try-error")) { 
+      if ( o$covergence==0 ) {
+        out$fast = list( fit=o, vgm=vario, range=NA, nu=o$par["nu"], phi=o$par["phi"] ,
+          varSpatial=o$par["sigma.sq"], varObs=o$par["tau.sq"]  ) 
+        out$fast$range = geoR::practicalRange("matern", phi=out$fast$phi, kappa=out$fast$nu )
+      }
+    }
+    return(out)
+  }
+
+
 
 
   # ------------------------
@@ -247,7 +282,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
       distx = distx * 1.25
       vEm = try( variog( coords=xy, data=z, uvec=nbreaks, max.dist=distx ) )
       if  (inherits(vEm, "try-error") )  return(NULL)
-      vMod = try( variofit( vEm, nugget=0.5, kappa=1, cov.model="matern", ini.cov.pars=c(0.5, distx/4) ,
+      vMod = try( variofit( vEm, nugget=0.5*out$varZ, kappa=0.5, cov.model="matern", ini.cov.pars=c(0.5*out$varZ, distx/4) ,
         fix.kappa=FALSE, fix.nugget=FALSE, max.dist=distx, weights="cressie" ) )
         # kappa is the smoothness parameter , also called "nu" by others incl. RF
       if  (inherits(vMod, "try-error") )  return(NULL)

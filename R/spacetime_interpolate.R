@@ -78,16 +78,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
       } else {
         Uj = U
       }
-      # force exponential as it is about 1/3 faster than matern with nu=0.5
-      fsp = try( fields::MLESpatialProcess( Yloc[Uj,], p$spacetime_family$linkfun(Y[Uj]), 
-        theta.grid=theta.grid, lambda.grid=lambda.grid, 
-        cov.function=p$fields.cov.function, cov.args=list(Covariance="Exponential") ) )
-        if ( !inherits(fsp, "try-error")) {
-          dist.cur = min( max(1, geoR::practicalRange("exp", phi=fsp$pars["theta"] ) ), p$dist.max )
-          U = which( dlon  <= dist.cur  & dlat <= dist.cur )
-          ndata =length(U)
-        }   
-      fsp = NULL
+      o = spacetime_variogram( xy=Yloc[Uj,], z=p$spacetime_family$linkfun(Y[Uj]), methods=p$spacetime_engine.variogram  )
+      if ( !is.null(o)) {
+        dist.cur = min( max(1, o[[p$spacetime_engine.variogram]][["range"]] ), p$dist.max )
+        U = which( dlon  <= dist.cur  & dlat <= dist.cur )
+        ndata =length(U)
+      }   
     }
 
     # as a backup .. find data withing a given distance / number 
@@ -309,16 +305,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
       # it is faster to keep them all together instead of repeating here
       # field and RandomFields gaussian processes seem most promising ... 
       # default to fields for speed:
-      fsp = try( fields::MLESpatialProcess( Yloc[U,], p$spacetime_family$linkfun(Y[U]), 
-        theta.grid=theta.grid, lambda.grid=lambda.grid,
-        cov.function=p$fields.cov.function, cov.args = list(Covariance="Exponential") ) )
-        if ( !inherits(fsp, "try-error")) {
-          res$spacetime_stats["sdSpatial"] = fsp$pars["rho"] 
-          res$spacetime_stats["sdObs"] = fsp$pars["sigma"]^2 
-          res$spacetime_stats["range"] = geoR::practicalRange("exp", phi=fsp$pars["theta"] )
-          res$spacetime_stats["phi"] = fsp$pars["theta"] # range parameter
-        } 
-      fsp = NULL
+      o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods=p$spacetime_engine.variogram  )
+      if ( !is.null(o)) {
+        res$spacetime_stats["sdSpatial"] = sqrt( o[[p$spacetime_engine.variogram]][["varSpatial"]] ) 
+        res$spacetime_stats["sdObs"] = sqrt(o[[p$spacetime_engine.variogram]][["varObs"]]) 
+        res$spacetime_stats["range"] = o[[p$spacetime_engine.variogram]][["range"]]
+        res$spacetime_stats["phi"] = o[[p$spacetime_engine.variogram]][["phi"]]
+        res$spacetime_stats["nu"] = o[[p$spacetime_engine.variogram]][["nu"]]
+      } 
     }
     
     if ( exists("TIME", p$variables) ){
