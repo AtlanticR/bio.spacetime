@@ -16,7 +16,7 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
   pa$mean = NA
   pa$sd = NA
 
-  theta.grid = 10^seq( -6, 6, by=0.5) * out$maxdist # maxdist is aprox magnitude of the phi parameter
+  theta.grid = 10^seq( -6, 6, by=0.5) * p$dist.max # maxdist is aprox magnitude of the phi parameter
   lambda.grid = 10^seq( -9, 3, by=0.5) 
 
   for ( ti in p$timeslices ) {

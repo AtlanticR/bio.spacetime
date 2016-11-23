@@ -11,8 +11,8 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
      storage.backend="bigmemory.ram"
      boundary=TRUE
 
-     p = bio.bathymetry::bathymetry.parameters( )
 
+    p = bio.bathymetry::bathymetry.parameters( )
     # p$spacetime_engine = "kernel.density"  # about 5 X faster than bayesx-mcmc method
     p$spacetime_engine = "gaussianprocess2Dt"
     # p$spacetime_engine = "gam"
@@ -109,7 +109,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     # }
 
     p$variables$ALL = all.vars( p$spacetime_engine_modelformula )
-    testvars = c(p$variables$Y, p$variables$COV, p$variables$TIME)
+    testvars = c(p$variables$Y, p$variables$COV, p$variables$TIME, p$variables$LOC)
     # permit passing a function rather than data directly .. less RAM usage
     if (class(DATA)=="character") assign("DATA", eval(parse(text=DATA) ) )
     withdata = which(is.finite( (rowSums(DATA$input[, testvars] )) ) )
