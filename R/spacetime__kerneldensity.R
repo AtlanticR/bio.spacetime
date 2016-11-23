@@ -36,6 +36,7 @@ spacetime__kerneldensity = function( p, x, pa ) {
   attr( pa_locs , "out.attrs") = NULL
   names( pa_locs ) = p$variables$LOCS
 
+
   for ( ti in p$timeslices ) {
     
     if ( exists("TIME", p$variables) ) {
@@ -67,7 +68,12 @@ spacetime__kerneldensity = function( p, x, pa ) {
     rsquared = summary(ss)$r.squared
     if (rsquared < p$spacetime_rsquared_threshold ) next()
 
-    pa_i = which( pa[, p$variables$TIME]==ti)
+    if ( exists("TIME", p$variables) ) {
+      pa_i = which( pa[, p$variables$TIME]==ti)
+    } else {
+      pa_i = 1:nrow(pa)
+    }
+
     Z_i = cbind( ( pa[pa_i,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
                   (pa[pa_i,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
 

@@ -3,7 +3,10 @@ spacetime__gaussianprocess = function( p, x, pa ) {
   #\\ this is the core engine of spacetime .. localised space  and time modelling/ interpolation 
   # \ as a gaussian process
   # TODO 
-  
+
+  # for these 2D methods, treat time as independent timeslices
+  timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 )
+
   # plot(pred ~ z , x)
   ss = lm( x$mean ~ x[,p$variables$Y], na.action=na.omit)
   if ( "try-error" %in% class( ss ) ) return( NULL )

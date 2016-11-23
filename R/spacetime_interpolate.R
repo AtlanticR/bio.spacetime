@@ -47,10 +47,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Yi = spacetime_attach( p$storage.backend, p$ptr$Yi )
   Yi = as.vector(Yi[])  #force copy to RAM as a vector
 
-  if (p$spacetime_engine %in% c("kernel.density", "gaussianprocess2D" ) )  {
-    # for these 2D methods, treat time as independent timeslices
-    p$timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 )
-  }
+  # for 2D methods, treat time as independent timeslices
+  p$timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 )
 
   # used by "fields":
   theta.grid = 10^seq( -6, 6, by=0.5) * p$dist.max # maxdist is aprox magnitude of the phi parameter
@@ -257,8 +255,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
         kernel.density = spacetime__kerneldensity,
         bayesx = spacetime__bayesx,
         LaplacesDemon = spacetime__LaplacesDemon,
-        gaussianprocess2Dt = spacetime_gaussianprocess2Dt, 
-        gaussianprocess = spacetime_gaussianprocess, 
+        gaussianprocess2Dt = spacetime__gaussianprocess2Dt, 
+        gaussianprocess = spacetime__gaussianprocess, 
         inla = spacetime__inla
       )
     }

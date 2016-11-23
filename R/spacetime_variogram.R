@@ -125,17 +125,24 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     o = try( optim( par=c(tau.sq=max(vg)*0.5, sigma.sq=max(vg)*0.5, phi=max(vx)*0.75, nu=1), 
       vg=vg, vx=vx, method="BFGS", 
       fn=function(par, vg, vx){ 
+        par["tau.sq"] = max( par["tau.sq"], 0 )
+        par["sigma.sq"] = max( par["sigma.sq"], 0)
+        par["nu"] = max( par["nu"], 0)
+        par["phi"] = max( par["phi"] , 0)
         vgm = par["tau.sq"] + par["sigma.sq"]*(1-fields::Matern(d=vx, range=par["phi"], smoothness=par["nu"]) )
         dy = sum( (vg - vgm)^2) # vario normal errors, no weights , etc.. just the line
       } ) 
     )
-    # scale = o$par[3] * (sqrt(o$par[4]*2) )  
-    # plot(vario, model=RMmatern( nu=o$par[4], var=o$par[2], scale=scale) + RMnugget(var=o$par[1]) )
-
+    if( 0) {
+      o$par = pmax(0, o$par)
+      scale = o$par[3] * (sqrt(o$par[4]*2) )  
+      plot(vario, model=RMmatern( nu=o$par[4], var=o$par[2], scale=scale) + RMnugget(var=o$par[1]) )
+    }
+    
     if ( !inherits(o, "try-error")) { 
-      if ( o$covergence==0 ) {
-        out$fast = list( fit=o, vgm=vario, range=NA, nu=o$par["nu"], phi=o$par["phi"] ,
-          varSpatial=o$par["sigma.sq"], varObs=o$par["tau.sq"]  ) 
+      if ( o$convergence==0 ) {
+        out$fast = list( fit=o, vgm=vario, range=NA, nu=max(0, o$par["nu"]), phi=max(0, o$par["phi"]),
+          varSpatial=max( 0, o$par["sigma.sq"]), varObs=max(0, o$par["tau.sq"] ) ) 
         out$fast$range = geoR::practicalRange("matern", phi=out$fast$phi, kappa=out$fast$nu )
       }
     }

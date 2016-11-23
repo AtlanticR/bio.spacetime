@@ -47,7 +47,12 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
     rsquared = summary(ss)$r.squared
     if (rsquared < p$spacetime_rsquared_threshold ) next()
 
-    pa_i = which( pa[, p$variables$TIME]==ti )
+    if ( exists("TIME", p$variables) ) {
+      pa_i = which( pa[, p$variables$TIME]==ti)
+    } else {
+      pa_i = 1:nrow(pa)
+    }
+
     pa$mean[pa_i] = predict(fspmodel, x=pa[pa_, p$variables$LOCS] )
     pa$sd[pa_i]   = predictSE(fspmodel, x=pa[pa_, p$variables$LOCS] )
 
