@@ -13,8 +13,8 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
 
     p = bio.bathymetry::bathymetry.parameters( )
-    # p$spacetime_engine = "kernel.density"  # about 5 X faster than bayesx-mcmc method
-    p$spacetime_engine = "gaussianprocess2Dt"
+    p$spacetime_engine = "kernel.density"  # about 5 X faster than bayesx-mcmc method
+    # p$spacetime_engine = "gaussianprocess2Dt"
     # p$spacetime_engine = "gam"
     # p$spacetime_engine = "bayesx"
      p = bio.bathymetry::bathymetry.parameters( p=p, DS="bio.bathymetry.spacetime" )

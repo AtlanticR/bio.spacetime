@@ -303,14 +303,27 @@ spacetime_interpolate = function( ip=NULL, p ) {
       # it is faster to keep them all together instead of repeating here
       # field and RandomFields gaussian processes seem most promising ... 
       # default to fields for speed:
+      res$spacetime_stats["sdSpatial"] = NA 
+      res$spacetime_stats["sdObs"] = NA 
+      res$spacetime_stats["range"] = NA
+      res$spacetime_stats["phi"] = NA
+      res$spacetime_stats["nu"] = NA
+
+      ores = NULL
       o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods=p$spacetime_engine.variogram  )
-      if ( !is.null(o)) {
-        res$spacetime_stats["sdSpatial"] = sqrt( o[[p$spacetime_engine.variogram]][["varSpatial"]] ) 
-        res$spacetime_stats["sdObs"] = sqrt(o[[p$spacetime_engine.variogram]][["varObs"]]) 
-        res$spacetime_stats["range"] = o[[p$spacetime_engine.variogram]][["range"]]
-        res$spacetime_stats["phi"] = o[[p$spacetime_engine.variogram]][["phi"]]
-        res$spacetime_stats["nu"] = o[[p$spacetime_engine.variogram]][["nu"]]
-      } 
+        if ( is.null(o) || !exists( p$spacetime_engine.variogram, o )) {
+          o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods="gstat" )
+          ores = o[["gstat"]]
+        } else {
+          ores = o[[p$spacetime_engine.variogram]]
+        }
+        if ( !is.null(ores)) {
+          res$spacetime_stats["sdSpatial"] = sqrt( ores[["varSpatial"]] ) 
+          res$spacetime_stats["sdObs"] = sqrt(ores[["varObs"]]) 
+          res$spacetime_stats["range"] = ores[["range"]]
+          res$spacetime_stats["phi"] = ores[["phi"]]
+          res$spacetime_stats["nu"] = ores[["nu"]]
+        } 
     }
     
     if ( exists("TIME", p$variables) ){

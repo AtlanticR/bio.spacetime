@@ -122,7 +122,7 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     vg = vario@emp.vario
     vx = vario@centers
     #nonlinear est
-    o = try( optim( par=c(tau.sq=max(vg)*0.5, sigma.sq=max(vg)*0.5, phi=max(vx)*0.75, nu=1), 
+    o = try( optim( par=c(tau.sq=max(vg)*0.1, sigma.sq=max(vg)*0.9, phi=max(vx)*0.75, nu=1), 
       vg=vg, vx=vx, method="BFGS", 
       fn=function(par, vg, vx){ 
         par["tau.sq"] = max( par["tau.sq"], 0 )
