@@ -370,6 +370,12 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           }
         rm(Ptime)
       }
+      
+      if (exists("TIME", p$variables)) {
+        p$ts = spacetime_attach( p$storage.backend, p$ptr$Ptime )[]
+      } else {
+        p$ts = 1
+      }
 
       # predictions and associated stats
       P = matrix( NaN, nrow=nrow(DATA$output$LOCS), ncol=p$nt )
@@ -481,8 +487,6 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         rm(Mat2Ploc)
       rm(Ploc)
 
-      p$spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
-        theta=p$theta )
 
 
       if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
@@ -604,30 +608,6 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       rm(Yi)
 
 
-      #---------------------
-      # prediction locations and covariates
-      Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
-      p$rcP = data.frame( cbind( 
-        Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  
-        Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1) )
-      p$rcP$rc = paste( p$rcP$Prow, p$rcP$Pcol, sep="~")
-      p$rcP$Prow = p$rcP$Pcol = NULL
-      
-      #-----------------
-      # row, col indices
-      # statistical output locations
-      Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
-      p$rcS = data.frame( cbind( 
-        Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
-        Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
-
-    # misc intermediate calcs to be done outside of parallel loops
-    p$dist.median = (p$dist.max + p$dist.min ) / 2
-    p$upsampling = sort( p$sampling[ which( p$sampling > 1 ) ] )
-    p$upsampling = p$upsampling[ which(p$upsampling*p$dist.median <= p$dist.max )]
-    p$downsampling = sort( p$sampling[ which( p$sampling < 1) ] , decreasing=TRUE )
-    p$downsampling = p$downsampling[ which(p$downsampling*p$dist.median >= p$dist.min )]
-
     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     message( "Finished. Moving onto analysis... ")
     gc()
@@ -654,6 +634,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   parallel.run( spacetime_interpolate, p=p ) 
   p$time.end1 =  Sys.time()
   message( paste( "Time taken:", difftime( p$time.end1, p$time.start ) ) )
+  gc()
 
   # save solutions to disk before continuuing
   spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*

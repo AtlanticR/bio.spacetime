@@ -47,12 +47,37 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Yi = spacetime_attach( p$storage.backend, p$ptr$Yi )
   Yi = as.vector(Yi[])  #force copy to RAM as a vector
 
+  # misc intermediate calcs to be done outside of parallel loops
+  dist.median = (p$dist.max + p$dist.min ) / 2
+  upsampling = sort( p$sampling[ which( p$sampling > 1 ) ] )
+  upsampling = upsampling[ which(upsampling*dist.median <= p$dist.max )]
+  downsampling = sort( p$sampling[ which( p$sampling < 1) ] , decreasing=TRUE )
+  downsampling = downsampling[ which(downsampling*dist.median >= p$dist.min )]
+
   # for 2D methods, treat time as independent timeslices
-  p$timeslices = ifelse( exists("TIME", p$variables), Ptime[], 1 )
+  p$tiyr = ifelse( exists("TIME", p$variables), Ptime[], 1 )
 
   # used by "fields":
   theta.grid = 10^seq( -6, 6, by=0.5) * p$dist.max # maxdist is aprox magnitude of the phi parameter
   lambda.grid = 10^seq( -9, 3, by=0.5) 
+
+  #-----------------
+  # row, col indices
+  # statistical output locations
+  rcS = data.frame( cbind( 
+    Srow = (Sloc[,1]-p$plons[1])/p$pres + 1,  
+    Scol = (Sloc[,2]-p$plats[1])/p$pres + 1))
+
+  #---------------------
+  # prediction locations and covariates
+  rcP = data.frame( cbind( 
+    Prow = (Ploc[,1]-p$plons[1])/p$pres + 1,  
+    Pcol = (Ploc[,2]-p$plats[1])/p$pres + 1) )
+  rcPid = paste( rcP$Prow, rcP$Pcol, sep="~")
+  rm(rcP)
+
+  gc()
+
 
 # main loop over each output location in S (stats output locations)
   for ( iip in ip ) {
@@ -69,7 +94,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
     dist.cur = p$dist.max
     ndata = length(U)
  
-
     if (ndata > p$n.min ) {
       if (ndata > p$n.max ) {
         Uj = U[ .Internal( sample( ndata, p$n.max, replace=FALSE, prob=NULL)) ]  
@@ -82,13 +106,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
         U = which( dlon  <= dist.cur  & dlat <= dist.cur )
         ndata =length(U)
       }   
+      rm(o)
     }
 
     # as a backup .. find data withing a given distance / number 
     if (ndata < p$n.min | ndata > p$n.max | dist.cur < p$dist.min | dist.cur > p$dist.max ) { 
       if ( ndata < p$n.min )  {
-        for ( usamp in p$upsampling )  {
-          dist.cur = p$dist.median * usamp
+        for ( usamp in upsampling )  {
+          dist.cur = dist.median * usamp
           U = which( dlon < dist.cur & dlat < dist.cur ) # faster to take a block 
           ndata = length(U)
           if ( ndata >= p$n.min ) {
@@ -106,8 +131,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
             ndata = p$n.max
           } 
         } else {
-          for ( dsamp in p$downsampling )  { # lots of data .. downsample
-            dist.cur = p$dist.median * dsamp
+          for ( dsamp in downsampling )  { # lots of data .. downsample
+            dist.cur = dist.median * dsamp
             U = which( dlon < dist.cur & dlat < dist.cur )# faster to take a block 
             ndata = length(U)
             if ( ndata <= p$n.max ) break()
@@ -139,8 +164,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
 
     pa_w = -windowsize.half : windowsize.half
     pa_w_n = length(pa_w)
-    iwplon = p$rcS[Si,1] + pa_w
-    iwplat = p$rcS[Si,2] + pa_w
+    iwplon = rcS[Si,1] + pa_w
+    iwplat = rcS[Si,2] + pa_w
     pa = NULL
     pa = data.frame( iplon = rep.int(iwplon, pa_w_n) , 
                      iplat = rep.int(iwplat, rep.int(pa_w_n, pa_w_n)) )
@@ -151,7 +176,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (nrow(pa)< 5) next()
     
     rc_local = paste(pa$iplon, pa$iplat, sep = "~")
-    pa$i = match(rc_local, p$rcP$rc)
+    pa$i = match(rc_local, rcPid)
     
     bad = which( !is.finite(pa$i))
     if (length(bad) > 0 ) pa = pa[-bad,]
@@ -166,7 +191,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
         plot( Yloc[U,1]~ Yloc[U,2], col="red", pch=".") # all data
         points( Yloc[YiU,1] ~ Yloc[YiU,2], col="green" )  # with covars and no other data issues
         points( Sloc[Si,1] ~ Sloc[Si,2], col="blue" ) # statistical locations
-        points( p$plons[p$rcS[Si,1]] ~ p$plats[p$rcS[Si,2]] , col="purple", pch=25, cex=2 ) # check on p$rcS indexing
+        points( p$plons[rcS[Si,1]] ~ p$plats[rcS[Si,2]] , col="purple", pch=25, cex=2 ) # check on rcS indexing
         points( p$plons[pa$iplon] ~ p$plats[ pa$iplat] , col="cyan", pch=".", cex=0.01 ) # check on Proc iplat indexing
         points( Ploc[pa$i,1] ~ Ploc[ pa$i, 2] , col="black", pch=20, cex=0.7 ) # check on pa$i indexing -- prediction locations
       }
@@ -222,8 +247,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (p$spacetime_engine=="habitat") {
       x[, p$variables$Ylogit ] = p$spacetime_family_logit$linkfun ( x[, p$variables$Ylogit] ) ### -- need to conform with data structure ... check once ready
     }
-  
-
     x$plon = Yloc[YiU,1]
     x$plat = Yloc[YiU,2]
     x$weights = 1 / (( Sloc[Si,1] - x$plat)**2 + (Sloc[Si,2] - x$plon)**2 )# weight data in space: inverse distance squared
@@ -261,10 +284,10 @@ spacetime_interpolate = function( ip=NULL, p ) {
       )
     }
 
+    gc()
     res =NULL
     res = spacetime__model( p, x, pa )
     
-
     if (0) {
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
        

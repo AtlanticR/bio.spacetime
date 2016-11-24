@@ -14,6 +14,9 @@ spacetime_interpolate_xy_simple_multiple = function( ip=NULL, p ) {
   Psd = spacetime_attach( p$storage.backend, p$ptr$Psd )
   Mat2Ploc = spacetime_attach( p$storage.backend, p$ptr$Mat2Ploc )
   
+  spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
+        theta=p$theta )
+
   for ( iip in ip ) {
     ww = p$runs[ iip, "tiyr_index" ]
 
@@ -24,14 +27,14 @@ spacetime_interpolate_xy_simple_multiple = function( ip=NULL, p ) {
     if (length( tofill) == 0 ) next()
 
     Z[Mat2Ploc] = P[,ww]
-    Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=p$spatial_weights )$z 
+    Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=spatial_weights )$z 
     P[,ww][tofill] = Zp[Mat2Ploc][ tofill]
 
     # update and repeat --- check if required ..
     tofill = which( ! is.finite( P[,ww] ) )
     if (length( tofill) > 0 ) {
       Z[Mat2Ploc] = P[,ww] # update matrix
-      Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=p$spatial_weights )$z 
+      Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=spatial_weights )$z 
       P[,ww][tofill] = Zp[Mat2Ploc][ tofill]
     }
 
@@ -41,14 +44,14 @@ spacetime_interpolate_xy_simple_multiple = function( ip=NULL, p ) {
     if (length( tofill) == 0 ) next()
 
     Z[Mat2Ploc] = Psd[,ww]
-    Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=p$spatial_weights )$z 
+    Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=spatial_weights )$z 
     Psd[,ww][tofill] = Zp[Mat2Ploc][ tofill]
 
     # update and repeat --- check if required ..
     tofill = which( ! is.finite( Psd[,ww] ) )
     if (length( tofill) > 0 ) {
       Z[Mat2Ploc] = Psd[,ww] # update matrix
-      Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=p$spatial_weights )$z 
+      Zp = image.smooth( Z, dx=p$pres, dy=p$pres, wght=spatial_weights )$z 
       Psd[,ww][tofill] = Zp[Mat2Ploc][ tofill]
     }
   }

@@ -31,16 +31,17 @@ spacetime__kerneldensity = function( p, x, pa ) {
 
   pa_plons = seq( pa_r[1], pa_r[2], length.out=pa_nr )
   pa_plats = seq( pa_c[1], pa_c[2], length.out=pa_nc )
-  
+
   pa_locs = expand.grid( pa_plons, pa_plats ) # final output grid
   attr( pa_locs , "out.attrs") = NULL
   names( pa_locs ) = p$variables$LOCS
+  rm( pa_r, pa_c, pa_nr, pa_nc, pa_plons, pa_plats)
 
 
-  for ( ti in p$timeslices ) {
+  for ( ti in 1:p$nt ) {
     
     if ( exists("TIME", p$variables) ) {
-      xi = which( x[ , p$variables$TIME ] == ti )
+      xi = which( x[ , p$variables$TIME ] == p$ts[ti] )
     } else {
       xi = 1:nrow(x) # all data as p$nt==1
     }
@@ -69,7 +70,7 @@ spacetime__kerneldensity = function( p, x, pa ) {
     if (rsquared < p$spacetime_rsquared_threshold ) next()
 
     if ( exists("TIME", p$variables) ) {
-      pa_i = which( pa[, p$variables$TIME]==ti)
+      pa_i = which( pa[, p$variables$TIME]==p$ts[ti])
     } else {
       pa_i = 1:nrow(pa)
     }

@@ -203,24 +203,20 @@
     if (DS %in% c("spacetime.prediction.redo", "spacetime.prediction") )  {
 
       if (DS=="spacetime.prediction")  {
-        if (! exists("TIME", p)) yr = "0000"
-        if (!is.null(yr) ) {
-          if (ret=="mean") {
-            fn = file.path( p$savedir, paste("spacetime.prediction.mean", yr, "rdata", sep="." ) )
-            if (file.exists(fn) ) load(fn)
-            return (P)
+        if (! exists("TIME", p)) {
+            fn = file.path( p$savedir, paste("spacetime.prediction", ret, "rdata", sep="." ) )
+          } else {
+            fn = file.path( p$savedir, paste("spacetime.prediction", ret, yr, "rdata", sep="." ) ) 
           }
-          if (ret=="sd") {
-            fn = file.path( p$savedir, paste("spacetime.prediction.sd", yr, "rdata", sep="." ) )
-            if (file.exists(fn) ) load( fn )
-            return( Psd)
+          if (file.exists(fn) ) load(fn) 
+          if (ret=="mean") return (P)
+          if (ret=="sd") return( Psd)
           }
         }
       }
 
       PP = spacetime_attach( p$storage.backend, p$ptr$P )
       PPsd = spacetime_attach( p$storage.backend, p$ptr$Psd )
-      
 
       if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
         P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
@@ -231,8 +227,8 @@
 
       if ( exists("TIME", p)) {
         # outputs are on yearly breakdown
-        for ( r in 1:length(p$spacetime_yrs) ) {
-          y = p$spacetime_yrs[r]
+        for ( r in 1:p$ny ) {
+          y = p$yrs[r]
           fn1 = file.path( p$savedir, paste("spacetime.prediction.mean",  y, "rdata", sep="." ) )
           fn2 = file.path( p$savedir, paste("spacetime.prediction.sd",  y, "rdata", sep="." ) )
           if (exists("nw", p)) {
@@ -248,9 +244,8 @@
           print ( paste("Year:", y)  )
         } 
       } else {
-          y = "0000"
-          fn1 = file.path( p$savedir, paste("spacetime.prediction.mean",  y, "rdata", sep="." ) )
-          fn2 = file.path( p$savedir, paste("spacetime.prediction.sd",  y, "rdata", sep="." ) )
+          fn1 = file.path( p$savedir, paste("spacetime.prediction.mean",  "rdata", sep="." ) )
+          fn2 = file.path( p$savedir, paste("spacetime.prediction.sd", "rdata", sep="." ) )
           P = PP
           V = PPsd
           save( P, file=fn1, compress=T )

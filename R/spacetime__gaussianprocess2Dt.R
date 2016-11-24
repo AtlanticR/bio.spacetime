@@ -19,10 +19,10 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
   theta.grid = 10^seq( -6, 6, by=0.5) * p$dist.max # maxdist is aprox magnitude of the phi parameter
   lambda.grid = 10^seq( -9, 3, by=0.5) 
 
-  for ( ti in p$timeslices ) {
+  for ( ti in 1:p$nt ) {
     
     if ( exists("TIME", p$variables) ) {
-      xi = which( x[ , p$variables$TIME ] == ti )
+      xi = which( x[ , p$variables$TIME ] == p$ts[ti] )
     } else {
       xi = 1:nrow(x) # all data as p$nt==1
     }
@@ -48,7 +48,7 @@ spacetime__gaussianprocess2Dt = function( p, x, pa ) {
     if (rsquared < p$spacetime_rsquared_threshold ) next()
 
     if ( exists("TIME", p$variables) ) {
-      pa_i = which( pa[, p$variables$TIME]==ti)
+      pa_i = which( pa[, p$variables$TIME]==p$ts[ti])
     } else {
       pa_i = 1:nrow(pa)
     }
