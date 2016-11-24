@@ -48,14 +48,14 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Yi = as.vector(Yi[])  #force copy to RAM as a vector
 
   # misc intermediate calcs to be done outside of parallel loops
-  dist.median = (p$dist.max + p$dist.min ) / 2
+  p$dist.scale = (p$dist.max + p$dist.min ) / 2
   upsampling = sort( p$sampling[ which( p$sampling > 1 ) ] )
-  upsampling = upsampling[ which(upsampling*dist.median <= p$dist.max )]
+  upsampling = upsampling[ which(upsampling*p$dist.scale <= p$dist.max )]
   downsampling = sort( p$sampling[ which( p$sampling < 1) ] , decreasing=TRUE )
-  downsampling = downsampling[ which(downsampling*dist.median >= p$dist.min )]
+  downsampling = downsampling[ which(downsampling*p$dist.scale >= p$dist.min )]
 
   # for 2D methods, treat time as independent timeslices
-  p$tiyr = ifelse( exists("TIME", p$variables), Ptime[], 1 )
+  p$ts = ifelse( exists("TIME", p$variables), Ptime[], 1 )
 
   # used by "fields":
   theta.grid = 10^seq( -6, 6, by=0.5) * p$dist.max # maxdist is aprox magnitude of the phi parameter
@@ -113,7 +113,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if (ndata < p$n.min | ndata > p$n.max | dist.cur < p$dist.min | dist.cur > p$dist.max ) { 
       if ( ndata < p$n.min )  {
         for ( usamp in upsampling )  {
-          dist.cur = dist.median * usamp
+          dist.cur = p$dist.scale * usamp
           U = which( dlon < dist.cur & dlat < dist.cur ) # faster to take a block 
           ndata = length(U)
           if ( ndata >= p$n.min ) {
@@ -132,7 +132,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
           } 
         } else {
           for ( dsamp in downsampling )  { # lots of data .. downsample
-            dist.cur = dist.median * dsamp
+            dist.cur = p$dist.scale * dsamp
             U = which( dlon < dist.cur & dlat < dist.cur )# faster to take a block 
             ndata = length(U)
             if ( ndata <= p$n.max ) break()

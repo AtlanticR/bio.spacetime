@@ -351,11 +351,8 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         rm(Ptime)
       }
       
-      if (exists("TIME", p$variables)) {
-        p$ts = spacetime_attach( p$storage.backend, p$ptr$Ptime )[]
-      } else {
-        p$ts = 1
-      }
+      p$ts = ifelse( exists("TIME", p$variables), {spacetime_attach( p$storage.backend, p$ptr$Ptime )[]}, 1) 
+
 
       # predictions and associated stats
       P = matrix( NaN, nrow=nrow(DATA$output$LOCS), ncol=p$nt )
@@ -585,7 +582,16 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         }
       rm(Yi)
 
-
+    # determine global spatial scales   
+    Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
+    Y = spacetime_attach( p$storage.backend, p$ptr$Y )
+    o = spacetime_variogram( xy=Yloc[], z=p$spacetime_family$linkfun(Y[]), methods="fast" )
+    o2 = min( diff(range( Yloc[,1]) ), diff(range( Yloc[,2]) ) ) / 10
+    p$dist.scale = ifelse( is.null(o), o2, o[["fast"]][["range"]] ) 
+    p$dist.min = max( p$pres * 5, p$dist.scale /100 )  # min distance for data selection for modelling
+    p$dist.max = min( o2, p$dist.scale * 2 )
+    message( paste( "Global distance scale ", p$dist.scale ) )
+    
     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     message( "Finished. Moving onto analysis... ")
     gc()
@@ -605,6 +611,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
   # -------------------------------------
   # localized space-time modelling/interpolation/prediction
+
 
   o = spacetime_db( p, DS="statistics.status" )
   p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
