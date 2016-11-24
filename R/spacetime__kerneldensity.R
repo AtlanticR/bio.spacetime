@@ -39,42 +39,25 @@ spacetime__kerneldensity = function( p, x, pa ) {
 
 
   for ( ti in 1:p$nt ) {
-    
-    if ( exists("TIME", p$variables) ) {
-      xi = which( x[ , p$variables$TIME ] == p$ts[ti] )
-    } else {
-      xi = 1:nrow(x) # all data as p$nt==1
-    }
-
+    xi = ifelse( exists("TIME", p$variables), {which( x[, p$variables$TIME]==p$ts[ti]) }, {1:nrow(x)} ) 
     # map of row, col indices of input data in the new (output) coordinate system
     l2M = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
                   (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-   
     # matrix representation of the output surface
     M = matrix( NA, nrow=x_nr, ncol=x_nc) 
     M[l2M] = x[xi,p$variables$Y] # fill with data in correct locations
-
     stats = rep( NA, nrow( pa_locs) )  # output data
-       
     Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta) )
     if ( "try-error" %in% class(Z) ) next()
-
     # match prediction to input data 
     x_id = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
                    (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
     x$mean[xi] = Z$z[x_id]
-
     ss = lm( x$mean[xi] ~ x[xi,p$variables$Y], na.action=na.omit)
     if ( "try-error" %in% class( ss ) ) next()
     rsquared = summary(ss)$r.squared
     if (rsquared < p$spacetime_rsquared_threshold ) next()
-
-    if ( exists("TIME", p$variables) ) {
-      pa_i = which( pa[, p$variables$TIME]==p$ts[ti])
-    } else {
-      pa_i = 1:nrow(pa)
-    }
-
+    pa_i = ifelse( exists("TIME", p$variables), {which( pa[, p$variables$TIME]==p$ts[ti])}, {1:nrow(pa)} ) 
     Z_i = cbind( ( pa[pa_i,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
                   (pa[pa_i,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
 
@@ -82,7 +65,6 @@ spacetime__kerneldensity = function( p, x, pa ) {
     if ( any( Z_i<1) ) next()  
     if ( any( Z_i[,1] > x_nr) ) next()
     if ( any( Z_i[,2] > x_nc) ) next()
-
     pa$mean[pa_i] = Z$z[Z_i]
     pa$sd[pa_i] = 1
   }

@@ -10,12 +10,7 @@
       # input data stored as a bigmemory file to permit operations with min memory usage
       # split into separate components to reduce filelocking conflicts
          
-      # storage locations for finalized data 
-      p$fn = list()
-      p$fn$P = file.path( p$savedir, paste( "spacetime", "predictions", "rdata", sep=".") )
-      p$fn$S = file.path( p$savedir, paste( "spacetime", "statistics",  "rdata", sep=".") )
-      p$fn$stats =  file.path( p$project.root, "spacetime", paste( "spatial", "covariance", "rdata", sep=".") )
-     
+      
       p$cache =list()
       p$cache$Yraw =    file.path( p$stloc, "input.Yraw.cache" ) # raw data
       p$cache$Y =     file.path( p$stloc, "input.Y.cache" ) # residuals of covar model or raw data if none
@@ -257,13 +252,13 @@
 
     if (DS %in% c("stats.to.prediction.grid.redo", "stats.to.prediction.grid") ) {
 
+      fn = file.path( p$savedir, paste( "spacetime", "statistics",  "rdata", sep=".") )
       if (DS=="stats.to.prediction.grid") {
         stats = NULL
-        if (file.exists(p$fn.S)) {}
+        if (file.exists(fn)) {}
       }
     
       Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
-  
       S = spacetime_attach( p$storage.backend, p$ptr$S )
       Sloc = spacetime_attach( p$storage.backend, p$ptr$Sloc )
     
@@ -317,7 +312,7 @@
       if (length(bad) > 0 ) good = good[-bad]
       stats = stats[ good, ]
 
-      save( stats, file=p$fn.S, compress=TRUE )
+      save( stats, file=fn, compress=TRUE )
 
       # lattice::levelplot( Pstats[,1] ~ Ploc[,1]+Ploc[,2])
     }
