@@ -32,22 +32,25 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
   p$savedir = file.path(p$project.root, "spacetime", p$spatial.domain )
   
-  # message( paste( "Final outputs will be palced at:", p$savedir ) )
+  message( paste( "In case something should go wrong outputs will be placed at:", p$savedir ) )
   if ( !file.exists(p$savedir)) dir.create( p$savedir, recursive=TRUE, showWarnings=FALSE )
 
-  p$libs = unique( c( p$libs, "sp", "rgdal", "parallel" ) ) 
+  p$libs = unique( c( p$libs, "sp", "rgdal", "parallel", "RandomFields", "geoR" ) ) 
   
   p$storage.backend = storage.backend
   if (any( grepl ("ff", p$storage.backend)))         p$libs = c( p$libs, "ff", "ffbase" )
   if (any( grepl ("bigmemory", p$storage.backend)))  p$libs = c( p$libs, "bigmemory" )
+  if (p$storage.backend=="bigmemory.ram") {
+    if ( length( unique(p$clusters)) != 1 ) stop( "More than one unique cluster specified .. this RAM is not shared across computer systems.." )
+  }
+
   if (p$spacetime_engine=="bayesx")  p$libs = c( p$libs, "R2BayesX" )
   if (p$spacetime_engine %in% c("gam", "mgcv", "habitat") )  p$libs = c( p$libs, "mgcv" )
   if (p$spacetime_engine %in% c("LaplacesDemon") )  p$libs = c( p$libs, "LaplacesDemonCpp" )
   if (p$spacetime_engine %in% c("inla") )  p$libs = c( p$libs, "INLA" )
-  if (p$spacetime_engine %in% c("kernel.density") )  p$libs = c( p$libs, "fields" )
-
+  if (p$spacetime_engine %in% c("kernel.density", "gaussianprocess2Dt") )  p$libs = c( p$libs, "fields" )
   
-  if( !exists( "spacetime_engine.variogram", p)) p$spacetime_engine.variogram="fast"
+  if( !exists( "spacetime_engine.variogram", p)) p$spacetime_engine.variogram="fast"   # note GP methods are slow when there is too much data
 
   RLibrary( p$libs )
   
@@ -85,29 +88,6 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
   if ( is.null(overwrite) || overwrite ) {
   
-  # these are some possible models:
-  #   if (!exists("spacetime_engine_modelformula", p) ) {
-    # these are simple, generic defaults .. 
-    # for more complex models (.i.e, with covariates) the formula should be passed directly 
-    #   p$spacetime_engine_modelformula = switch( p$spacetime_engine ,
-    #     seasonal.basic = ' s(yr) + s(dyear, bs="cc") ', 
-    #     seasonal.smoothed = ' s(yr, dyear) + s(yr) + s(dyear, bs="cc")  ', 
-    #     seasonal.smoothed.depth.lonlat = ' s(yr, dyear) + s(yr, k=3) + s(dyear, bs="cc") +s(z) +s(plon) +s(plat) + s(plon, plat, by=yr), s(plon, plat, k=10, by=dyear ) ', 
-    #     seasonal.smoothed.depth.lonlat.complex = ' s(yr, dyear, bs="ts") + s(yr, k=3, bs="ts") + s(dyear, bs="cc") +s(z, bs="ts") +s(plon, bs="ts") +s(plat, bs="ts") + s(plon, plat, by=tiyr, k=10, bs="ts" ) ', 
-    #     harmonics.1 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w)  ', 
-    #     harmonics.2 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) ' , 
-    #     harmonics.3 = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) + s(yr, cos.w2) + s(yr, sin.w2) + s(cos.w2) + s( sin.w2 ) + s(yr, cos.w3) + s(yr, sin.w3)  + s(cos.w3) + s( sin.w3 ) ',
-    #     harmonics.1.depth = ' s(yr) + s(yr, cos.w) + s(yr, sin.w) + s(cos.w) + s(sin.w) +s(z)  ', 
-    #     harmonics.1.depth.lonlat = 's(yr, k=5, bs="ts") + s(cos.w, bs="ts") + s(sin.w, bs="ts") +s(z, k=3, bs="ts") +s(plon,k=3, bs="ts") +s(plat, k=3, bs="ts") + s(plon, plat, cos.w, sin.w, yr, k=100, bs="ts") ', 
-    #     inla = ' -1 + intercept + f( spatial.field, model=SPDE ) ', # not used
-    #     annual = ' s(yr) ',
-    #     '+1'  # default, ie. Y~ + 1 , just to catch error
-    #   )
-    #   p$spacetime_engine_modelformula = as.formula( paste( p$variables$Y, "~", p$spacetime_engine_modelformula ) )
-    #   message( "Verify that the spacetime_engine_modelformula is/should be:" )
-    #   message( p$spacetime_engine_modelformula )
-    # }
-
     p$variables$ALL = all.vars( p$spacetime_engine_modelformula )
     testvars = c(p$variables$Y, p$variables$COV, p$variables$TIME, p$variables$LOC)
     # permit passing a function rather than data directly .. less RAM usage
@@ -487,8 +467,6 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         rm(Mat2Ploc)
       rm(Ploc)
 
-
-
       if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
         # to add global covariate model ??  .. simplistic this way but faster
         P0   = matrix( 0, nrow=nrow(DATA$output$LOCS), ncol=p$nt )
@@ -613,7 +591,8 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     gc()
 
   } else {
-
+    message( "Restart only works with bigmemory.filebacked and ff methods. " )
+    message( "bigmemory.ram method loses the pointers upon a restart. ")
     p = spacetime_db( p=p, DS="load.parameters" )  # ie. restart with saved parameters
     RLibrary( p$libs )
 
