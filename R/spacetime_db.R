@@ -199,15 +199,13 @@
 
       if (DS=="spacetime.prediction")  {
         if (! exists("TIME", p)) {
-            fn = file.path( p$savedir, paste("spacetime.prediction", ret, "rdata", sep="." ) )
-          } else {
-            fn = file.path( p$savedir, paste("spacetime.prediction", ret, yr, "rdata", sep="." ) ) 
-          }
-          if (file.exists(fn) ) load(fn) 
-          if (ret=="mean") return (P)
-          if (ret=="sd") return( Psd)
-          }
+          fn = file.path( p$savedir, paste("spacetime.prediction", ret, "rdata", sep="." ) )
+        } else {
+          fn = file.path( p$savedir, paste("spacetime.prediction", ret, yr, "rdata", sep="." ) ) 
         }
+        if (file.exists(fn) ) load(fn) 
+        if (ret=="mean") return (P)
+        if (ret=="sd") return( Psd)
       }
 
       PP = spacetime_attach( p$storage.backend, p$ptr$P )
