@@ -29,7 +29,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
   if ( exists("TIME", p$variables) ) {
     Ytime = spacetime_attach( p$storage.backend, p$ptr$Ytime )
     Ptime = spacetime_attach( p$storage.backend, p$ptr$Ptime )
-    
+
   }  
 
   if ( p$storage.backend != "bigmemory.ram" ) {
@@ -295,7 +295,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
     res = switch( p$spacetime_engine, 
       gam = spacetime__gam( p, x, pa ), 
       habitat = spacetime__habitat( p, x, pa ), 
-      kernel.density = spacetime__kerneldensity( p, x, pa, smoothness ),
+      kernel.density = uspacetime__kerneldensity( p, x, pa, smoothness ),
       bayesx = spacetime__bayesx( p, x, pa ),
       LaplacesDemon = spacetime__LaplacesDemon( p, x, pa ),
       gaussianprocess2Dt = spacetime__gaussianprocess2Dt( p, x, pa ), 
