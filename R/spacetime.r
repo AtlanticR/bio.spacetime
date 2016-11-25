@@ -351,8 +351,12 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         rm(Ptime)
       }
       
-      p$ts = ifelse( exists("TIME", p$variables), {spacetime_attach( p$storage.backend, p$ptr$Ptime )[]}, 1) 
-
+      # for 2D methods, treat time as independent timeslices
+      if ( exists("TIME", p$variables)) {
+        p$ts = spacetime_attach( p$storage.backend, p$ptr$Ptime )[]
+      } else {
+        p$ts = 1
+      }
 
       # predictions and associated stats
       P = matrix( NaN, nrow=nrow(DATA$output$LOCS), ncol=p$nt )

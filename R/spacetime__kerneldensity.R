@@ -39,20 +39,38 @@ spacetime__kerneldensity = function( p, x, pa, smoothness=0.5 ) {
 
 
   for ( ti in 1:p$nt ) {
-    xi = ifelse( exists("TIME", p$variables), {which( x[, p$variables$TIME]==p$ts[ti]) }, {1:nrow(x)} ) 
+     
+    if ( exists("TIME", p$variables)) {
+      xi = which( x[, p$variables$TIME]==p$ts[ti]) 
+    } else {
+      xi =1:nrow(x) 
+    } 
+    
     # map of row, col indices of input data in the new (output) coordinate system
-    x_id = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
-                   (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
+    x_id = cbind( (x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
+                  (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
 
+    # matrix representation of the output surface
+    M = matrix( NA, nrow=x_nr, ncol=x_nc) 
+    M[x_id] = x[xi,p$variables$Y] # fill with data in correct locations
+    Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta)$z )
+  
     if (0) {
-      # matrix representation of the output surface
-      M = matrix( NA, nrow=x_nr, ncol=x_nc) 
-      M[x_id] = x[xi,p$variables$Y] # fill with data in correct locations
-      Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta)$z )
+      # more control of covariance function .. but not behaving very well and slow .. better to copy internal and strip it down .. TODO
+      Z = try( smooth.2d( Y=x[xi,p$variables$Y], x=x[xi,p$variables$LOCS], ncol=x_nc, nrow=x_nr, theta=p$theta,
+        cov.function=stationary.cov, Covariance="Exponential", p=smoothness, smoothness=smoothness ) )
+      iZ = which( !is.finite( Z$z))
+      if (length(iZ) > 0) Z$z[iZ] = NA
+      rY = range( x[xi,p$variables$Y], na.rm=TRUE)
+      nZ = which( Z$z < rY[1] )
+      if (length(nZ) > 0) Z$z[nZ] = NA
+      mZ = which( Z$z > rY[2] )
+      if (length(mZ) > 0) Z$z[mZ] = NA
+      
+      x11(); image.plot(Z)
+      Z = Z$z
     }
-    # more control of covariance function
-    Z = try( smooth.2d( Y=x[xi,p$variables$Y], ind=x_id, nrow=x_nr, ncol=x_nc, surface=TRUE, cov.function=stationary.cov, theta=p$theta, Distance="rdist", Covariance="Matern", smoothness=smoothness ) )
-
+  
     if ( "try-error" %in% class(Z) ) next()
     # match prediction to input data 
     x$mean[xi] = Z[x_id]

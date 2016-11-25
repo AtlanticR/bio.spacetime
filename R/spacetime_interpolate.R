@@ -29,6 +29,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
   if ( exists("TIME", p$variables) ) {
     Ytime = spacetime_attach( p$storage.backend, p$ptr$Ytime )
     Ptime = spacetime_attach( p$storage.backend, p$ptr$Ptime )
+    
   }  
 
   if ( p$storage.backend != "bigmemory.ram" ) {
@@ -54,7 +55,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
   downsampling = downsampling[ which(downsampling*p$spacetime_distance_scale >= p$spacetime_distance_min )]
 
   # for 2D methods, treat time as independent timeslices
-  p$ts = ifelse( exists("TIME", p$variables), Ptime[], 1 )
+  if ( exists("TIME", p$variables)) {
+    p$ts = Ptime[]
+  } else {
+    p$ts = 1
+  }
 
   # used by "fields":
   theta.grid = 10^seq( -6, 6, by=0.5) * p$spacetime_distance_scale # maxdist is aprox magnitude of the phi parameter
@@ -277,8 +282,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
       ores = o[[p$spacetime_engine.variogram]]
     }
 
-    smoothness = NULL
-    smoothness = ifelse( exists("nu", ores), ores$nu, smoothness0 )
+    if ( exists("nu", ores) ) {
+      smoothness = ores$nu
+    } else {
+      smoothness = smoothness0  
+    }
 
     # model and prediction
     # the following permits user-defined models (might want to use compiler::cmpfun )
