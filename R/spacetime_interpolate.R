@@ -104,6 +104,7 @@ spacetime_interpolate = function( ip=NULL, p ) {
         spacetime_distance_cur = min( max(1, o[[p$spacetime_engine.variogram]][["range"]] ), p$spacetime_distance_scale )
         U = which( dlon  <= spacetime_distance_cur  & dlat <= spacetime_distance_cur )
         ndata =length(U)
+        smoothness0 = o[[p$spacetime_engine.variogram]][["nu"]]
       }   
       rm(o)
     }
@@ -199,7 +200,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
     pa$plon = Ploc[ pa$i, 1]
     pa$plat = Ploc[ pa$i, 2]
 
-    
     # prediction covariates i.e., independent variables/ covariates
     pvars = c("plon", "plat", "i")
     if (exists("COV", p$variables)) {
@@ -268,24 +268,33 @@ spacetime_interpolate = function( ip=NULL, p ) {
       if ("sin.w3" %in% p$variables$ALL) x$sin.w3 = sin( 3*x[,p$variables$TIME] )
     }
 
-    # model and prediction
-    # the following permits user-defined models (might want to use compiler::cmpfun )
-    if ( !exists("spacetime__model", p)) {
-      spacetime__model = switch( p$spacetime_engine, 
-        gam = spacetime__gam, 
-        habitat = spacetime__habitat, 
-        kernel.density = spacetime__kerneldensity,
-        bayesx = spacetime__bayesx,
-        LaplacesDemon = spacetime__LaplacesDemon,
-        gaussianprocess2Dt = spacetime__gaussianprocess2Dt, 
-        gaussianprocess = spacetime__gaussianprocess, 
-        inla = spacetime__inla
-      )
+    ores = NULL
+    o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods=p$spacetime_engine.variogram)
+    if ( is.null(o) || !exists( p$spacetime_engine.variogram, o )) {
+      o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods="gstat" )
+      ores = o[["fast"]]
+    } else {
+      ores = o[[p$spacetime_engine.variogram]]
     }
 
+    smoothness = NULL
+    smoothness = ifelse( exists("nu", ores), ores$nu, smoothness0 )
+
+    # model and prediction
+    # the following permits user-defined models (might want to use compiler::cmpfun )
     gc()
     res =NULL
-    res = spacetime__model( p, x, pa )
+    res = switch( p$spacetime_engine, 
+      gam = spacetime__gam( p, x, pa ), 
+      habitat = spacetime__habitat( p, x, pa ), 
+      kernel.density = spacetime__kerneldensity( p, x, pa, smoothness ),
+      bayesx = spacetime__bayesx( p, x, pa ),
+      LaplacesDemon = spacetime__LaplacesDemon( p, x, pa ),
+      gaussianprocess2Dt = spacetime__gaussianprocess2Dt( p, x, pa ), 
+      gaussianprocess = spacetime__gaussianprocess( p, x, pa ), 
+      inla = spacetime__inla( p, x, pa ),
+      spacetime_engine_user_defined = p$spacetime_engine_user_defined( p, x, pa)
+    )
     
     if (0) {
       lattice::levelplot( mean ~ plon + plat, data=res$predictions[res$predictions[,p$variables$TIME]==2012.05,], col.regions=heat.colors(100), scale=list(draw=FALSE) , aspect="iso" )
@@ -330,22 +339,13 @@ spacetime_interpolate = function( ip=NULL, p ) {
       res$spacetime_stats["range"] = NA
       res$spacetime_stats["phi"] = NA
       res$spacetime_stats["nu"] = NA
-
-      ores = NULL
-      o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods=p$spacetime_engine.variogram  )
-        if ( is.null(o) || !exists( p$spacetime_engine.variogram, o )) {
-          o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods="gstat" )
-          ores = o[["gstat"]]
-        } else {
-          ores = o[[p$spacetime_engine.variogram]]
-        }
-        if ( !is.null(ores)) {
-          res$spacetime_stats["sdSpatial"] = sqrt( ores[["varSpatial"]] ) 
-          res$spacetime_stats["sdObs"] = sqrt(ores[["varObs"]]) 
-          res$spacetime_stats["range"] = ores[["range"]]
-          res$spacetime_stats["phi"] = ores[["phi"]]
-          res$spacetime_stats["nu"] = ores[["nu"]]
-        } 
+      if ( !is.null(ores)) {
+        res$spacetime_stats["sdSpatial"] = sqrt( ores[["varSpatial"]] ) 
+        res$spacetime_stats["sdObs"] = sqrt(ores[["varObs"]]) 
+        res$spacetime_stats["range"] = ores[["range"]]
+        res$spacetime_stats["phi"] = ores[["phi"]]
+        res$spacetime_stats["nu"] = ores[["nu"]]
+      } 
     }
     
     if ( exists("TIME", p$variables) ){

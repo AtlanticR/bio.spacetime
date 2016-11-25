@@ -1,5 +1,5 @@
 
-spacetime__kerneldensity = function( p, x, pa ) {
+spacetime__kerneldensity = function( p, x, pa, smoothness=0.5 ) {
   #\\ this is the core engine of spacetime .. localised space (no-time) modelling interpolation 
   #\\ note: time is not being modelled and treated independently 
   #\\      .. you had better have enough data in each time slice
@@ -41,18 +41,21 @@ spacetime__kerneldensity = function( p, x, pa ) {
   for ( ti in 1:p$nt ) {
     xi = ifelse( exists("TIME", p$variables), {which( x[, p$variables$TIME]==p$ts[ti]) }, {1:nrow(x)} ) 
     # map of row, col indices of input data in the new (output) coordinate system
-    l2M = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
-                  (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-    # matrix representation of the output surface
-    M = matrix( NA, nrow=x_nr, ncol=x_nc) 
-    M[l2M] = x[xi,p$variables$Y] # fill with data in correct locations
-    stats = rep( NA, nrow( pa_locs) )  # output data
-    Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta) )
-    if ( "try-error" %in% class(Z) ) next()
-    # match prediction to input data 
     x_id = cbind( ( x[xi,p$variables$LOCS[1]]-x_r[1])/p$pres + 1, 
                    (x[xi,p$variables$LOCS[2]]-x_c[1])/p$pres + 1 )
-    x$mean[xi] = Z$z[x_id]
+
+    if (0) {
+      # matrix representation of the output surface
+      M = matrix( NA, nrow=x_nr, ncol=x_nc) 
+      M[x_id] = x[xi,p$variables$Y] # fill with data in correct locations
+      Z = try( fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta)$z )
+    }
+    # more control of covariance function
+    Z = try( smooth.2d( Y=x[xi,p$variables$Y], ind=x_id, nrow=x_nr, ncol=x_nc, surface=TRUE, cov.function=stationary.cov, theta=p$theta, Distance="rdist", Covariance="Matern", smoothness=smoothness ) )
+
+    if ( "try-error" %in% class(Z) ) next()
+    # match prediction to input data 
+    x$mean[xi] = Z[x_id]
     ss = lm( x$mean[xi] ~ x[xi,p$variables$Y], na.action=na.omit)
     if ( "try-error" %in% class( ss ) ) next()
     rsquared = summary(ss)$r.squared
@@ -65,7 +68,7 @@ spacetime__kerneldensity = function( p, x, pa ) {
     if ( any( Z_i<1) ) next()  
     if ( any( Z_i[,1] > x_nr) ) next()
     if ( any( Z_i[,2] > x_nc) ) next()
-    pa$mean[pa_i] = Z$z[Z_i]
+    pa$mean[pa_i] = Z[Z_i]
     pa$sd[pa_i] = 1
   }
 
