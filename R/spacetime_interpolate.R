@@ -48,17 +48,16 @@ spacetime_interpolate = function( ip=NULL, p ) {
   Yi = as.vector(Yi[])  #force copy to RAM as a vector
 
   # misc intermediate calcs to be done outside of parallel loops
-  p$dist.scale = (p$dist.max + p$dist.min ) / 2
   upsampling = sort( p$sampling[ which( p$sampling > 1 ) ] )
-  upsampling = upsampling[ which(upsampling*p$dist.scale <= p$dist.max )]
+  upsampling = upsampling[ which(upsampling*p$spacetime_distance_scale <= p$spacetime_distance_max )]
   downsampling = sort( p$sampling[ which( p$sampling < 1) ] , decreasing=TRUE )
-  downsampling = downsampling[ which(downsampling*p$dist.scale >= p$dist.min )]
+  downsampling = downsampling[ which(downsampling*p$spacetime_distance_scale >= p$spacetime_distance_min )]
 
   # for 2D methods, treat time as independent timeslices
   p$ts = ifelse( exists("TIME", p$variables), Ptime[], 1 )
 
   # used by "fields":
-  theta.grid = 10^seq( -6, 6, by=0.5) * p$dist.max # maxdist is aprox magnitude of the phi parameter
+  theta.grid = 10^seq( -6, 6, by=0.5) * p$spacetime_distance_scale # maxdist is aprox magnitude of the phi parameter
   lambda.grid = 10^seq( -9, 3, by=0.5) 
 
   #-----------------
@@ -90,8 +89,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
     # find data nearest S[Si,] and with sufficient data
     dlon = abs( Sloc[Si,1] - Yloc[Yi,1] ) 
     dlat = abs( Sloc[Si,2] - Yloc[Yi,2] ) 
-    U =  which( dlon  <= p$dist.max  & dlat <= p$dist.max )
-    dist.cur = p$dist.max
+    U =  which( dlon  <= p$spacetime_distance_scale  & dlat <= p$spacetime_distance_scale )
+    spacetime_distance_cur = p$spacetime_distance_scale
     ndata = length(U)
  
     if (ndata > p$n.min ) {
@@ -102,19 +101,19 @@ spacetime_interpolate = function( ip=NULL, p ) {
       }
       o = spacetime_variogram( xy=Yloc[Uj,], z=p$spacetime_family$linkfun(Y[Uj]), methods=p$spacetime_engine.variogram  )
       if ( !is.null(o)) {
-        dist.cur = min( max(1, o[[p$spacetime_engine.variogram]][["range"]] ), p$dist.max )
-        U = which( dlon  <= dist.cur  & dlat <= dist.cur )
+        spacetime_distance_cur = min( max(1, o[[p$spacetime_engine.variogram]][["range"]] ), p$spacetime_distance_scale )
+        U = which( dlon  <= spacetime_distance_cur  & dlat <= spacetime_distance_cur )
         ndata =length(U)
       }   
       rm(o)
     }
 
     # as a backup .. find data withing a given distance / number 
-    if (ndata < p$n.min | ndata > p$n.max | dist.cur < p$dist.min | dist.cur > p$dist.max ) { 
+    if (ndata < p$n.min | ndata > p$n.max | spacetime_distance_cur < p$spacetime_distance_min | spacetime_distance_cur > p$spacetime_distance_max ) { 
       if ( ndata < p$n.min )  {
         for ( usamp in upsampling )  {
-          dist.cur = p$dist.scale * usamp
-          U = which( dlon < dist.cur & dlat < dist.cur ) # faster to take a block 
+          spacetime_distance_cur = p$spacetime_distance_scale * usamp
+          U = which( dlon < spacetime_distance_cur & dlat < spacetime_distance_cur ) # faster to take a block 
           ndata = length(U)
           if ( ndata >= p$n.min ) {
             if (ndata >= p$n.max) {
@@ -132,13 +131,13 @@ spacetime_interpolate = function( ip=NULL, p ) {
           } 
         } else {
           for ( dsamp in downsampling )  { # lots of data .. downsample
-            dist.cur = p$dist.scale * dsamp
-            U = which( dlon < dist.cur & dlat < dist.cur )# faster to take a block 
+            spacetime_distance_cur = p$spacetime_distance_scale * dsamp
+            U = which( dlon < spacetime_distance_cur & dlat < spacetime_distance_cur )# faster to take a block 
             ndata = length(U)
             if ( ndata <= p$n.max ) break()
-            if ( dist.cur <= p$dist.min ) {
+            if ( spacetime_distance_cur <= p$spacetime_distance_min ) {
               # reached lower limit in distance, taking a subsample instead
-              U = which( dlon < p$dist.min & dlat < p$dist.min ) # faster to take a block 
+              U = which( dlon < p$spacetime_distance_min & dlat < p$spacetime_distance_min ) # faster to take a block 
               U = U[ .Internal( sample( length(U), p$n.max, replace=FALSE, prob=NULL)) ]
               ndata = length(U)
               break()
@@ -155,9 +154,9 @@ spacetime_interpolate = function( ip=NULL, p ) {
     if ((ndata < p$n.min) | (ndata > p$n.max) ) next()
     YiU = Yi[U]  
     # So, YiU and dist_prediction determine the data entering into local model construction
-    # dist_model = dist.cur
+    # dist_model = spacetime_distance_cur
 
-    dist_prediction = min( p$spacetime_distance_prediction, dist.cur ) # do not predict greater than p$spacetime_distance_prediction
+    dist_prediction = min( p$spacetime_distance_prediction, spacetime_distance_cur ) # do not predict greater than p$spacetime_distance_prediction
 
     # construct prediction/output grid area ('pa')
     windowsize.half = floor(dist_prediction/p$pres) # convert distance to discretized increments of row/col indices

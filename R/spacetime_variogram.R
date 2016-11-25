@@ -122,13 +122,13 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
     vg = vario@emp.vario
     vx = vario@centers
     #nonlinear est
-    o = try( optim( par=c(tau.sq=max(vg)*0.1, sigma.sq=max(vg)*0.9, phi=max(vx)*0.75, nu=1), 
+    o = try( optim( par=c(tau.sq=max(vg)*0.1, sigma.sq=max(vg)*0.9, phi=max(vx)*0.5, nu=0.5), 
       vg=vg, vx=vx, method="BFGS", 
       fn=function(par, vg, vx){ 
-        par["tau.sq"] = max( par["tau.sq"], 0 )
-        par["sigma.sq"] = max( par["sigma.sq"], 0)
-        par["nu"] = max( par["nu"], 0)
-        par["phi"] = max( par["phi"] , 0)
+        par["tau.sq"] = max( par["tau.sq"], 1e-9 )
+        par["sigma.sq"] = max( par["sigma.sq"], 1e-9)
+        par["nu"] = max( par["nu"], 0.5 )
+        par["phi"] = max( par["phi"] , 1e-9 )
         vgm = par["tau.sq"] + par["sigma.sq"]*(1-fields::Matern(d=vx, range=par["phi"], smoothness=par["nu"]) )
         dy = sum( (vg - vgm)^2) # vario normal errors, no weights , etc.. just the line
       } ) 

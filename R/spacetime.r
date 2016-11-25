@@ -582,21 +582,25 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         }
       rm(Yi)
 
-    # determine global spatial scales   
-    Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
-    Y = spacetime_attach( p$storage.backend, p$ptr$Y )
-    o = spacetime_variogram( xy=Yloc[], z=p$spacetime_family$linkfun(Y[]), methods="fast" )
-    o2 = min( diff(range( Yloc[,1]) ), diff(range( Yloc[,2]) ) ) / 10
-    p$dist.scale = ifelse( is.null(o), o2, o[["fast"]][["range"]] ) 
-    p$dist.min = max( p$pres * 5, p$dist.scale /100 )  # min distance for data selection for modelling
-    p$dist.max = min( o2, p$dist.scale * 2 )
-    message( paste( "Global distance scale ", p$dist.scale ) )
-    
+    if ( !exists("spacetime_distance_scale", p)) {
+      Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
+      p$spacetime_distance_scale = min( diff(range( Yloc[,1]) ), diff(range( Yloc[,2]) ) ) / 10
+      message( paste( "Crude distance scale:", p$spacetime_distance_scale ) )
+    }
+    p$spacetime_distance_min = mean( c(p$spacetime_distance_prediction, p$spacetime_distance_scale /20 ) ) 
+    p$spacetime_distance_max = mean( c(p$spacetime_distance_prediction*10, p$spacetime_distance_scale * 2 ) )
+
+    if ( !exists("sampling", p))  {
+      # fractions of distance scale  to try in local block search
+      p$sampling = c( 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2, 1.5, 1.75, 2 )  
+    }
+
     spacetime_db( p=p, DS="save.parameters" )  # save in case a restart is required .. mostly for the pointers to data objects
     message( "Finished. Moving onto analysis... ")
     gc()
 
   } else {
+
     message( "Restart only works with bigmemory.filebacked and ff methods. " )
     message( "bigmemory.ram method loses the pointers upon a restart. ")
     p = spacetime_db( p=p, DS="load.parameters" )  # ie. restart with saved parameters
@@ -611,7 +615,6 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
   # -------------------------------------
   # localized space-time modelling/interpolation/prediction
-
 
   o = spacetime_db( p, DS="statistics.status" )
   p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
@@ -631,7 +634,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     o = spacetime_db( p, DS="statistics.reset.problem.locations" )
     if (length(o$todo) > 0) {
       p$spacetime_distance_prediction = p$spacetime_distance_prediction * 2
-      p$dist.max = p$dist.max * 2 
+      p$spacetime_distance_max = p$spacetime_distance_max * 2 
       p = make.list( list( locs=sample( o$todo )) , Y=p ) # random order helps use all cpus
       parallel.run( spacetime_interpolate, p=p ) 
       p$time.end2 =  Sys.time()

@@ -6,9 +6,9 @@ spacetime__inla = function( p, x, pa ) {
   #\\ parameter and data requirements can be seen in bathymetry\src\bathymetry.r
 
   # the following parameters are for inside and outside ... do not make them exact multiples as this seems to make things hang ..
-  if ( !exists("inla.mesh.max.edge", p))  p$inla.mesh.max.edge = c(  0.025,   0.04 )    # proportion of 2*p$dist.max or equivalent: c(inside,outside) -- must be positive valued
-  if ( !exists("inla.mesh.offset", p))  p$inla.mesh.offset   = c( - 0.025,  - 0.05 )   # how much to extend inside and outside of boundary: proportion of dist.max .. neg val = proportion
-  if ( !exists("inla.mesh.cutoff", p)) p$inla.mesh.cutoff   = c( - 0.05,   - 0.5 )    ## min distance allowed between points: proportion of dist.max ; neg val = proportion
+  if ( !exists("inla.mesh.max.edge", p))  p$inla.mesh.max.edge = c(  0.025,   0.04 )    # proportion of 2*p$spacetime_distance_scale or equivalent: c(inside,outside) -- must be positive valued
+  if ( !exists("inla.mesh.offset", p))  p$inla.mesh.offset   = c( - 0.025,  - 0.05 )   # how much to extend inside and outside of boundary: proportion of spacetime_distance_scale .. neg val = proportion
+  if ( !exists("inla.mesh.cutoff", p)) p$inla.mesh.cutoff   = c( - 0.05,   - 0.5 )    ## min distance allowed between points: proportion of spacetime_distance_scale ; neg val = proportion
 
   if ( !exists("inla.mesh.hull.radius", p)) p$inla.mesh.hull.radius = c( -0.04, - 0.08 ) ## radius of boundary finding algorythm ; neg val = proportion
 
