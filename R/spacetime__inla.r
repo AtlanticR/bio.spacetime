@@ -14,9 +14,9 @@ spacetime__inla = function( p, x, pa ) {
 
   if ( !exists("inla.mesh.hull.resolution", p)) p$inla.mesh.hull.resolution = 125  ## resolution for discretization to find boundary
 
-  if ( !exists("spacetime.noise", p)) p$spacetime.noise = 0.001  # add a little noise to coordinates to prevent a race condition
+  if ( !exists("spacetime.noise", p)) p$spacetime.noise = p$pres / 10  # add a little noise to coordinates to prevent a race condition
 
-  if ( !exists("inla.alpha", p)) p$inla.alpha = 2 # bessel function curviness
+  if ( !exists("inla.alpha", p)) p$inla.alpha = 1.5 # alpha-1 = nu of bessel function curviness
   if ( !exists("inla.nsamples", p)) p$inla.nsamples = 5000 # posterior similations 
   if ( !exists("predict.in.one.go", p)) p$predict.in.one.go = FALSE # use false, one go is very very slow and a resource expensive method
   if ( !exists("predict.quantiles", p)) p$predict.quantiles = c(0.025, 0.975 )  # posterior predictions robustified by trimming extreme values 
@@ -46,8 +46,8 @@ spacetime__inla = function( p, x, pa ) {
 
   # also sending direct distances rather than proportion seems to cause issues..
   MESH = spacetime_mesh( locs=x[,p$variables$LOC] + locs_noise,
-    lengthscale=p$spacetime_distance_prediction*2,
-    max.edge=p$inla.mesh.max.edge * p$spacetime_distance_prediction*2,
+    # lengthscale=p$spacetime_distance_prediction*2,
+    # max.edge=p$inla.mesh.max.edge * p$spacetime_distance_prediction*2,
     bnd.offset=p$inla.mesh.offset,
     cutoff=p$inla.mesh.cutoff,
     convex=p$inla.mesh.hull.radius,
@@ -73,9 +73,9 @@ spacetime__inla = function( p, x, pa ) {
     covar = as.data.frame( x[, p$variables$COV ] ) 
     colnames( covar ) = p$variables$COV
     obs_eff[["covar"]] = as.list(covar)
-    obs_A = list( inla.spde.make.A( mesh=MESH, loc=x[, p$variables$LOC ] ), 1 )
+    obs_A = list( inla.spde.make.A( mesh=MESH, loc=as.matrix(x[, p$variables$LOC ]) ), 1 )
   } else {
-    obs_A = list( inla.spde.make.A( mesh=MESH, loc=x[, p$variables$LOC ] ) ) # no effects
+    obs_A = list( inla.spde.make.A( mesh=MESH, loc=as.matrix(x[, p$variables$LOC ]) ) ) # no effects
   }
 
   obs_ydata = list()
@@ -106,6 +106,7 @@ spacetime__inla = function( p, x, pa ) {
     colnames( pcovars ) = p$variables$COV
     preds_eff[["covar"]] = as.list( pcovars )
     preds_A = list( inla.spde.make.A(MESH, loc=preds_locs ), 1)
+    pcovars = NULL
   } else {
     preds_A = list( inla.spde.make.A(MESH, loc=preds_locs ) )
   }
@@ -114,7 +115,7 @@ spacetime__inla = function( p, x, pa ) {
   PREDS = inla.stack( tag="preds", data=preds_ydata, A=preds_A, effects=preds_eff, remove.unused=FALSE )
   DATA = inla.stack(DATA, PREDS )
   preds_stack_index = inla.stack.index( DATA, "preds")$data  # indices of predictions in stacked data
-  rm ( preds_eff, preds_ydata, preds_A, PREDS, preds_index, preds_locs, pcovars, kP ); gc()
+  rm ( preds_eff, preds_ydata, preds_A, PREDS, preds_index, preds_locs ); gc()
 
   if (!exists("spacetime_engine_modelformula", p) )  p$spacetime_engine_modelformula = formula( z ~ -1 + intercept + f( spatial.field, model=SPDE ) ) # SPDE is the spatial covariance model .. defined in 
 
@@ -123,12 +124,17 @@ spacetime__inla = function( p, x, pa ) {
 
   if (is.null(RES))  return(NULL)
 
-  # inla.spde2.matern creates files to disk that are not cleaned up:
-  spdetmpfn = SPDE$f$spde2.prefix
-  fns = list.files( dirname( spdetmpfn ), all.files=TRUE, full.names=TRUE, recursive=TRUE, include.dirs=TRUE )
-  oo = grep( basename(spdetmpfn), fns )
-  if(length(oo)>0) file.remove( sort(fns[oo], decreasing=TRUE) )
-  rm ( DATA, oo, fns, spdetmpfn); gc()
+  
+  if (0) {
+    # inla.spde2.matern creates files to disk that are not cleaned up:
+    # No longer an issue? 2016-Nov JC
+    spdetmpfn = SPDE$f$spde2.prefix
+    fns = list.files( dirname( spdetmpfn ), all.files=TRUE, full.names=TRUE, recursive=TRUE, include.dirs=TRUE )
+    oo = grep( basename(spdetmpfn), fns )
+    if(length(oo)>0) file.remove( sort(fns[oo], decreasing=TRUE) )
+    rm ( fns, spdetmpfn, oo);
+  }
+  rm ( DATA); gc()
 
   # -----------
   # predictions
@@ -177,10 +183,11 @@ spacetime__inla = function( p, x, pa ) {
   stats$sdTotal=sd(x[,p$variable$Y], na.rm=T)
   stats$rsquared=NA
   stats$ndata=nrow(x)
-  stats$sdSpatial = sqrt(inla.summary["spatial error", "mode"])
-  stats$sdObs = sqrt(inla.summary["observation error", "mode"])
-  stats$range = inla.summary["range", "mode"]
-  stats$range.sd  = inla.summary["range", "sd"]
+  stats$sdSpatial = sqrt(inla.summary[["spatial error", "mode"]])
+  stats$sdObs = sqrt(inla.summary[["observation error", "mode"]])
+  stats$nu = p$inla.alpha - 1
+  stats$phi = 1/inla.summary[["kappa","mean"]]
+  stats$range = geoR::practicalRange("matern", phi=stats$phi, kappa=stats$nu  )
 
   return (list(predictions=pa, spacetime_stats=stats))
 }

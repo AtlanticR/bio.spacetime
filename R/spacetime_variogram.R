@@ -133,7 +133,6 @@ spacetime_variogram = function( xy, z, plotdata=FALSE, edge=c(1/3, 1), methods=c
         dy = sum( (vg - vgm)^2) # vario normal errors, no weights , etc.. just the line
       } ) 
     )
-
     
     if ( !inherits(o, "try-error")) { 
       if ( o$convergence==0 ) {

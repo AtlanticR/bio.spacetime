@@ -97,24 +97,34 @@ spacetime_interpolate = function( ip=NULL, p ) {
     U =  which( dlon  <= p$spacetime_distance_scale  & dlat <= p$spacetime_distance_scale )
     spacetime_distance_cur = p$spacetime_distance_scale
     ndata = length(U)
- 
+  
+    o = ores = NULL
+
     if (ndata > p$n.min ) {
       if (ndata > p$n.max ) {
         Uj = U[ .Internal( sample( ndata, p$n.max, replace=FALSE, prob=NULL)) ]  
       } else {
         Uj = U
       }
-      o = spacetime_variogram( xy=Yloc[Uj,], z=p$spacetime_family$linkfun(Y[Uj]), methods=p$spacetime_engine.variogram  )
-      if ( !is.null(o)) {
-        spacetime_distance_cur = min( max(1, o[[p$spacetime_engine.variogram]][["range"]] ), p$spacetime_distance_scale )
-        U = which( dlon  <= spacetime_distance_cur  & dlat <= spacetime_distance_cur )
-        ndata =length(U)
-        smoothness0 = o[[p$spacetime_engine.variogram]][["nu"]]
-      }   
-      rm(o)
+      o = try( spacetime_variogram( xy=Yloc[Uj,], z=p$spacetime_family$linkfun(Y[Uj]), methods=p$spacetime_engine.variogram ) )
+      if (!inherits(o, "try-error")) {
+        if ( !is.null(o)) {
+          spacetime_distance_cur = min( max(1, o[[p$spacetime_engine.variogram]][["range"]] ), p$spacetime_distance_scale ) 
+          U = which( dlon  <= spacetime_distance_cur  & dlat <= spacetime_distance_cur )
+          ndata =length(U)
+          smoothness0 = o[[p$spacetime_engine.variogram]][["nu"]]
+          ores = o[[p$spacetime_engine.variogram]] # store current best estimate of variogram characteristics
+          if (0) {
+            if (p$spacetime_engine.variogram == "fast" ) { 
+              plot(o[[p$spacetime_engine.variogram]][["vgm"]], 
+                model=RMmatern( nu=o$fast$nu, var=o$fast$varSpatial, scale=o$fast$phi * (sqrt(o$fast$nu*2) )) + RMnugget(var=o$fast$varObs) )
+            }
+          }
+        }   
+      }
     }
 
-    # as a backup .. find data withing a given distance / number 
+    # if insufficient data found within the "range" fall back to a brute force search until criteria are met
     if (ndata < p$n.min | ndata > p$n.max | spacetime_distance_cur < p$spacetime_distance_min | spacetime_distance_cur > p$spacetime_distance_max ) { 
       if ( ndata < p$n.min )  {
         for ( usamp in upsampling )  {
@@ -273,19 +283,21 @@ spacetime_interpolate = function( ip=NULL, p ) {
       if ("sin.w3" %in% p$variables$ALL) x$sin.w3 = sin( 3*x[,p$variables$TIME] )
     }
 
-    ores = NULL
-    o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods=p$spacetime_engine.variogram)
-    if ( is.null(o) || !exists( p$spacetime_engine.variogram, o )) {
-      o = spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods="gstat" )
-      ores = o[["fast"]]
-    } else {
-      ores = o[[p$spacetime_engine.variogram]]
-    }
-
-    if ( exists("nu", ores) ) {
-      smoothness = ores$nu
-    } else {
-      smoothness = smoothness0  
+    o = NULL
+    o = try( spacetime_variogram( xy=Yloc[U,], z=p$spacetime_family$linkfun(Y[U]), methods=p$spacetime_engine.variogram) )
+      if (!inherits(o, "try-error")) {
+        if ( !is.null(o) ) {
+          if ( exists( p$spacetime_engine.variogram, o )) {
+            ores = o[[p$spacetime_engine.variogram]]  # replace with this "tweaked variogram estimate"    
+          }  
+        }
+      } 
+      
+    smoothness = smoothness0
+    if (!is.null(ores)) {
+      if ( exists("nu", ores) ) {
+        smoothness = ores$nu
+      } 
     }
 
     # model and prediction
@@ -376,11 +388,11 @@ spacetime_interpolate = function( ip=NULL, p ) {
             if (length(which (is.finite(pac$mean))) > 5 ) {
               ar1 = NULL
               ar1 = try( ar( pac$mean, order.max=1 ) )
-              if (!inherits(ts.stat, "try-error")) {
+              if (!inherits(ar1, "try-error")) {
                 res$spacetime_stats["ar_1"] = ar1$ar 
               } else {
                 ar1 = try( cor( pac$mean[1:(length(piid) - 1)], pac$mean[2:(length(piid))], na.rm=TRUE ) )
-                if (!inherits(ts.stat, "try-error")) res$spacetime_stats["ar_1"] = ar1 
+                if (!inherits(ar1, "try-error")) res$spacetime_stats["ar_1"] = ar1 
               }
             } 
           } 

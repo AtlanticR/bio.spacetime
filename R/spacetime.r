@@ -104,20 +104,14 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     } 
 
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
-    othervars = c("sdSpatial", "sdObs", "range", "phi", "nu" )
+    othervars = c( )
     if (p$spacetime_engine == "habitat") {
       othervars = c( )
-    }
-    if (p$spacetime_engine == "bayesx") {
-      othervars = c( "sdTotal", "rsquared", "ndata", "sdSpatial", "sdObs", "range", "phi" )# not used .. just for posterity
-    }
-    if (p$spacetime_engine == "inla") {
-      othervars = c( "sdSpatial", "sdObs", "range", "range.sd" )# not used .. just for posterity
     }
     if (exists("TIME", p$variables) ) {
       othervars = c( "ar_timerange", "ar_1" )
     }
-    p$statsvars = unique( c( "sdTotal", "rsquared", "ndata", othervars ) )
+    p$statsvars = unique( c( "sdTotal", "rsquared", "ndata", "sdSpatial", "sdObs", "range", "phi", "nu", othervars ) )
 
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
     message( "These are large files (4 to 6 X 5GB), esp. prediction grids (5 min .. faster if on fileserver), so be patient. ")
@@ -539,52 +533,52 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       bnds = NULL
     }
 
-      Y = spacetime_attach( p$storage.backend, p$ptr$Y )
-      Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
+    Y = spacetime_attach( p$storage.backend, p$ptr$Y )
+    Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
 
-      Yi = 1:length(Y) # index with useable data
-      bad = which( !is.finite( Y[]))
-      if (length(bad)> 0 ) Yi[bad] = NA
-
-      # data locations
-      bad = which( !is.finite( rowSums(Yloc[])))
-      if (length(bad)> 0 ) Yi[bad] = NA
+    Yi = 1:length(Y) # index with useable data
+    bad = which( !is.finite( Y[]))
+    if (length(bad)> 0 ) Yi[bad] = NA
 
     # data locations
-      if (exists("COV", p$variables)) {
-        Ycov = spacetime_attach( p$storage.backend, p$ptr$Ycov )
-        if (length(p$variables$COV)==1) {
-          bad = which( !is.finite( Ycov[] ))
-        } else {
-          bad = which( !is.finite( rowSums(Ycov[])))
-        }
-        if (length(bad)> 0 ) Yi[bad] = NA
-        Yi = na.omit(Yi)
-      }
+    bad = which( !is.finite( rowSums(Yloc[])))
+    if (length(bad)> 0 ) Yi[bad] = NA
 
-      # data locations
-      if (exists("TIME", p$variables)) {
-        Ytime = spacetime_attach( p$storage.backend, p$ptr$Ytime )
-        bad = which( !is.finite( Ytime[] ))
-        if (length(bad)> 0 ) Yi[bad] = NA
-        Yi = na.omit(Yi)
+  # data locations
+    if (exists("COV", p$variables)) {
+      Ycov = spacetime_attach( p$storage.backend, p$ptr$Ycov )
+      if (length(p$variables$COV)==1) {
+        bad = which( !is.finite( Ycov[] ))
+      } else {
+        bad = which( !is.finite( rowSums(Ycov[])))
       }
-      bad = NULL
+      if (length(bad)> 0 ) Yi[bad] = NA
+      Yi = na.omit(Yi)
+    }
 
-      Yi = as.matrix(Yi)
-        if (p$storage.backend == "bigmemory.ram" ) {
-          p$bm$Yi = big.matrix( nrow=nrow(Yi), ncol=ncol(Yi), type="double" )
-          p$bm$Yi[] = Yi
-          p$ptr$Yi  = bigmemory::describe( p$bm$Yi )
-        }
-        if (p$storage.backend == "bigmemory.filebacked" ) {
-          p$ptr$Yi  = p$cache$Yi
-          bigmemory::as.big.matrix( Yi, type="double", backingfile=basename(p$bm$Yi), descriptorfile=basename(p$cache$Yi), backingpath=p$stloc )
-        }
-        if (p$storage.backend == "ff" ) {
-          p$ptr$Yi = ff( Yi, dim=dim(Yi), file=p$cache$Yi, overwrite=TRUE )
-        }
-      rm(Yi)
+    # data locations
+    if (exists("TIME", p$variables)) {
+      Ytime = spacetime_attach( p$storage.backend, p$ptr$Ytime )
+      bad = which( !is.finite( Ytime[] ))
+      if (length(bad)> 0 ) Yi[bad] = NA
+      Yi = na.omit(Yi)
+    }
+    bad = NULL
+
+    Yi = as.matrix(Yi)
+      if (p$storage.backend == "bigmemory.ram" ) {
+        p$bm$Yi = big.matrix( nrow=nrow(Yi), ncol=ncol(Yi), type="double" )
+        p$bm$Yi[] = Yi
+        p$ptr$Yi  = bigmemory::describe( p$bm$Yi )
+      }
+      if (p$storage.backend == "bigmemory.filebacked" ) {
+        p$ptr$Yi  = p$cache$Yi
+        bigmemory::as.big.matrix( Yi, type="double", backingfile=basename(p$bm$Yi), descriptorfile=basename(p$cache$Yi), backingpath=p$stloc )
+      }
+      if (p$storage.backend == "ff" ) {
+        p$ptr$Yi = ff( Yi, dim=dim(Yi), file=p$cache$Yi, overwrite=TRUE )
+      }
+    rm(Yi)
 
     if ( !exists("spacetime_distance_scale", p)) {
       Yloc = spacetime_attach( p$storage.backend, p$ptr$Yloc )
