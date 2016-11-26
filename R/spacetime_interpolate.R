@@ -375,12 +375,12 @@ spacetime_interpolate = function( ip=NULL, p ) {
             res$spacetime_stats["ar_timerange"] = ts.stat$quantilePeriod 
             if (length(which (is.finite(pac$mean))) > 5 ) {
               ar1 = NULL
-              ar1 = try( ar( pac$mean[ piid ] ) )
+              ar1 = try( ar( pac$mean, order.max=1 ) )
               if (!inherits(ts.stat, "try-error")) {
                 res$spacetime_stats["ar_1"] = ar1$ar 
               } else {
-                ar1 = try( lm( pac$mean[1:(length(piid) - 1)] ~ pac$mean[2:(length(piid))] + 0, na.action="na.omit") )
-                if (!inherits(ts.stat, "try-error")) res$spacetime_stats["ar_1"] = coef( ar1 )
+                ar1 = try( cor( pac$mean[1:(length(piid) - 1)], pac$mean[2:(length(piid))], na.rm=TRUE ) )
+                if (!inherits(ts.stat, "try-error")) res$spacetime_stats["ar_1"] = ar1 
               }
             } 
           } 
