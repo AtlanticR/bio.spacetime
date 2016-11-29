@@ -28,8 +28,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
   }
   if ( exists("TIME", p$variables) ) {
     Ytime = spacetime_attach( p$storage.backend, p$ptr$Ytime )
-    Ptime = spacetime_attach( p$storage.backend, p$ptr$Ptime )
-
   }  
 
   if ( p$storage.backend != "bigmemory.ram" ) {
@@ -54,12 +52,6 @@ spacetime_interpolate = function( ip=NULL, p ) {
   downsampling = sort( p$sampling[ which( p$sampling < 1) ] , decreasing=TRUE )
   downsampling = downsampling[ which(downsampling*p$spacetime_distance_scale >= p$spacetime_distance_min )]
 
-  # for 2D methods, treat time as independent timeslices
-  if ( exists("TIME", p$variables)) {
-    p$ts = Ptime[]
-  } else {
-    p$ts = 1
-  }
 
   # used by "fields":
   theta.grid = 10^seq( -6, 6, by=0.5) * p$spacetime_distance_scale # maxdist is aprox magnitude of the phi parameter
@@ -226,8 +218,8 @@ spacetime_interpolate = function( ip=NULL, p ) {
     pa = pa[, pvars]
 
     if ( exists("TIME", p$variables) ) {
-      pa = cbind( pa[ rep.int(1:pa_n, length(Ptime)), ], 
-                       rep.int(Ptime[], rep(pa_n,length(Ptime) )) )
+      pa = cbind( pa[ rep.int(1:pa_n, p$nt), ], 
+                      rep.int(p$ts, rep(pa_n, p$nt )) )
       names(pa) = c( pvars, p$variables$TIME )
       if ( p$variables$TIME != "yr" ) pa$yr = trunc( pa[,p$variables$TIME] )
       # where time exists and there are seasonal components, 
@@ -305,14 +297,15 @@ spacetime_interpolate = function( ip=NULL, p ) {
     gc()
     res =NULL
     res = switch( p$spacetime_engine, 
-      gam = spacetime__gam( p, x, pa ), 
-      habitat = spacetime__habitat( p, x, pa ), 
-      kernel.density = uspacetime__kerneldensity( p, x, pa, smoothness ),
       bayesx = spacetime__bayesx( p, x, pa ),
-      LaplacesDemon = spacetime__LaplacesDemon( p, x, pa ),
+      habitat = spacetime__habitat( p, x, pa ), 
+      inla = spacetime__inla( p, x, pa ),
+      kernel.density = uspacetime__kerneldensity( p, x, pa, smoothness ),
+      gam = spacetime__gam( p, x, pa ), 
       gaussianprocess2Dt = spacetime__gaussianprocess2Dt( p, x, pa ), 
       gaussianprocess = spacetime__gaussianprocess( p, x, pa ), 
-      inla = spacetime__inla( p, x, pa ),
+      LaplacesDemon = spacetime__LaplacesDemon( p, x, pa ),
+      spate = spacetime__spate( p, x, pa, spacetime_distance_cur, Sloc[Si,] ),
       spacetime_engine_user_defined = p$spacetime_engine_user_defined( p, x, pa)
     )
     

@@ -71,6 +71,8 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
   p = spacetime_db( p=p, DS="filenames" )
   p$ptr = list() # location for data pointers
+
+
   
   # set up the data and problem using data objects
   if (is.null(overwrite)) {
@@ -102,6 +104,12 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       if (exists( "ny", p)) p$nt = p$nt * p$ny  # annual time slices
       if (exists( "nw", p)) p$nt = p$nt * p$nw  # sub-annual time slices
     } 
+
+    # prediction times 
+    # for 2D methods, treat time as independent timeslices
+    if ( !exists("ts", p)) p$ts = 1
+
+
 
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
     othervars = c( )
@@ -326,31 +334,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
         rm(Pcov)
       }
 
-      # prediction times 
-      if (exists("TIME", p$variables)) {
-        Ptime = as.matrix( DATA$output$TIME )
-        attr( Ptime, "dimnames" ) = NULL
-          if (p$storage.backend == "bigmemory.ram" ) {
-            p$bm$Ptime = big.matrix( nrow=nrow(Ptime), ncol=ncol(Ptime), type="double" )
-            p$bm$Ptime[] = Ptime
-            p$ptr$Ptime  = bigmemory::describe( p$bm$Ptime )
-          }
-          if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Ptime  = p$cache$Ptime
-            bigmemory::as.big.matrix( Ptime, type="double", backingfile=basename(p$bm$Ptime), descriptorfile=basename(p$cache$Ptime), backingpath=p$stloc )
-          }
-          if (p$storage.backend == "ff" ) {
-            p$ptr$Ptime = ff( Ptime, dim=dim(Ptime), file=p$cache$Ptime, overwrite=TRUE )
-          }
-        rm(Ptime)
-      }
-      
-      # for 2D methods, treat time as independent timeslices
-      if ( exists("TIME", p$variables)) {
-        p$ts = spacetime_attach( p$storage.backend, p$ptr$Ptime )[]
-      } else {
-        p$ts = 1
-      }
+
 
       # predictions and associated stats
       P = matrix( NaN, nrow=nrow(DATA$output$LOCS), ncol=p$nt )
@@ -440,81 +424,12 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           if (p$storage.backend == "ff" ) {
             p$ptr$Ploc = ff( Ploc, dim=dim(Ploc), file=p$cache$Ploc, overwrite=TRUE )
           }
-
-        # pre-compute a few things for spacetime_interpolate_xy_simple_multiple  
-        Mat2Ploc = as.matrix( cbind( 
-          (Ploc[,1]-p$plons[1])/p$pres + 1, 
-          (Ploc[,2]-p$plats[1])/p$pres + 1) ) # row, col indices in matrix form
-
-        attr( Mat2Ploc, "dimnames" ) = NULL
-            if (p$storage.backend == "bigmemory.ram" ) {
-              p$bm$Mat2Ploc = big.matrix( nrow=nrow(Mat2Ploc), ncol=ncol(Mat2Ploc), type="double" )
-              p$bm$Mat2Ploc[] = Mat2Ploc
-              p$ptr$Mat2Ploc  = bigmemory::describe( p$bm$Mat2Ploc )
-            }
-            if (p$storage.backend == "bigmemory.filebacked" ) {
-              p$ptr$Mat2Ploc  = p$cache$Mat2Ploc
-              bigmemory::as.big.matrix( Mat2Ploc, type="double", backingfile=basename(p$bm$Mat2Ploc), descriptorfile=basename(p$cache$Mat2Ploc), backingpath=p$stloc )
-            }
-            if (p$storage.backend == "ff" ) {
-              p$ptr$Mat2Ploc = ff( Mat2Ploc, dim=dim(Mat2Ploc), file=p$cache$Mat2Ploc, overwrite=TRUE )
-            }
-        rm(Mat2Ploc)
       rm(Ploc)
 
-      if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
-        # to add global covariate model ??  .. simplistic this way but faster
-        P0   = matrix( 0, nrow=nrow(DATA$output$LOCS), ncol=p$nt )
-          if (p$storage.backend == "bigmemory.ram" ) {
-             p$bm$P0 = big.matrix( nrow=nrow(P0), ncol=ncol(P0), type="double" )
-             p$bm$P0[] = P0
-             p$ptr$P0  = bigmemory::describe( p$bm$P0 )
-          }
-          if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$P0  = p$cache$P0
-            bigmemory::as.big.matrix( P0, type="double", backingfile=basename(p$bm$P0), descriptorfile=basename(p$cache$P0), backingpath=p$stloc )
-          }
-          if (p$storage.backend == "ff" ) {
-            p$ptr$P0 = ff( P0, dim=dim(P0), file=p$cache$P0, overwrite=TRUE )
-          }
-
-        # P0sd
-
-          if (p$storage.backend == "bigmemory.ram" ) {
-            p$bm$P0sd = big.matrix( nrow=nrow(P0), ncol=ncol(P0), type="double" )
-            p$bm$P0sd[] = P0
-            p$ptr$P0sd  = bigmemory::describe( p$bm$P0sd )
-          }
-          if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$P0sd  = p$cache$P0sd
-            bigmemory::as.big.matrix( P0, type="double", backingfile=basename(p$bm$P0sd), descriptorfile=basename(p$cache$P0sd), backingpath=p$stloc )
-          }
-          if (p$storage.backend == "ff" ) {
-            p$ptr$P0sd = ff( P0, dim=dim(P0), file=p$cache$P0sd, overwrite=TRUE )
-          }
-        rm(P0)
-
-        P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
-        P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
-        Pcov = spacetime_attach( p$storage.backend, p$ptr$Pcov )
-        
-        message("## TODO:: NEED to adjust methods for when there is a time-varying covariate .. for the correct filling of predictions ")
-
-        covmodel = spacetime_db( p=p, DS="model.covariates") 
-        if (!is.null(covmodel)) {
-          pa = as.data.frame( Pcov[] )
-          names(pa) = p$variables$COV
-          if (p$spacetime_covariate_modeltype=="gam") {
-            Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=TRUE ) ) 
-            rm(pa)
-            if (!inherits(Pbaseline, "try-error")) {
-              P0[] = Pbaseline$fit
-              P0sd[] = Pbaseline$se.fit
-            }
-          }
-        }
-        covmodel = NULL
-      }
+    if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
+      # create prediction suface with covariate-based additive offsets
+      spacetime_db( p, DS="model.covariates.globally.prediction.surface" )
+    }
 
     rm(DATA); gc()
 

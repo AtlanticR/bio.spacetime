@@ -12,7 +12,14 @@ spacetime_interpolate_xy_simple_multiple = function( ip=NULL, p ) {
 
   P = spacetime_attach( p$storage.backend, p$ptr$P )
   Psd = spacetime_attach( p$storage.backend, p$ptr$Psd )
-  Mat2Ploc = spacetime_attach( p$storage.backend, p$ptr$Mat2Ploc )
+  
+  Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
+  
+  # pre-compute a few things for spacetime_interpolate_xy_simple_multiple  
+  Mat2Ploc = as.matrix( cbind( 
+    (Ploc[,1]-p$plons[1])/p$pres + 1, 
+    (Ploc[,2]-p$plats[1])/p$pres + 1) ) # row, col indices in matrix form
+
   
   spatial_weights = setup.image.smooth( nrow=p$nplons, ncol=p$nplats, dx=p$pres, dy=p$pres, 
         theta=p$theta )

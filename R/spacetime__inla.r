@@ -46,12 +46,13 @@ spacetime__inla = function( p, x, pa ) {
 
   # also sending direct distances rather than proportion seems to cause issues..
   MESH = spacetime_mesh( locs=x[,p$variables$LOC] + locs_noise,
-    # lengthscale=p$spacetime_distance_prediction*2,
+    # lengthscale=p$spacetime_distance_prediction*2,  
     # max.edge=p$inla.mesh.max.edge * p$spacetime_distance_prediction*2,
     bnd.offset=p$inla.mesh.offset,
     cutoff=p$inla.mesh.cutoff,
     convex=p$inla.mesh.hull.radius,
     resolution=p$inla.mesh.hull.resolution )
+  # the commented options seem to make mesh gen slow ... should look into this if you use this method
 
   rm(locs_noise)
 
@@ -120,7 +121,7 @@ spacetime__inla = function( p, x, pa ) {
   if (!exists("spacetime_engine_modelformula", p) )  p$spacetime_engine_modelformula = formula( z ~ -1 + intercept + f( spatial.field, model=SPDE ) ) # SPDE is the spatial covariance model .. defined in 
 
   RES = NULL
-  RES = spacetime_inla_call( FM=p$spacetime_engine_modelformula, DATA=DATA, SPDE=SPDE, FAMILY=as.character(p$spacetime_family) )
+  RES = spacetime_inla_call( FM=p$spacetime_engine_modelformula, DATA=DATA, SPDE=SPDE, FAMILY=p$inla_family )
 
   if (is.null(RES))  return(NULL)
 

@@ -14,33 +14,44 @@
       p$cache =list()
       p$cache$Yraw =    file.path( p$stloc, "input.Yraw.cache" ) # raw data
       p$cache$Y =     file.path( p$stloc, "input.Y.cache" ) # residuals of covar model or raw data if none
-      p$cache$Ycov =  file.path( p$stloc, "input.Ycov.cache"  )
       p$cache$Yloc =  file.path( p$stloc, "input.Yloc.cache" )
-      p$cache$Ytime = file.path( p$stloc, "input.Ytime.cache" )
       p$cache$Yi =    file.path( p$stloc, "input.Yi.cache" ) # index of useable data
+      
       p$cache$Ylogit = file.path( p$stloc, "Ylogit.cache" )
 
-      p$cache$P0 =    file.path( p$stloc, "predictions0.cache" ) # offsets from covar model
-      p$cache$P0sd =  file.path( p$stloc, "predictions0sd.cache" ) # offsets from covar model
       p$cache$P =     file.path( p$stloc, "predictions.cache" )
       p$cache$Psd =   file.path( p$stloc, "predictions_sd.cache" )
       p$cache$Pn =    file.path( p$stloc, "predictions_n.cache" )
-      p$cache$Pcov =  file.path( p$stloc, "predictions_cov.cache" )
+      
+      if ( exists( "COV", p$variables)) {
+        p$cache$Ycov =  file.path( p$stloc, "input.Ycov.cache"  )
+        p$cache$Pcov =  list()
+        for (cov in p$variables$COV) p$cache$Pcov[[cov]] = file.path( p$stloc, paste("predictions_cov", cov, "cache", sep=".") )
+      }
+
+      if (exists( "TIME", p$variables)){
+        p$cache$Ytime = file.path( p$stloc, "input.Ytime.cache" )
+      }
+
       p$cache$Ploc =  file.path( p$stloc, "predictions_loc.cache" )
-      p$cache$Ptime = file.path( p$stloc, "predictions_time.cache" )
       p$cache$Plogit = file.path( p$stloc, "Plogit.cache" )
       p$cache$Plogitsd = file.path( p$stloc, "Plogitsd.cache" )
 
       p$cache$S =     file.path( p$stloc, "statistics.cache" )
       p$cache$Sloc =  file.path( p$stloc, "statistics_loc.cache" )
-      p$cache$Stime = file.path( p$stloc, "statistics_time.cache" )
       p$cache$Sflag =     file.path( p$stloc, "statistics_flag.cache" )
 
-      p$cache$Mat2Ploc = file.path( p$stloc, "Mat2Ploc.cache" )
 
       if (p$storage.backend == "bigmemory.filebacked" ) {
         p$bm = p$cache
-        for (i in 1:length(p$bm)) p$bm[[i]] = gsub(".cache$", ".bigmemory", p$bm[[i]] )
+        for ( i in names(p$bm) ) {
+          if ( i=="Pcov" ) {
+            for (j in p$variables$COV) p$bm$Pcov[[j]] = gsub(".cache$", ".bigmemory", p$bm$Pcov[[j]] )
+          } else {
+            p$bm[[i]] = gsub(".cache$", ".bigmemory", p$bm[[i]] )
+          }
+        
+        }
       }
 
       if (p$storage.backend == "bigmemory.ram" ) {
@@ -169,7 +180,7 @@
   
     if (DS %in% c("model.covariates", "model.covariates.redo") ) {
       
-      fn.covmodel =  file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "rdata", sep=".") )
+      fn.covmodel = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "rdata", sep=".") )
 
       if (DS =="model.covariates") {
         covmodel = NULL
@@ -194,6 +205,67 @@
     }
 
     # -----
+
+    if (DS %in% c("model.covariates.globally.prediction.surface.mean", 
+                  "model.covariates.globally.prediction.surface.sd",
+                  "model.covariates.globally.prediction.surface.redo") ) {
+
+      fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", "rdata", sep=".") )
+      fn.P0sd = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "sd", "rdata", sep=".") )
+
+      if (DS=="model.covariates.globally.prediction.surface.mean"){
+        # to add global covariate model ??  .. simplistic this way but faster
+        P0 = NULL
+        if (file.exists(fn.P0)) load( fn.P0)
+        return (P0)
+      }
+
+      if (DS=="model.covariates.globally.prediction.surface.sd"){
+        # to add global covariate model ??  .. simplistic this way but faster
+        P0sd = NULL
+        if (file.exists(fn.P0sd)) load( fn.P0sd)
+        return (P0sd)
+      }
+
+      covmodel = spacetime_db( p=p, DS="model.covariates") 
+      if (is.null(covmodel)) stop("Covariate model not found.")
+
+      pa = as.data.frame( Pcov[] )
+      names(pa) = p$variables$COV
+
+      if (p$spacetime_covariate_modeltype=="gam") {
+        not finished ...
+      message("## TODO:: NEED to adjust methods for when there is a time-varying covariate .. for the correct filling of predictions ")
+
+
+        if ( exists("TIME", p)) {
+          # outputs are on yearly breakdown
+          for ( r in 1:p$ny ) {
+            y = p$yrs[r]
+          }
+        } else {
+
+        }
+
+        
+          Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=TRUE ) ) 
+          rm(pa)
+          if (!inherits(Pbaseline, "try-error")) {
+            P0 = Pbaseline$fit
+            save( P0, file=fn.P0, compress=TRUE )
+            P0sd = Pbaseline$se.fit
+            save( P0sd, file=fn.P0sd, compress=TRUE )
+          }
+        }
+      }
+      covmodel = P0 = P0sd= Pbasekine = NULL
+      gc()
+
+      return("finished")
+    }
+
+
+    # -----
     
     if (DS %in% c("spacetime.prediction.redo", "spacetime.prediction") )  {
 
@@ -205,18 +277,11 @@
         }
         if (file.exists(fn) ) load(fn) 
         if (ret=="mean") return (P)
-        if (ret=="sd") return( Psd)
+        if (ret=="sd") return( V)
       }
 
       PP = spacetime_attach( p$storage.backend, p$ptr$P )
       PPsd = spacetime_attach( p$storage.backend, p$ptr$Psd )
-
-      if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
-        P0 = spacetime_attach( p$storage.backend, p$ptr$P0 )
-        P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd )
-        PP = PP + P0 
-        PPsd = sqrt( P0sd^2 + PPsd^2) # simple additive independent errors assumed
-      }
 
       if ( exists("TIME", p)) {
         # outputs are on yearly breakdown
@@ -232,6 +297,12 @@
             P = PP[,r]
             V = PPsd[,r]
           }
+          if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
+            P0 = spacetime_db( p=p, DS="model.covariates.globally.prediction.surface.mean", yr=y )
+            P0sd = spacetime_db( p=p, DS="model.covariates.globally.prediction.surface.sd", yr=y )
+            P = P + P0 
+            V = sqrt( V^2 + P0sd^2) # simple additive independent errors assumed
+          }
           save( P, file=fn1, compress=T )
           save( V, file=fn2, compress=T )
           print ( paste("Year:", y)  )
@@ -241,6 +312,12 @@
           fn2 = file.path( p$savedir, paste("spacetime.prediction.sd", "rdata", sep="." ) )
           P = PP
           V = PPsd
+          if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
+            P0 = spacetime_db( p=p, DS="model.covariates.globally.prediction.surface.mean" )
+            P0sd = spacetime_db( p=p, DS="model.covariates.globally.prediction.surface.sd" )
+            P = P + P0 
+            V = sqrt( V^2 + P0sd^2) # simple additive independent errors assumed
+          }
           save( P, file=fn1, compress=T )
           save( V, file=fn2, compress=T )
       }
@@ -250,10 +327,11 @@
 
     if (DS %in% c("stats.to.prediction.grid.redo", "stats.to.prediction.grid") ) {
 
-      fn = file.path( p$savedir, paste( "spacetime", "statistics",  "rdata", sep=".") )
+      fn = file.path( p$savedir, paste( "spacetime.statistics", "rdata", sep=".") )
       if (DS=="stats.to.prediction.grid") {
         stats = NULL
-        if (file.exists(fn)) {}
+        if (file.exists(fn)) load(fn)
+        return(stats)
       }
     
       Ploc = spacetime_attach( p$storage.backend, p$ptr$Ploc )
@@ -285,6 +363,8 @@
         # }
         # ii = which( !is.finite( Z ) )
         #if ( length( ii) > 0 ) {
+        messgae("try spate here")
+
         Z =  fields::image.smooth( M, dx=p$pres, dy=p$pres, theta=p$theta )$z  
         Z[l2M] = S[,i]  # return raw data to predicted surface
         #  Z[ii] = Zii[ii]
