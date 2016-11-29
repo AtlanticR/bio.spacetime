@@ -313,27 +313,24 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
         
       if (exists("COV", p$variables)) {
-        if (is.vector(DATA$output$COV) ) {
-          Pcov = as.matrix( DATA$output$COV ) 
-        } else {
-          Pcov = as.matrix( DATA$output$COV[,p$variables$COV ] ) 
-        }
-        attr( Pcov, "dimnames" ) = NULL
+        for ( covname in names(p$ptr$Pcov) ) {
+          Pcovdata = as.matrix( DATA$output$COV[[covname]] ) 
+          attr( Pcovdata, "dimnames" ) = NULL
           if (p$storage.backend == "bigmemory.ram" ) {
-            p$bm$Pcov = big.matrix( nrow=nrow(Pcov), ncol=ncol(Pcov), type="double"  )
-            p$bm$Pcov[] = Pcov
-            p$ptr$Pcov  = bigmemory::describe( p$bm$Pcov )
+            p$bm$Pcov[[covname]] = big.matrix( nrow=nrow(Pcovdata), ncol=ncol(Pcovdata), type="double"  )
+            p$bm$Pcov[[covname]][] = Pcovdata
+            p$ptr$Pcov[[covname]]  = bigmemory::describe( p$bm$Pcov[[covname]] )
           }
           if (p$storage.backend == "bigmemory.filebacked" ) {
-            p$ptr$Pcov  = p$cache$Pcov
-            bigmemory::as.big.matrix( Pcov, type="double", backingfile=basename(p$bm$Pcov), descriptorfile=basename(p$cache$Pcov), backingpath=p$stloc )
+            p$ptr$Pcov[[covname]]  = p$cache$Pcov[[covname]]
+            bigmemory::as.big.matrix( Pcovdata, type="double", backingfile=basename(p$bm$Pcov[[covname]]), descriptorfile=basename(p$cache$Pcov[[covname]]), backingpath=p$stloc )
           }
           if (p$storage.backend == "ff" ) {
-            p$ptr$Pcov = ff( Pcov, dim=dim(Pcov), file=p$cache$Pcov, overwrite=TRUE )
+            p$ptr$Pcov[[covname]] = ff( Pcovdata, dim=dim(Pcovdata), file=p$cache$Pcov[[covname]], overwrite=TRUE )
           }
-        rm(Pcov)
+          rm(Pcovdata)
+        }
       }
-
 
 
       # predictions and associated stats

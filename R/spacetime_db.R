@@ -230,24 +230,16 @@
       covmodel = spacetime_db( p=p, DS="model.covariates") 
       if (is.null(covmodel)) stop("Covariate model not found.")
 
-      pa = as.data.frame( Pcov[] )
-      names(pa) = p$variables$COV
-
-      if (p$spacetime_covariate_modeltype=="gam") {
-        not finished ...
-      message("## TODO:: NEED to adjust methods for when there is a time-varying covariate .. for the correct filling of predictions ")
-
-
-        if ( exists("TIME", p)) {
-          # outputs are on yearly breakdown
-          for ( r in 1:p$ny ) {
-            y = p$yrs[r]
-          }
-        } else {
-
+      if ( ! exists("TIME", p) ) {
+        # ie,  there are no time-varying covariates ...
+        pa = NULL
+        for (i in names(p$ptr$Pcov) ) {
+          pa = cbind( pa, spacetime_attach( p$storage.backend, p$ptr$Pcov[[i]] )[] )
         }
+        pa = as.data.frame( pa )
+        names(pa) = p$variables$COV
 
-        
+        if (p$spacetime_covariate_modeltype=="gam") {
           Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=TRUE ) ) 
           rm(pa)
           if (!inherits(Pbaseline, "try-error")) {
@@ -257,9 +249,16 @@
             save( P0sd, file=fn.P0sd, compress=TRUE )
           }
         }
+        return("finished")
+
+      } else {
+        # outputs are on yearly breakdown
+        
+
+        for ( r in 1:p$ny ) {
+          y = p$yrs[r]
+        }
       }
-      covmodel = P0 = P0sd= Pbasekine = NULL
-      gc()
 
       return("finished")
     }
