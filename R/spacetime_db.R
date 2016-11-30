@@ -35,7 +35,7 @@
 
       p$cache$Ploc =  file.path( p$stloc, "predictions_loc.cache" )
 
-      if (exists("model.covariates.globally", p) {
+      if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
         p$cache$P0 = file.path( p$stloc, "P0.cache" )
         p$cache$P0sd = file.path( p$stloc, "P0sd.cache" )
       }
