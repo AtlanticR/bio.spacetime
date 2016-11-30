@@ -364,6 +364,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           p$ptr$Psd = ff( P, dim=dim(P), file=p$cache$Psd, overwrite=TRUE )
         }
 
+
         if (p$spacetime_engine == "habitat") {
           if (p$storage.backend == "bigmemory.ram" ) {
             p$bm$Plogit= big.matrix( nrow=nrow(P), ncol=ncol(P) , type="double" )
@@ -391,7 +392,6 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
             p$ptr$Plogitsd = ff( P, dim=dim(P), file=p$cache$Plogitsd, overwrite=TRUE )
           }
         }
-      rm(P)
 
       # prediction coordinates
       Ploc = as.matrix( DATA$output$LOCS )
@@ -412,9 +412,37 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
 
     if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
       # create prediction suface with covariate-based additive offsets
+
+          if (p$storage.backend == "bigmemory.ram" ) {
+            p$bm$P0= big.matrix( nrow=nrow(P), ncol=ncol(P) , type="double" )
+            p$bm$P0[] = P
+            p$ptr$P0 = bigmemory::describe(p$bm$P0 )
+          }
+          if (p$storage.backend == "bigmemory.filebacked" ) {
+            p$ptr$P0  = p$cache$P0
+            bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$P0), descriptorfile=basename(p$cache$P0), backingpath=p$stloc )
+          }
+          if (p$storage.backend == "ff" ) {
+            p$ptr$P0 = ff( P, dim=dim(P), file=p$cache$P0, overwrite=TRUE )
+          }
+
+          if (p$storage.backend == "bigmemory.ram" ) {
+            p$bm$P0sd= big.matrix( nrow=nrow(P), ncol=ncol(P) , type="double" )
+            p$bm$P0sd[] = P
+            p$ptr$P0sd = bigmemory::describe(p$bm$P0sd )
+          }
+          if (p$storage.backend == "bigmemory.filebacked" ) {
+            p$ptr$P0sd  = p$cache$P0sd
+            bigmemory::as.big.matrix( P, type="double", backingfile=basename(p$bm$P0sd), descriptorfile=basename(p$cache$P0sd), backingpath=p$stloc )
+          }
+          if (p$storage.backend == "ff" ) {
+            p$ptr$P0sd = ff( P, dim=dim(P), file=p$cache$P0sd, overwrite=TRUE )
+          }
+
       spacetime_db( p, DS="model.covariates.globally.prediction.surface" )
     }
-
+    
+    rm(P)
     rm(DATA); gc()
 
     if (boundary) {
@@ -523,7 +551,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   gc()
 
   # save solutions to disk before continuuing
-  spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
+  spacetime_db( p, DS="spacetime.prediction.redo" ) # save to disk for use outside spacetime*
   spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
   
   if ( do.secondstage ) {
@@ -540,7 +568,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   }
   
   # save solutions to disk (again .. overwrite)
-  spacetime_db( p, DS="spacetime.predictions.redo" ) # save to disk for use outside spacetime*
+  spacetime_db( p, DS="spacetime.prediction.redo" ) # save to disk for use outside spacetime*
   spacetime_db( p, DS="stats.to.prediction.grid.redo") # save to disk for use outside spacetime*
 
 
