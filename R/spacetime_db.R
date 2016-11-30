@@ -257,7 +257,7 @@
             if ( ncpu== 1 ) {
               pa = cbind( pa, pu[] ) # ie. a static variable
             } else if( ncpu == p$ny )  {
-              iy = trunc( (it-1) / p$nw + 1
+              iy = trunc( (it-1) / p$nw ) + 1
               pa = cbind( pa, pu[,iy] ) # ie., annual data 
             } else if ( ncpu == p$nt) {
               pa = cbind( pa, pu[,it] ) # ie. same time dimension as predictive data
