@@ -50,7 +50,6 @@
           } else {
             p$bm[[i]] = gsub(".cache$", ".bigmemory", p$bm[[i]] )
           }
-        
         }
       }
 
@@ -76,8 +75,8 @@
 
     # --------------------------
     if (DS %in% "cleanup" ) {
-      for (fn in p$cache ) if (length(fn)>0) if (file.exists(fn)) file.remove(fn)
-      for (fn in p$bm ) if (length(fn)>0)  if (file.exists(fn)) file.remove(fn)
+      for (fn in unlist(p$cache) ) if (length(fn)>0) if (file.exists(fn)) file.remove(fn)
+      for (fn in unlist(p$bm) ) if (length(fn)>0)  if (file.exists(fn)) file.remove(fn)
       return( "done" )
     }
 
@@ -210,11 +209,13 @@
                   "model.covariates.globally.prediction.surface.sd",
                   "model.covariates.globally.prediction.surface.redo") ) {
 
-      fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", "rdata", sep=".") )
-      fn.P0sd = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "sd", "rdata", sep=".") )
-
       if (DS=="model.covariates.globally.prediction.surface.mean"){
         # to add global covariate model ??  .. simplistic this way but faster
+        if ( ! exists("TIME", p$variables) ) {
+          fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", "rdata", sep=".") )
+        } else {
+          fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", yr, "rdata", sep=".") )
+        }
         P0 = NULL
         if (file.exists(fn.P0)) load( fn.P0)
         return (P0)
@@ -222,45 +223,78 @@
 
       if (DS=="model.covariates.globally.prediction.surface.sd"){
         # to add global covariate model ??  .. simplistic this way but faster
+        if ( ! exists("TIME", p$variables) ) {
+          fn.P0sd = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "sd", "rdata", sep=".") )
+        } else {
+          fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", yr, "rdata", sep=".") )
+        }
+
         P0sd = NULL
         if (file.exists(fn.P0sd)) load( fn.P0sd)
         return (P0sd)
       }
 
-      covmodel = spacetime_db( p=p, DS="model.covariates") 
-      if (is.null(covmodel)) stop("Covariate model not found.")
 
-      if ( ! exists("TIME", p) ) {
-        # ie,  there are no time-varying covariates ...
-        pa = NULL
-        for (i in names(p$ptr$Pcov) ) {
-          pa = cbind( pa, spacetime_attach( p$storage.backend, p$ptr$Pcov[[i]] )[] )
-        }
-        pa = as.data.frame( pa )
-        names(pa) = p$variables$COV
-
-        if (p$spacetime_covariate_modeltype=="gam") {
-          Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=TRUE ) ) 
-          rm(pa)
-          if (!inherits(Pbaseline, "try-error")) {
-            P0 = Pbaseline$fit
-            save( P0, file=fn.P0, compress=TRUE )
-            P0sd = Pbaseline$se.fit
-            save( P0sd, file=fn.P0sd, compress=TRUE )
+      predictionsurface = function( ip=NULL, p ) {
+        # slow and dumb way (but simple) of creating a prediction surface
+        if (exists( "libs", p)) RLibrary( p$libs )
+        if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
+        covmodel = spacetime_db( p=p, DS="model.covariates") 
+        if (is.null(covmodel)) stop("Covariate model not found.")
+        Pdim = dim( spacetime_attach( p$storage.backend, p$ptr$P ) )
+        nw = ifelse( exists("nw", p), p$nw, 1) 
+        for ( iip in ip ) {
+          iy = p$runs[ iip, "yearindex" ]
+          P0 = matrix( NA_real_, nrow=Pdim[1], ncol=Pdim[2] )
+          P0sd = matrix( NA_real_, nrow=Pdim[1], ncol=Pdim[2] )
+          if ( ! exists("TIME", p$variables) ) {
+            # ie,  there should be no time-varying covariates if there is no time in Y ...
+            fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", "rdata", sep=".") )
+            fn.P0sd = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "sd", "rdata", sep=".") )
+          } else {
+            fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", p$yrs[iy], "rdata", sep=".") )
+            fn.P0sd = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "sd", p$yrs[iy], "rdata", sep=".") )
           }
-        }
-        return("finished")
+          for ( iw in 1:nw ) { 
+            pa = NULL # construct prediction surface
+            colindex = (iy-1)*nw + iw  
+            for (i in p$variables$COV ) {
+              pu = spacetime_attach( p$storage.backend, p$ptr$Pcov[[i]] )
+              ncpu = ncol(pu)
+              if ( ncpu== 1 ) {
+                pa = cbind( pa, pu[] ) # ie. a static variable
+              } else if( ncpu == p$ny )  {
+                pa = cbind( pa, pu[,iy] ) # annual data .. might possibly cause confusion if p$ny == p$nt (or p$nw) 
+              } else if ( ncpu == p$nt) {
+                pa = cbind( pa, pu[,colindex] ) # 
+              }
+            }
+            pa = as.data.frame( pa )
+            names(pa) = p$variables$COV
+            if (p$spacetime_covariate_modeltype=="gam") {
+              Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=TRUE ) ) 
+              pa = NULL
+              gc()
+              if (!inherits(Pbaseline, "try-error")) {
+                P0[,colindex] = Pbaseline$fit
+                P0sd[,colindex] = Pbaseline$se.fit
+              }
+            }
+          } # end for week
+          save( P0, file=fn.P0, compress=TRUE )
+          save( P0sd, file=fn.P0sd, compress=TRUE )
+          P0 = P0sd = NULL
+          gc()
+        } # end for year
+      } # end parallelized function
 
-      } else {
-        # outputs are on yearly breakdown
-        
+      # operate on a yearly basis .. even if there is no time depth 
+      if (!exists( "nclusters_pred", p)) p$nclusters_pred = 2 
+      p$clusters = rep("localhost", p$nclusters_pred )  # use only local nodes temporarily 
+      ny = ifelse( exists("ny", p), p$ny, 1) 
+      p = make.list( list( yearindex=1:ny) , Y=p ) 
+      parallel.run( predictionsurface, p=p ) 
 
-        for ( r in 1:p$ny ) {
-          y = p$yrs[r]
-        }
-      }
-
-      return("finished")
     }
 
 
@@ -269,7 +303,7 @@
     if (DS %in% c("spacetime.prediction.redo", "spacetime.prediction") )  {
 
       if (DS=="spacetime.prediction")  {
-        if (! exists("TIME", p)) {
+        if (! exists("TIME", p$variables)) {
           fn = file.path( p$savedir, paste("spacetime.prediction", ret, "rdata", sep="." ) )
         } else {
           fn = file.path( p$savedir, paste("spacetime.prediction", ret, yr, "rdata", sep="." ) ) 
@@ -282,7 +316,7 @@
       PP = spacetime_attach( p$storage.backend, p$ptr$P )
       PPsd = spacetime_attach( p$storage.backend, p$ptr$Psd )
 
-      if ( exists("TIME", p)) {
+      if ( exists("TIME", p$variables)) {
         # outputs are on yearly breakdown
         for ( r in 1:p$ny ) {
           y = p$yrs[r]

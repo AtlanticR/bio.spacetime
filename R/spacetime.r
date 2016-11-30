@@ -5,11 +5,13 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   #\\ speed ratings: bigmemory.ram (1), ff (2), bigmemory.filebacked (3)
   
   if(0) {
-     p = bio.temperature::temperature.parameters( current.year=2016 )
-     overwrite=NULL
-     DATA='hydro.db( p=p, DS="spacetime.input" )'
-     storage.backend="bigmemory.ram"
-     boundary=TRUE
+    p = bio.temperature::temperature.parameters( current.year=2016 )
+    p$spacetime_engine="gam"
+    p = bio.temperature::temperature.parameters( DS="spacetime", p=p )
+    overwrite=NULL
+    DATA='hydro.db( p=p, DS="spacetime.input" )'
+    storage.backend="bigmemory.ram"
+    boundary=TRUE
 
 
     p = bio.bathymetry::bathymetry.parameters( )
@@ -17,12 +19,12 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     # p$spacetime_engine = "gaussianprocess2Dt"
     # p$spacetime_engine = "gam"
     # p$spacetime_engine = "bayesx"
-     p = bio.bathymetry::bathymetry.parameters( p=p, DS="bio.bathymetry.spacetime" )
-     
-     overwrite=NULL
-     DATA='bathymetry.db( p=p, DS="bathymetry.spacetime.data" )'
-     storage.backend="bigmemory.ram"
-     boundary=FALSE
+    p = bio.bathymetry::bathymetry.parameters( p=p, DS="bio.bathymetry.spacetime" )
+
+    overwrite=NULL
+    DATA='bathymetry.db( p=p, DS="bathymetry.spacetime.data" )'
+    storage.backend="bigmemory.ram"
+    boundary=FALSE
 
   }
 
@@ -49,23 +51,14 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   if (p$spacetime_engine %in% c("LaplacesDemon") )  p$libs = c( p$libs, "LaplacesDemonCpp" )
   if (p$spacetime_engine %in% c("inla") )  p$libs = c( p$libs, "INLA" )
   if (p$spacetime_engine %in% c("kernel.density", "gaussianprocess2Dt") )  p$libs = c( p$libs, "fields" )
-  
+  if (p$spacetime_engine %in% c("spate") )  p$libs = c( p$libs, "spate" )
+
   if( !exists( "spacetime_engine.variogram", p)) p$spacetime_engine.variogram="fast"   # note GP methods are slow when there is too much data
 
   RLibrary( p$libs )
   
   # family handling copied from glm
-  if (!exists( "spacetime_family", p)) {
-    if (is.character(family)) 
-      stop( "Please send family as a function") 
-    if (is.function(family)) 
-      family = family()
-    if (is.null(family$family)) {
-      print(family)
-      stop("'family' not recognized")
-    }
-    p$spacetime_family = family
-  }
+  if (!exists( "spacetime_family", p)) p$spacetime_family = gaussian
 
   if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
 
@@ -105,20 +98,14 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       if (exists( "nw", p)) p$nt = p$nt * p$nw  # sub-annual time slices
     } 
 
-    # prediction times 
-    # for 2D methods, treat time as independent timeslices
+    # prediction times  for 2D methods, treat time as independent timeslices
     if ( !exists("ts", p)) p$ts = 1
-
 
 
     # require knowledge of size of stats output before create S, which varies with a given type of analysis
     othervars = c( )
-    if (p$spacetime_engine == "habitat") {
-      othervars = c( )
-    }
-    if (exists("TIME", p$variables) ) {
-      othervars = c( "ar_timerange", "ar_1" )
-    }
+    if (p$spacetime_engine == "habitat") othervars = c( )
+    if (exists("TIME", p$variables) )  othervars = c( "ar_timerange", "ar_1" )
     p$statsvars = unique( c( "sdTotal", "rsquared", "ndata", "sdSpatial", "sdObs", "range", "phi", "nu", othervars ) )
 
     message( "Initializing temporary storage of data and outputs (will take a bit longer on NFS clusters) ... ")
@@ -126,8 +113,8 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
     spacetime_db( p=p, DS="cleanup" )
  
     if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
-        # to add global covariate model ??  .. simplistic this way but faster
-        spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) 
+      # to add global covariate model ??  .. simplistic this way but faster ~ kriging with external drift
+      spacetime_db( p=p, DS="model.covariates.redo", B=DATA$input ) 
     }
 
     # NOTE:: must not sink this into a deeper funcion as bigmemory RAM seems to losse the pointers if they are not made simultaneously (at the same namespace depth) ..
@@ -309,14 +296,14 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
       }
   
 
-      message( " ## TODO:: NEED to adjust methods for when there is a time-varying covariate and/or a static variable .. right now it is only for static variables.. ")
-
-        
       if (exists("COV", p$variables)) {
-        for ( covname in names(p$ptr$Pcov) ) {
+        # this needs to be done as Prediction covars need to be structured as lists
+        if (!exists("Pcov", p$ptr) ) p$ptr$Pcov = list()
+        for ( covname in p$variables$COV ) {
           Pcovdata = as.matrix( DATA$output$COV[[covname]] ) 
           attr( Pcovdata, "dimnames" ) = NULL
           if (p$storage.backend == "bigmemory.ram" ) {
+            p$bm$Pcov = list()
             p$bm$Pcov[[covname]] = big.matrix( nrow=nrow(Pcovdata), ncol=ncol(Pcovdata), type="double"  )
             p$bm$Pcov[[covname]][] = Pcovdata
             p$ptr$Pcov[[covname]]  = bigmemory::describe( p$bm$Pcov[[covname]] )
