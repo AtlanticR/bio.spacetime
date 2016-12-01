@@ -298,14 +298,15 @@ spacetime_interpolate = function( ip=NULL, p ) {
     res =NULL
     res = switch( p$spacetime_engine, 
       bayesx = spacetime__bayesx( p, x, pa ),
-      habitat = spacetime__habitat( p, x, pa ), 
+      habitat = spacetime__habitat( p, x, pa ), # TODO 
       inla = spacetime__inla( p, x, pa ),
       kernel.density = uspacetime__kerneldensity( p, x, pa, smoothness ),
       gam = spacetime__gam( p, x, pa ), 
       gaussianprocess2Dt = spacetime__gaussianprocess2Dt( p, x, pa ), 
-      gaussianprocess = spacetime__gaussianprocess( p, x, pa ), 
+      gaussianprocess = spacetime__gaussianprocess( p, x, pa ),  # TODO
       LaplacesDemon = spacetime__LaplacesDemon( p, x, pa ),
-      spate = spacetime__spate( p, x, pa, spacetime_distance_cur, Sloc[Si,] ),
+      spate = spacetime__spate( p, x, pa, spacetime_distance_cur, Sloc[Si,] ), # TODO
+      twostep = spacetime__twostep( p, x, pa, spacetime_distance_cur, Sloc[Si,] ),
       spacetime_engine_user_defined = p$spacetime_engine_user_defined( p, x, pa)
     )
     
