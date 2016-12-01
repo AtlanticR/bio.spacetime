@@ -211,77 +211,44 @@
 
     # -----
 
-    if (DS %in% c("model.covariates.globally.prediction.surface.mean", 
-                  "model.covariates.globally.prediction.surface.sd",
-                  "model.covariates.globally.prediction.surface.redo") ) {
-
-      if (DS=="model.covariates.globally.prediction.surface.mean"){
-        # to add global covariate model ??  .. simplistic this way but faster
-        if ( ! exists("TIME", p$variables) ) {
-          fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", "rdata", sep=".") )
-        } else {
-          fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", yr, "rdata", sep=".") )
-        }
-        P0 = NULL
-        if (file.exists(fn.P0)) load( fn.P0)
-        return (P0)
-      }
-
-      if (DS=="model.covariates.globally.prediction.surface.sd"){
-        # to add global covariate model ??  .. simplistic this way but faster
-        if ( ! exists("TIME", p$variables) ) {
-          fn.P0sd = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "sd", "rdata", sep=".") )
-        } else {
-          fn.P0 = file.path( p$project.root, "spacetime", paste( "spatial", "covariate.model", p$spacetime_covariate_modeltype, "mean", yr, "rdata", sep=".") )
-        }
-
-        P0sd = NULL
-        if (file.exists(fn.P0sd)) load( fn.P0sd)
-        return (P0sd)
-      }
-
-
-      predictionsurface = function( ip=NULL, p ) {
-        if (exists( "libs", p)) RLibrary( p$libs )
-        if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
-        covmodel = spacetime_db( p=p, DS="model.covariates") 
-        if (is.null(covmodel)) stop("Covariate model not found.")
-        P0 = spacetime_attach( p$storage.backend, p$ptr$P0 ) 
-        P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd ) 
-        for ( iip in ip ) {
-          it = p$tindex[iip]
-          pa = NULL # construct prediction surface
-          for (i in p$variables$COV ) {
-            pu = spacetime_attach( p$storage.backend, p$ptr$Pcov[[i]] )
-            ncpu = ncol(pu)
-            if ( ncpu== 1 ) {
-              pa = cbind( pa, pu[] ) # ie. a static variable
-            } else if( ncpu == p$ny )  {
-              iy = trunc( (it-1) / p$nw ) + 1
-              pa = cbind( pa, pu[,iy] ) # ie., annual data 
-            } else if ( ncpu == p$nt) {
-              pa = cbind( pa, pu[,it] ) # ie. same time dimension as predictive data
-            }
+    if (DS %in% c("model.covariates.globally.prediction.surface.mean") ) {
+      if (exists( "libs", p)) RLibrary( p$libs )
+      if (is.null(ip)) if( exists( "nruns", p ) ) ip = 1:p$nruns
+      covmodel = spacetime_db( p=p, DS="model.covariates") 
+      if (is.null(covmodel)) stop("Covariate model not found.")
+      P0 = spacetime_attach( p$storage.backend, p$ptr$P0 ) 
+      P0sd = spacetime_attach( p$storage.backend, p$ptr$P0sd ) 
+      for ( iip in ip ) {
+        it = p$runs$tindex[iip]
+        pa = NULL # construct prediction surface
+        for (i in p$variables$COV ) {
+          pu = spacetime_attach( p$storage.backend, p$ptr$Pcov[[i]] )
+          ncpu = ncol(pu)
+          if ( ncpu== 1 ) {
+            pa = cbind( pa, pu[] ) # ie. a static variable
+          } else if( ncpu == p$ny )  {
+            iy = trunc( (it-1) / p$nw ) + 1
+            pa = cbind( pa, pu[,iy] ) # ie., annual data 
+          } else if ( ncpu == p$nt) {
+            pa = cbind( pa, pu[,it] ) # ie. same time dimension as predictive data
           }
-          pa = as.data.frame( pa )
-          names(pa) = p$variables$COV
-          if (p$spacetime_covariate_modeltype=="gam") {
-            Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=TRUE ) ) 
-            pa = NULL
-            gc()
-            if (!inherits(Pbaseline, "try-error")) {
-              P0[,it] = Pbaseline$fit
-              P0sd[,it] = Pbaseline$se.fit
-            } 
-            Pbaseline = NULL; gc()
-          } else if (p$spacetime_covariate_modeltype=="abc") {
-            # ... other methods ..
-          }
-        } # end for year
-      } # end parallelized function
-      p = make.list( list( tindex=1:p$nt) , Y=p ) 
-      parallel.run( predictionsurface, p=p ) 
+        }
+        pa = as.data.frame( pa )
+        names(pa) = p$variables$COV
+        if (p$spacetime_covariate_modeltype=="gam") {
+          Pbaseline = try( predict( covmodel, newdata=pa, type="response", se.fit=TRUE ) ) 
+          pa = NULL
+          gc()
+          if (!inherits(Pbaseline, "try-error")) {
+            P0[,it] = Pbaseline$fit
+            P0sd[,it] = Pbaseline$se.fit
+          } 
+          Pbaseline = NULL; gc()
+        } else if (p$spacetime_covariate_modeltype=="abc") {
+          # ... other methods ..
+        }
 
+      } # end each timeslice
     }
 
 

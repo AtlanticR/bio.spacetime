@@ -42,9 +42,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   p$storage.backend = storage.backend
   if (any( grepl ("ff", p$storage.backend)))         p$libs = c( p$libs, "ff", "ffbase" )
   if (any( grepl ("bigmemory", p$storage.backend)))  p$libs = c( p$libs, "bigmemory" )
-  if (p$storage.backend=="bigmemory.ram") {
-    if ( length( unique(p$clusters)) != 1 ) stop( "More than one unique cluster specified .. this RAM is not shared across computer systems.." )
-  }
+
 
   if (p$spacetime_engine=="bayesx")  p$libs = c( p$libs, "R2BayesX" )
   if (p$spacetime_engine %in% c("gam", "mgcv", "habitat") )  p$libs = c( p$libs, "mgcv" )
@@ -53,14 +51,23 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
   if (p$spacetime_engine %in% c("kernel.density", "gaussianprocess2Dt") )  p$libs = c( p$libs, "fields" )
   if (p$spacetime_engine %in% c("spate") )  p$libs = c( p$libs, "spate" )
 
-  if( !exists( "spacetime_engine.variogram", p)) p$spacetime_engine.variogram="fast"   # note GP methods are slow when there is too much data
 
   RLibrary( p$libs )
+
+  if (!exists("clusters", p)) {
+    message("'p$clusters' was not defined, using localhost with all local compute nodes...")
+    p$clusters = rep("localhost", detectCores() )  # default if not given
+  }
+
+  if (p$storage.backend=="bigmemory.ram") {
+    if ( length( unique(p$clusters)) > 1 ) stop( "More than one unique cluster server was specified .. the RAM-based method only works within one server." )
+  }
+
+  if( !exists( "spacetime_engine.variogram", p)) p$spacetime_engine.variogram="fast"   # note GP methods are slow when there is too much data
   
   # family handling copied from glm
   if (!exists( "spacetime_family", p)) p$spacetime_family = gaussian
 
-  if (!exists("clusters", p)) p$clusters = rep("localhost", detectCores() )  # default
 
   p = spacetime_db( p=p, DS="filenames" )
   p$ptr = list() # location for data pointers
@@ -199,7 +206,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           Ydata = predict(covmodel, type="response", se.fit=FALSE )
           Ydata = Yraw[] - Ydata
         }
-        rm(covmodel)
+        covmodel =NULL; gc()
       }
  
       # data to be worked upon .. either the raw data or covariate-residuals
@@ -292,7 +299,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           if (p$storage.backend == "ff" ) {
             p$ptr$Ytime = ff( Ytime, dim=dim(Ytime), file=p$cache$Ytime, overwrite=TRUE )
           }
-        rm(Ytime)
+        Ytime =NULL; gc()
       }
   
 
@@ -315,7 +322,7 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           if (p$storage.backend == "ff" ) {
             p$ptr$Pcov[[covname]] = ff( Pcovdata, dim=dim(Pcovdata), file=p$cache$Pcov[[covname]], overwrite=TRUE )
           }
-          rm(Pcovdata)
+          Pcovdata = NULL; gc()
         }
       }
 
@@ -408,9 +415,9 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           if (p$storage.backend == "ff" ) {
             p$ptr$Ploc = ff( Ploc, dim=dim(Ploc), file=p$cache$Ploc, overwrite=TRUE )
           }
-      rm(Ploc)
+      Ploc = DATA = NULL; gc()
 
-    if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
+      if (exists("model.covariates.globally", p) && p$model.covariates.globally ) {
       # create prediction suface with covariate-based additive offsets
 
           if (p$storage.backend == "bigmemory.ram" ) {
@@ -438,12 +445,15 @@ spacetime = function( p, DATA, family=gaussian(), overwrite=NULL, storage.backen
           if (p$storage.backend == "ff" ) {
             p$ptr$P0sd = ff( P, dim=dim(P), file=p$cache$P0sd, overwrite=TRUE )
           }
-
-      spacetime_db( p, DS="model.covariates.globally.prediction.surface" )
+        P=NULL; gc()
+        p$clusters0 = p$clusters
+        p$clusters0 = p$clusters[1:2]
+        p = make.list( list( tindex=1:p$nt) , Y=p ) # takes about 28 GB per run .. adjust cluster number temporarily 
+        parallel.run( spacetime_db, p=p, DS="model.covariates.globally.prediction.surface" )  
+        p$clusters= p$clusters0
     }
     
-    rm(P)
-    rm(DATA); gc()
+    P = NULL; gc() # yes, repeat in case covs are not modelled
 
     if (boundary) {
       message( "Defining boundary polygon for data .. this reduces the number of points to analyse") 
