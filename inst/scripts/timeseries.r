@@ -25,8 +25,8 @@
 
   x = sunspot.year
   x = sunspots
-  o = spacetime_timeseries( x=x, freq=frequency(x) ) # default = spec.pgram
-  o = spacetime_timeseries( x=x, method="fft", freq=frequency(x) )
+  o = sthm_timeseries( x=x, freq=frequency(x) ) # default = spec.pgram
+  o = sthm_timeseries( x=x, method="fft", freq=frequency(x) )
 
 
 

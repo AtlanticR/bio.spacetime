@@ -3,7 +3,7 @@
 non_convex_hull = function( xy, alpha, plot=FALSE ) {
   #\\ using the technique from https://rpubs.com/geospacedman/alphasimple
   #\\ find the outline of a cloud of points
-  #\\ see spacetime::ah2sp
+  #\\ see bio.spacetime::ah2sp
   require(alphahull)
   require(igraph)
   o = ashape( xy, alpha=alpha )
