@@ -7,20 +7,15 @@ Description: This project interacts with the functionality of bio
 Depends: R (>= 3.0.0)
 Imports: 
   lubridate,
-  alphahull,
   parallel,
   sp,
   mgcv,
   lattice,
   gstat,
-  fields,
-  parallel, 
-  bigmemory,
   devtools, 
   bio.base,
   bio.utilities
 Suggests: 
-  INLA,
   knitr, 
   rmarkdown
 VignetteBuilder: knitr

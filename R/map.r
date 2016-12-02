@@ -66,7 +66,7 @@
           }
         }
 
-        pp = spacetime_parameters( type=spatial.domain )
+        pp = spatial_parameters( type=spatial.domain )
 
         if (depthcontours) {
           isobs = isobath.db( p=pp, depths=c( 100, 200, 300, 400, 500, 600, 700 ), crs=pp$internal.crs )
