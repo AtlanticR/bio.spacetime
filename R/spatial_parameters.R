@@ -3,7 +3,7 @@ spatial_parameters = function( p=NULL, type=NULL ) {
 
     if (is.null(p)) p=list()
 
-    if ( ! exists("spatial.domain", p) ) { 
+    if ( ! exists("spatial.domain", p) ) p$spatial.domain = type
     if ( ! is.null(type)) p$spatial.domain = type  # type has priority over p$spatial.domain
 
     if ( p$spatial.domain %in% c("SSE", "snowcrab") ) {
