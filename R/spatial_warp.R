@@ -4,11 +4,10 @@ spatial_warp = function( Z0, L0, L1, p0, p1, method="fast" ) {
   
   if (method=="raster") {
     # here Z0 has to be rasterizable or a list of rasters or a brick
-    require (raster)
     for (vn in names(Z0)) {
-       Z[[vn]] = projectRaster( 
-          from = rasterize( Z0, spatial_parameters_to_raster(p0), field=vn, fun=mean), 
-          to   = spatial_parameters_to_raster( p1) )
+       Z[[vn]] = raster::projectRaster( 
+          from = raster::rasterize( Z0, spatial_parameters_to_raster(p0), field=vn, fun=mean), 
+          to   = bio.spacetime::spatial_parameters_to_raster( p1) )
     }
     return (Z)
   }
