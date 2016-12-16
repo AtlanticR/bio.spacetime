@@ -25,8 +25,8 @@
 
   x = sunspot.year
   x = sunspots
-  o = lstfilter_timeseries( x=x, freq=frequency(x) ) # default = spec.pgram
-  o = lstfilter_timeseries( x=x, method="fft", freq=frequency(x) )
+  o = hivemod_timeseries( x=x, freq=frequency(x) ) # default = spec.pgram
+  o = hivemod_timeseries( x=x, method="fft", freq=frequency(x) )
 
 
 
