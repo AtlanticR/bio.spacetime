@@ -55,6 +55,18 @@ spatial_parameters = function( p=NULL, type=NULL ) {
         p$psignif = 1
     }
 
+    if ( p$spatial.domain %in% c("canada.east.superhighres")) {
+        p$internal.projection = "lambert.conic.canada.east"
+        p$internal.crs = "+proj=lcc +ellps=WGS84  +lon_0=62W +lat_0=45N +lat_1=43N +lat_2=47N +units=km"
+        p$dres = 1/60/4  # CHS is 15 arc second ~ 0.25 km
+        p$pres = 0.2  # discretize to 0.2 km resolution
+        p$lon0=-72
+        p$lon1=-52
+        p$lat0=40
+        p$lat1=50
+        p$psignif = 1
+    }
+
     p$lons = seq(p$lon0, p$lon1, by=p$dres)
     p$lats = seq(p$lat0, p$lat1, by=p$dres)
     p$nlons = length(p$lons)
