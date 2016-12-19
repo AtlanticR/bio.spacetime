@@ -1,5 +1,5 @@
 
-ah2sp <- function(x, increment=360, rnd=10, proj4string=CRS(as.character(NA))) {
+ah2sp <- function(x, increment=360, rnd=10, proj4strvalue=CRS(as.character(NA))) {
   #// by Andrew Bevan; copied from http://r-sig-geo.2731867.n2.nabble.com/alpha-hull-ahull-to-polygon-shapefile-td7342734.html
 
   require(alphahull)
@@ -79,7 +79,7 @@ ah2sp <- function(x, increment=360, rnd=10, proj4string=CRS(as.character(NA))) {
     list_of_Lines <- slot(polyssl, "lines")
     sppolys <- SpatialPolygons(list(Polygons(lapply(list_of_Lines, 
       function(x) { Polygon(slot(slot(x, "Lines")[[1]], "coords")) }), ID = "1")), 
-      proj4string=proj4string)  
+      proj4string=proj4strvalue)  
     # Create a set of ids in a dataframe, then promote to SpatialPolygonsDataFrame
     hid <- sapply(slot(sppolys, "polygons"), function(x) slot(x, "ID"))
     areas <- sapply(slot(sppolys, "polygons"), function(x) slot(x, "area"))

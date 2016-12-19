@@ -14,11 +14,15 @@
     }
 
   # first try an internal conversion /lookup for CRS  
-    proj4.params = try( CRS( lookup.projection.params(proj.type) ), silent=TRUE )
-    
+    proj4.params = NULL
+    pcrs = lookup.projection.params(proj.type)
+    if (!is.null(pcrs)) proj4.params = try( CRS( pcrs ), silent=TRUE )
+
     # if internal lookup does not work then try to directly pass to CRS   
-    if ( "try-error" %in% class( proj4.params) ) proj4.params = try( CRS( proj.type ), silent=TRUE )
-    if ( "try-error" %in% class( proj4.params) ) {
+    if ( is.null(proj4.params) | inherits(proj4.params, "try-error")) {
+      proj4.params = try( CRS( proj.type ), silent=TRUE )
+    }
+    if ( inherits(proj4.params, "try-error") ) {
       print( proj.type )
       warning( "Projection not recognised") 
     }
