@@ -4,9 +4,6 @@
     out = NULL
     out = with (params, {
   
-    if (method=="kernel.density") {
-
-    }
 
     if (method=="tps") {
       outfile = make.random.string(outfile)
