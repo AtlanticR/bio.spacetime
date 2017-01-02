@@ -5,8 +5,8 @@ spatial_parameters_to_raster = function( params ) {
   #\\ bio uses left edge as coordinates, raster uses center
   #\\ resolution will not be exact due to round off error
 
-  params$corners$plon = params$corners$plon + c(-1/2, -1/2)*params$pres
-  params$corners$plat = params$corners$plat + c(-1/2, -1/2)*params$pres # 
+  params$corners$plon = params$corners$plon + c(+1/2, +1/2)*params$pres
+  params$corners$plat = params$corners$plat + c(+1/2, +1/2)*params$pres # 
 
   ras = raster::raster(
     ncols=params$nplons,
