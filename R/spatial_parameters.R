@@ -27,7 +27,7 @@ spatial_parameters = function( p=NULL, type=NULL ) {
         p$lon1=-48
         p$lat0=37
         p$lat1=48
-        p$psignif = 0
+        p$psignif = 1
         p$boundary = "scotia.fundy.with.buffer"
     }
 
@@ -40,7 +40,7 @@ spatial_parameters = function( p=NULL, type=NULL ) {
         p$lon1=-52
         p$lat0=40
         p$lat1=50
-        p$psignif = 0
+        p$psignif = 1
     }
 
     if ( p$spatial.domain %in% c("canada.east.highres")) {
