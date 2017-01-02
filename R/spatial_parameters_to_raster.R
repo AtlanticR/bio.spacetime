@@ -3,7 +3,7 @@ spatial_parameters_to_raster = function( params ) {
   #\\ Take a spatial parameter list wirh corners and resolution and CRS
   #\\ and convert to a raster template
   #\\ bio uses left edge as coordinates, raster uses center
-  require( raster)
+
   # if (edge.reference) {
   #   params$corners$plon = params$corners$plon + c(-0.5, 0.5)*params$pres
   #   params$corners$plat = params$corners$plat + c(-0.5, 0.5)*params$pres
@@ -23,11 +23,11 @@ spatial_parameters_to_raster = function( params ) {
      
   # }
 #  if  ( params$spatial.domain=="canada.east.superhighres" ) {
-    params$corners$plon = params$corners$plon + c(-1/2, -1/2)*params$pres
-    params$corners$plat = params$corners$plat + c(+1/2, +3/2)*params$pres # 
+    params$corners$plon = params$corners$plon + c(-1/2, 0)*params$pres
+    params$corners$plat = params$corners$plat + c(-1/2, +1/2)*params$pres # 
  # }
 
-  ras = raster(
+  ras = raster::raster(
     ncols=params$nplons,
     nrows=params$nplats,
     res=params$pres ,
@@ -52,6 +52,8 @@ spatial_parameters_to_raster = function( params ) {
   if (0) {
     bioLibrary("bio.spacetime")
     require("rgdal")
+    require("raster")
+
 
     params = spatial_parameters( type="canada.east.superhighres" )
     u = spatial_parameters_to_raster(params)
