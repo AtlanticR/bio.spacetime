@@ -9,9 +9,9 @@ spatial_parameters_to_raster = function( params ) {
   params$corners$plat = params$corners$plat + c(+1/2, +1/2)*params$pres # 
 
   ras = raster::raster(
-    ncols=params$nplons,
-    nrows=params$nplats,
-    #res=params$pres ,
+    #ncols=params$nplons,
+    #nrows=params$nplats,
+    res=params$pres,
     xmn= params$corners$plon[1], # rasters are center referenced
     xmx= params$corners$plon[2],
     ymn= params$corners$plat[1],
