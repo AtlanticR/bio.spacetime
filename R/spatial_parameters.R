@@ -73,8 +73,8 @@ spatial_parameters = function( p=NULL, type=NULL ) {
     p$nlats = length(p$lats)
     p$corners = data.frame(lon=c(p$lon0,p$lon1), lat=c(p$lat0,p$lat1))
     p$corners = lonlat2planar( p$corners, proj.type=p$internal.projection )
-    p$corners$plon = round( p$corners$plon, p$psignif)  # this matches the p$pres value of x km resolution
-    p$corners$plat = round( p$corners$plat, p$psignif)  # this matches the p$pres value of x km resolution
+    p$corners$plon = signif( p$corners$plon, p$psignif)  # this matches the p$pres value of x km resolution
+    p$corners$plat = signif( p$corners$plat, p$psignif)  # this matches the p$pres value of x km resolution
     p$plons = seq(min(p$corners$plon), max(p$corners$plon), by=p$pres)
     p$plats = seq(min(p$corners$plat), max(p$corners$plat), by=p$pres)
     p$nplons = length(p$plons)

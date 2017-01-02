@@ -1,17 +1,31 @@
 
-spatial_parameters_to_raster = function( params, edge.reference=TRUE ) {
+spatial_parameters_to_raster = function( params ) {
   #\\ Take a spatial parameter list wirh corners and resolution and CRS
   #\\ and convert to a raster template
   #\\ bio uses left edge as coordinates, raster uses center
   require( raster)
-  if (edge.reference) {
-    params$corners$plon = params$corners$plon + c(-0.5, 0.5)*params$pres
-    params$corners$plat = params$corners$plat + c(-0.5, 0.5)*params$pres
-    if (params$spatial.domain=="canada.east.highres") {
-      params$corners$plon = params$corners$plon + c(0, -0.5)*params$pres
-      params$corners$plat = params$corners$plat + c(0, -0.5)*params$pres
-    }
-  }
+  # if (edge.reference) {
+  #   params$corners$plon = params$corners$plon + c(-0.5, 0.5)*params$pres
+  #   params$corners$plat = params$corners$plat + c(-0.5, 0.5)*params$pres
+
+  #   if (params$spatial.domain=="canada.east") {
+  #     params$corners$plon = params$corners$plon + c(0, -0.5)*params$pres
+  #     params$corners$plat = params$corners$plat + c(0, -0.5)*params$pres
+  #   }
+  #   if (params$spatial.domain=="canada.east.highres") {
+  #     params$corners$plon = params$corners$plon + c(-1/2, -1/2)*params$pres
+  #     params$corners$plat = params$corners$plat + c(-1/2, -1/2)*params$pres
+  #   }
+  #   if (params$spatial.domain=="canada.east.superhighres") {
+  #     params$corners$plon = params$corners$plon + c(-1/2, -1/2)*params$pres
+  #     params$corners$plat = params$corners$plat + c(-1/2, +1/2)*params$pres
+  #   }
+     
+  # }
+#  if  ( params$spatial.domain=="canada.east.superhighres" ) {
+    params$corners$plon = params$corners$plon + c(-1/2, -1/2)*params$pres
+    params$corners$plat = params$corners$plat + c(+1/2, +3/2)*params$pres # 
+ # }
 
   ras = raster(
     ncols=params$nplons,
@@ -24,87 +38,38 @@ spatial_parameters_to_raster = function( params, edge.reference=TRUE ) {
     # ext=extent ( rbind( params$corners$plon, params$corners$plat ) ),
     crs=params$internal.crs )
 
-    dd = dim(ras)
-    if( dd[1] != params$nplats) stop( "Dim of plats in error")
-    if( dd[2] != params$nplons) stop( "Dim of plons in error")
 
-    ras_coord = coordinates(ras)
-    uu = sort(unique(ras_coord[,1]))
-    vv = sort(unique(ras_coord[,2]))
-
-    u = unique( params$plons-uu )
-    v = unique( params$plats-vv )
-
-    up=FALSE # updated flag
-    if ( length(u) > 1) stop( "problem 1")
-    if ( length(u)==1 ) {
-      if ( u!=0) {
-        params$corners$plon = params$corners$plon + u
-        up=TRUE
-      }
-    }
-
-    if ( length(v) > 1) stop( "problem 2")
-    if(length(v)==1){
-      if ( v!=0) {
-        params$corners$plat = params$corners$plat + v
-        up=TRUE
-    }}
-
-    if(up) {
-      print( "Raster coords offset issue ... trying a simple fix")
-      print(paste(u, v))
-      ras = raster(
-        ncols=params$nplons,
-        nrows=params$nplats,
-        res=params$pres ,
-        xmn= params$corners$plon[1], # rasters are center referenced
-        xmx= params$corners$plon[2],
-        ymn= params$corners$plat[1],
-        ymx= params$corners$plat[2],
-        # ext=extent ( rbind( params$corners$plon, params$corners$plat ) ),
-        crs=params$internal.crs )
-
-      # test again
-      ras_coord = coordinates(ras)
-      uu = sort(unique(ras_coord[,1]))
-      vv = sort(unique(ras_coord[,2]))
-      u = unique( params$plons-uu )
-      v = unique( params$plats-vv )
-
-      if( u!=0) {
-        print(" This has been tested with known projections in bio, this is a new one? and raster library is not happy? You might need to add a new condition to spatial_parameters.toraster.. " )
-        print(u)
-        stop(" plons offsets are not unique/correct")
-      }
-
-      if( v!=0) {
-        print(" This has been tested with known projections in bio, this is a new one? and raster library is not happy? You might need to add a new condition to spatial_parameters.toraster.." )
-        print(v)
-        stop(" plats offsets are not unique/correct? ")
-      }
-      print("...OK")
-    }
+ # if ( (dim(ras)[1] != params$nplats) | (dim(ras)[2] != params$nplons) ) {
+    print( dim(ras))
+    print ( paste( params$nplats, params$nplons) )
+    print( ras)
+    print( params$corners )
+ #   stop( "Parameters to raster is dimensionally not correct")
+ # } 
 
   return(ras)
 
   if (0) {
     bioLibrary("bio.spacetime")
     require("rgdal")
-    p = spatial_parameters( type="canada.east.highres" )
-    u = spatial_parameters_to_raster(p)
 
-    p = spatial_parameters( type="canada.east" )
-    u = spatial_parameters_to_raster(p)
+    params = spatial_parameters( type="canada.east.superhighres" )
+    u = spatial_parameters_to_raster(params)
 
-    p = spatial_parameters( type="SSE" )
-    u = spatial_parameters_to_raster(p)
+    params = spatial_parameters( type="canada.east.highres" )
+    u = spatial_parameters_to_raster(params)
 
-    p = spatial_parameters( type="SSE.mpa" )
-    u = spatial_parameters_to_raster(p)
+    params = spatial_parameters( type="canada.east" )
+    u = spatial_parameters_to_raster(params)
 
-    p = spatial_parameters( type="snowcrab" )
-    u = spatial_parameters_to_raster(p)
+    params = spatial_parameters( type="SSE" )
+    u = spatial_parameters_to_raster(params)
+
+    params = spatial_parameters( type="SSE.mpa" )
+    u = spatial_parameters_to_raster(params)
+
+    params = spatial_parameters( type="snowcrab" )
+    u = spatial_parameters_to_raster(params)
   }
 
 }
