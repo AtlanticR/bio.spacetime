@@ -31,11 +31,63 @@ spatial_warp = function( Z0, L0, L1, p0, p1, method="fast" ) {
       }
       ii = which( !is.finite( Z ) )
       if ( length( ii) > 0 ) {
-        Zii =  fields::image.smooth( M, dx=p0$pres, dy=p0$pres, wght=p0$wght )$z
+        if ( !exists( "wght", p1 ) ) {
+          p1$wght = fields::setup.image.smooth(
+            nrow=p1$nplons, ncol=p1$nplats, dx=p1$pres, dy=p1$pres,
+            theta=p1$pres, xwidth=4*p1$pres, ywidth=4*p1$pres )
+        }
+        Zii =  fields::image.smooth( M, dx=p1$pres, dy=p1$pres, wght=p1$wght )$z
         Z[ii] = Zii[ii]
       }
       return( Z)
   }
+
+
+
+if (0) {
+  
+        p1 = spatial_parameters( type=gr ) #target projection
+           
+        if ( p0$spatial.domain != p1$spatial.domain ) {
+
+          Z = expand.grid( plon=p1$plons, plat=p1$plats, KEEP.OUT.ATTRS=FALSE )
+          Zi = as.matrix( round( cbind( 
+            ( Z$plon-p1$plons[1])/p1$pres + 1, (Z$plat-p1$plats[1])/p1$pres + 1
+          ) ) ) 
+     
+          Z = planar2lonlat( Z, proj.type=p1$internal.crs )
+          Z$plon_1 = Z$plon # store original coords
+          Z$plat_1 = Z$plat
+          Z = lonlat2planar( Z, proj.type=p0$internal.crs )
+          p1_wgts = fields::setup.image.smooth( 
+            nrow=p1$nplons, ncol=p1$nplats, dx=p1$pres, dy=p1$pres,
+            theta=p1$pres, xwidth=4*p1$pres, ywidth=4*p1$pres )
+           
+          for (vn in varnames) {
+            M = matrix(NA, nrow=p0$nplons, ncol=p0$nplats )
+            M[Z0i] = Z0[[vn]]
+            Znew = fields::interp.surface( list(x=p0$plons, y=p0$plats, z=M), loc=Z[, c("plon", "plat")] ) #linear interpolation
+            Z[[vn]] = c(Znew)
+            ii = which( !is.finite( Z[[vn]] ) )
+            if ( length( ii) > 0 ) {
+              MM = matrix(NA, nrow=p1$nplons, ncol=p1$nplats )
+              MM[Zi] = Z[[vn]]
+              Znew = fields::image.smooth( MM, dx=p1$pres, dy=p1$pres, wght=p1_wgts )
+              Zii = fields::interp.surface( list(x=p1$plons, y=p1$plats, z=Znew$z), loc=Z[, c("plon_1", "plat_1")] ) #linear interpolation
+              Z[[vn]][ii] = Zii[ii]
+            }
+          }
+          Z$plon = Z$plon_1
+          Z$plat = Z$plat_1
+        
+        } else {
+          Z = Z0
+        }
+
+        Z$plon_1 = Z$plat_1 = Z$lon = Z$lat = NULL
+
+}
+
 }
 
 
