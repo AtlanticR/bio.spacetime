@@ -33,7 +33,7 @@ message("deprecated")
         nrow=p1$nplons, ncol=p1$nplats, dx=p1$pres, dy=p1$pres,
         theta=p1$pres, xwidth=4*p1$pres, ywidth=4*p1$pres )
 
-      M[Z0i] = Z0_vn
+      M[L0i] = Z0_vn
 
       Znew = fields::interp.surface( list(x=p0$plons, y=p0$plats, z=M), loc=L1[, c("plon", "plat")] ) #linear interpolation
       L1_vn = c(Znew)
