@@ -69,21 +69,22 @@ spatial_parameters = function( p=NULL, type=NULL ) {
 
  #   p$lons = seq(p$lon0, p$lon1, by=p$dres)
  #   p$lats = seq(p$lat0, p$lat1, by=p$dres)
-    p$nlons = diff(range(c(p$lon0,p$lon1)))/p$dres + 1
-    p$nlats = diff(range(c(p$lat0,p$lat1)))/p$dres + 1
+    p$nlons = floor( diff(range(c(p$lon0,p$lon1)))/p$dres) + 1
+    p$nlats = floor( diff(range(c(p$lat0,p$lat1)))/p$dres) + 1
     p$corners = data.frame(lon=c(p$lon0,p$lon1), lat=c(p$lat0,p$lat1))
     p$corners = lonlat2planar( p$corners, proj.type=p$internal.projection )
     p$corners$plon = round( p$corners$plon, p$psignif)  # this matches the p$pres value of x km resolution
     p$corners$plat = round( p$corners$plat, p$psignif)  # this matches the p$pres value of x km resolution
  #   p$plons = seq(min(p$corners$plon), max(p$corners$plon), by=p$pres)
  #   p$plats = seq(min(p$corners$plat), max(p$corners$plat), by=p$pres)
-    p$nplons = diff(range(p$corners$plon))/p$pres + 1
-    p$nplats = diff(range(p$corners$plat))/p$pres + 1
-    p$plon0 = min(p$corners$plon)
-    p$plat0 = min(p$corners$plat)
+    p$nplons = floor( diff(range(p$corners$plon))/p$pres) + 1
+    p$nplats = floor( diff(range(p$corners$plat))/p$pres) + 1
+  #  p$plon0 = min(p$corners$plon)
+  #  p$plat0 = min(p$corners$plat)
+   
     p$origin = c(min(p$corners$plon), min(p$corners$plat[1]))
 
-    p$gridparams = list( dims=c(p$nplons, p$nplats), corner=p$origin, res=c(p$pres, p$pres) ) # used for fast indexing and merging
+    p$gridparams = list( dims=c(p$nplons, p$nplats), origin=p$origin, res=c(p$pres, p$pres) ) # used for fast indexing and merging
 
   return(p)
 }
