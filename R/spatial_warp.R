@@ -1,9 +1,11 @@
 
 spatial_warp = function( Z0, L0, L1, p0, p1, method="fast", L0i=NULL, L1i=NULL ) {
   #\\ regrid/reproject from p0 to p1 ; rgdal calls this "warping" ;)
-message("deprecated")
 
   if (method=="raster") {
+    
+    message("deprecated")
+
     # here Z0 has to be rasterizable or a list of rasters or a brick
     for (vn in names(Z0)) {
        Z_vn = raster::projectRaster(
