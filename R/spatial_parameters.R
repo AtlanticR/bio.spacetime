@@ -67,18 +67,21 @@ spatial_parameters = function( p=NULL, type=NULL ) {
         p$psignif = 1
     }
 
- #   p$lons = seq(p$lon0, p$lon1, by=p$dres)
- #   p$lats = seq(p$lat0, p$lat1, by=p$dres)
-    p$nlons = floor( diff(range(c(p$lon0,p$lon1)))/p$dres) + 1
-    p$nlats = floor( diff(range(c(p$lat0,p$lat1)))/p$dres) + 1
+    # lons = seq(p$lon0, p$lon1, by=p$dres)
+    # lats = seq(p$lat0, p$lat1, by=p$dres)
+
+    p$nlons = ceiling( diff(range(c(p$lon0,p$lon1)))/p$dres) + 1
+    p$nlats = ceiling( diff(range(c(p$lat0,p$lat1)))/p$dres) + 1
     p$corners = data.frame(lon=c(p$lon0,p$lon1), lat=c(p$lat0,p$lat1))
     p$corners = lonlat2planar( p$corners, proj.type=p$internal.projection )
     p$corners$plon = round( p$corners$plon, p$psignif)  # this matches the p$pres value of x km resolution
     p$corners$plat = round( p$corners$plat, p$psignif)  # this matches the p$pres value of x km resolution
  #   p$plons = seq(min(p$corners$plon), max(p$corners$plon), by=p$pres)
  #   p$plats = seq(min(p$corners$plat), max(p$corners$plat), by=p$pres)
-    p$nplons = floor( diff(range(p$corners$plon))/p$pres) + 1
-    p$nplats = floor( diff(range(p$corners$plat))/p$pres) + 1
+    plons = seq(min(p$corners$plon), max(p$corners$plon), by=p$pres)
+    plats = seq(min(p$corners$plat), max(p$corners$plat), by=p$pres)
+    p$nplons = length(plons)
+    p$nplats = length(plats)
   #  p$plon0 = min(p$corners$plon)
   #  p$plat0 = min(p$corners$plat)
    
