@@ -22,7 +22,9 @@ spatial_warp = function( Z0, L0, L1, p0, p1, method="fast", L0i=NULL, L1i=NULL )
     L0_mat = matrix(NA, nrow=p0$nplons, ncol=p0$nplats )
     if (is.null(L0i)) L0i = array_map( "xy->2", L0[, c("plon", "plat")], gridparams=p0$gridparams )
     L0_mat[L0i] = Z0
-    L0_grid = list(x=p0$plons, y=p0$plats, z=L0_mat)
+    L0_grid = list(x=seq(min(p0$corners$plon), max(p0$corners$plon), by=p0$pres), 
+                   y=seq(min(p0$corners$plat), max(p0$corners$plat), by=p0$pres), 
+                   z=L0_mat)
 
     L1_interp = fields::interp.surface( L0_grid, loc=L1[, c("plon", "plat")] ) #linear interpolation
     ii = which( !is.finite( L1_interp ) )
@@ -33,7 +35,10 @@ spatial_warp = function( Z0, L0, L1, p0, p1, method="fast", L0i=NULL, L1i=NULL )
       if (!exists("wght", p1)) p1$wght = fields::setup.image.smooth( nrow=p1$nplons,
         ncol=p1$nplats, dx=p1$pres, dy=p1$pres, theta=p1$pres, xwidth=4*p1$pres, ywidth=4*p1$pres )
       L1_sm = fields::image.smooth( L1_mat, dx=p1$pres, dy=p1$pres, wght=p1$wght )
-      L1_sm_interp = fields::interp.surface( list(x=p1$plons, y=p1$plats, z=L1_sm$z), loc=L1[, c("plon_1", "plat_1")] ) #linear interpolation from smoothed surface
+      L1_grid = list(x=seq(min(p1$corners$plon), max(p1$corners$plon), by=p1$pres), 
+               y=seq(min(p1$corners$plat), max(p1$corners$plat), by=p1$pres), 
+               z=L0_mat)
+      L1_sm_interp = fields::interp.surface( L1_grid, loc=L1[, c("plon_1", "plat_1")] ) #linear interpolation from smoothed surface
       L1_interp[ii] = L1_sm_interp[ii]
     }
     return( L1_interp)
