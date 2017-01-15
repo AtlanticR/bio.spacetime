@@ -3,9 +3,9 @@ spatial_grid = function( p, DS="planar.grid", nm=NULL ) {
   #\\ grid locations
 
   if (DS=="planar.grid") {
-    plons = seq(min(p$corners$plon), max(p$corners$plon), by=p$pres)
-    plats = seq(min(p$corners$plat), max(p$corners$plat), by=p$pres)
-    g = expand.grid( plons, plats, KEEP.OUT.ATTRS=FALSE)
+    plon = seq(min(p$corners$plon), max(p$corners$plon), by=p$pres)
+    plat = seq(min(p$corners$plat), max(p$corners$plat), by=p$pres)
+    g = expand.grid( plon, plat, KEEP.OUT.ATTRS=FALSE)
     if (is.null(nm)) nm=c("plon", "plat")
     names( g ) = nm
     return(g)
