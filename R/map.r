@@ -7,7 +7,7 @@
     # map using levelplot ... no GMT dependency
 
 		require( lattice )
-    bioLibrary( "bio.coastline")
+    require( bio.coastline )
 
     xlim =ylim = NULL
     colorkey=list(space="right", labels=list(cex=3)) # these are lattice options
