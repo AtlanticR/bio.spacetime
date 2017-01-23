@@ -2,7 +2,7 @@
   map = function( xyz, cfa.regions=T, depthcontours=T, pts=NULL, colpts=F, annot=NULL, annot.cex=2.2,
                  leg = NULL, projection = "utm20", col.regions=F, at=0:1,
                  fn=paste("map", trunc(runif(1)*1e8), sep=""), loc=tempdir(),
-                 corners=NULL, rez=c(1,1), spatial.domain="SSE", ... ) {
+                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, pt.cex=0.5, pt.pch=16,colorkey, ... ) {
 
     # map using levelplot ... no GMT dependency
 
@@ -10,7 +10,7 @@
     require( bio.coastline )
 
     xlim =ylim = NULL
-    colorkey=list(space="right", labels=list(cex=3)) # these are lattice options
+    if(is.null(colorkey))colorkey=list(space="right", labels=list(cex=3)) # these are lattice options
 
     if (ncol( xyz) == 2) { # assuming points
       xyz = cbind( xyz, 1)
@@ -46,23 +46,25 @@
       }
     }
 
+
+
     lp = levelplot( z ~ plon+plat, data=xyz, aspect="iso", pts=pts, colpts=colpts, annot=annot, spatial.domain=spatial.domain,
       annot.cex=annot.cex, xlab="", ylab="", scales=list(draw=F), col.regions=col.regions, at=at, xlim=xlim, ylim=ylim,
       colorkey=colorkey , rez=rez, leg=leg,  cfa.regions=cfa.regions,
-      panel = function(x, y, subscripts, rez=rez,  ...) {
+      panel = function(x, y, z, rez=rez,  ...) {
 
-        panel.levelplot (x, y, subscripts, aspect="iso", rez=rez, ...)
+        panel.levelplot (x, y, z, aspect="iso", rez=rez, ...)
 
         if ( !is.null(pts) ) {
           if (colpts) {  # overlay above with larger sized points, esp if there is colour
             colb = findInterval( z, at)
             for ( ii in 1:length(z) ) {
               panel.xyplot( pts$plon[ii], pts$plat[ii],  aspect="iso", col=col.regions[colb[ii]],
-                  panel = panel.rect, height = rez[1], width = rez[2], ... )
+                  panel = panel.rect, height = rez[1], width = rez[2], cex=pt.cex,... )
             }
           } else {
-              panel.xyplot( pts$plon, pts$plat,  aspect="iso", col = "black", pch=16,
-                  panel = panel.rect, height = rez[1], width = rez[2], ... )
+              panel.xyplot( pts$plon, pts$plat,  aspect="iso", col = "black", pch=pt.pch,
+                  panel = panel.rect, height = rez[1], width = rez[2], cex=pt.cex, ... )
           }
         }
 
@@ -72,8 +74,8 @@
           isobs = isobath.db( p=pp, depths=c( 100, 200, 300, 400, 500, 600, 700 ), crs=pp$internal.crs )
           depths1 = c(100, 300, 500, 700 )
           depths2 = c(200, 400, 600)
-          for ( i in depths1 ) sp.lines( isobs[as.character(i) ] , col = "darkgrey", cex=0.6 )
-          for ( i in depths2 ) sp.lines( isobs[as.character(i) ] , col = "grey", cex=0.6 )
+          for ( i in depths1 ) sp.lines( isobs[as.character(i) ] , col = rgb(0.2,0.2,0.2,0.5), cex=0.6 )
+          for ( i in depths2 ) sp.lines( isobs[as.character(i) ] , col = rgb(0.3,0.3,0.3,0.5), cex=0.6 )
         }
 
         if ( cfa.regions ) {
@@ -99,19 +101,19 @@
           cfa.23.24 = lonlat2planar( cfa.23.24, proj.type=pp$internal.projection )
           cfa.4x.24 = lonlat2planar( cfa.4x.24,  proj.type=pp$internal.projection )
 
-          panel.lines( cfa.nens.23$plon, cfa.nens.23$plat, col = "darkgray", lwd=2 )
-          panel.lines( cfa.23.24$plon, cfa.23.24$plat, col = "darkgray", lwd=2 )
-          panel.lines( cfa.4x.24$plon, cfa.4x.24$plat, col = "darkgray", lwd=2 )
+          panel.lines( cfa.nens.23$plon, cfa.nens.23$plat, col = "black", lwd=1,lty=2 )
+          panel.lines( cfa.23.24$plon, cfa.23.24$plat, col = "black", lwd=1,lty=2 )
+          panel.lines( cfa.4x.24$plon, cfa.4x.24$plat, col = "black", lwd=1,lty=2 )
 
         }
 
         #coastline
         coast = coastline.db(p=pp, crs=pp$internal.crs)
-        sp.polygons( coast, col = "black", cex=1 )
+        sp.polygons( coast, col = "black", cex=1 ,fill='grey')
 
         if (is.null(leg) ) {
 				  xoffset = 30
-				  leg = c( xlim[2]-xoffset, ylim[1] + 0.2*(ylim[2]-ylim[1]) )
+				  leg = c( xlim[2]-xoffset, ylim[1] + 0.12*(ylim[2]-ylim[1]) )
         }
 
         panel.arrows( x0=leg[1]-100, y0=leg[2], x1=leg[1], y1=leg[2],
@@ -119,10 +121,12 @@
         panel.text( x=leg[1]+18, y=leg[2]+25, "100 km", cex=1.7, pos=2 )
 
         if ( !is.null( annot ) ){
-          panel.text( x=leg[1] + 25, y=ylim[1] + 0.12*(ylim[2]-ylim[1]), annot, cex=2, pos=2 )  # pos=2 is left of (right justified)
+          panel.text( x=leg[1] + 25, y=ylim[1] + 0.06*(ylim[2]-ylim[1]), annot, cex=2, pos=2 )  # pos=2 is left of (right justified)
         }
     } # end panel
     ) # end levelplot
+
+    if(display)print(lp)
 
     dir.create (loc, showWarnings=FALSE, recursive =TRUE)
     fn = file.path( loc, paste(fn, "png", sep="." ) )
