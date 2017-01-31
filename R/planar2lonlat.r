@@ -20,12 +20,13 @@
 
     # if internal lookup does not work then try to directly pass to CRS   
     if ( is.null(proj4.params) | inherits(proj4.params, "try-error")) {
-      proj4.params = try( CRS( proj.type ), silent=TRUE )
+      if (!is.null(proj.type))  proj4.params = try( CRS( proj.type ), silent=TRUE )
     }
     if ( inherits(proj4.params, "try-error") ) {
       print( proj.type )
       warning( "Projection not recognised") 
     }
+    
     crsX = CRSargs( proj4.params)
     if ( ! grepl("units", crsX) ) {
       print (crsX)

@@ -8,8 +8,17 @@
     proj4.params = try( CRS( lookup.projection.params(proj.type) ), silent=TRUE )
     
     # if internal lookup does not work then try to directly pass to CRS   
-    if ( "try-error" %in% class( proj4.params) ) proj4.params = try( CRS( proj.type ), silent=TRUE )
-    if ( "try-error" %in% class( proj4.params) ) proj4.params = try( CRS( as.character(proj.type) ), silent=TRUE )
+    if (is.null(proj.type)) {
+      print( proj.type )
+      warning( "Projection not recognised") 
+    } 
+    if ( "try-error" %in% class( proj4.params) ) {
+      if (!is.null(proj.type)) proj4.params = try( CRS( proj.type ), silent=TRUE )
+    }
+
+    if ( "try-error" %in% class( proj4.params) ) {
+      if (!is.null(proj.type)) proj4.params = try( CRS( as.character(proj.type) ), silent=TRUE )
+    }
     if ( "try-error" %in% class( proj4.params) ) {
       print( proj.type )
       warning( "Projection not recognised") 
