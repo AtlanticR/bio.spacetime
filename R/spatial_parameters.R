@@ -12,7 +12,7 @@ spatial_parameters = function( p=NULL, type=NULL ) {
         p$dres = 1/60/4  # this is the 15 second grid from CHS  .. default use highest resolution
         p$pres = 1   # 1 km resolution!
         p$lon0=-66.34969
-        p$lon1=-57.12918
+        p$lon1=-57.0
         p$lat0=42.80828
         p$lat1=47.42201
         p$psignif = 1
