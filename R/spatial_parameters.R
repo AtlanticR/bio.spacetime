@@ -6,7 +6,19 @@ spatial_parameters = function( p=NULL, type=NULL ) {
     if ( ! exists("spatial.domain", p) ) p$spatial.domain = type
     if ( ! is.null(type)) p$spatial.domain = type  # type has priority over p$spatial.domain
 
-    if ( p$spatial.domain %in% c("SSE", "snowcrab") ) {
+    if ( p$spatial.domain %in% c("snowcrab") ) {
+        p$internal.projection = "utm20"
+        p$internal.crs =  "+proj=utm +ellps=WGS84 +zone=20 +units=km"
+        p$dres = 1/60/4  # this is the 15 second grid from CHS  .. default use highest resolution
+        p$pres = 1   # 1 km resolution!
+        p$lon0=-66.34969
+        p$lon1=-57.12918
+        p$lat0=42.80828
+        p$lat1=47.42201
+        p$psignif = 1
+    }
+
+    if ( p$spatial.domain %in% c("SSE") ) {
         p$internal.projection = "utm20"
         p$internal.crs =  "+proj=utm +ellps=WGS84 +zone=20 +units=km"
         p$dres = 1/60/4  # this is the 15 second grid from CHS  .. default use highest resolution
