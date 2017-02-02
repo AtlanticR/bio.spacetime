@@ -2,7 +2,7 @@
   map = function( xyz, cfa.regions=T, depthcontours=T, pts=NULL, colpts=F, annot=NULL, annot.cex=2.2,
                  leg = NULL, projection = "utm20", col.regions=F, at=0:1,
                  fn=paste("map", trunc(runif(1)*1e8), sep=""), loc=tempdir(),
-                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, pt.cex=0.5, pt.pch=16,colorkey=NULL, ... ) {
+                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, pt.cex=0.5, pt.pch=16, pt.col='black',colorkey=NULL, ... ) {
 
     # map using levelplot ... no GMT dependency
 
@@ -63,7 +63,7 @@
                   panel = panel.rect, height = rez[1], width = rez[2], cex=pt.cex,... )
             }
           } else {
-              panel.xyplot( pts$plon, pts$plat,  aspect="iso", col = "black", pch=pt.pch,
+              panel.xyplot( pts$plon, pts$plat,  aspect="iso", col = pt.col, pch=pt.pch,
                   panel = panel.rect, height = rez[1], width = rez[2], cex=pt.cex, ... )
           }
         }
