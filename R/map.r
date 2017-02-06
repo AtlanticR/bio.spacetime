@@ -47,7 +47,6 @@
     }
 
 
-
     lp = levelplot( z ~ plon+plat, data=xyz, aspect="iso", pts=pts, colpts=colpts, annot=annot, spatial.domain=spatial.domain,
       annot.cex=annot.cex, xlab="", ylab="", scales=list(draw=F), col.regions=col.regions, at=at, xlim=xlim, ylim=ylim,
       colorkey=colorkey , rez=rez, leg=leg,  cfa.regions=cfa.regions,
