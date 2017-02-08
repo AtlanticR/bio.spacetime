@@ -117,10 +117,10 @@
 
         panel.arrows( x0=leg[1]-100, y0=leg[2], x1=leg[1], y1=leg[2],
 						angle=90, length=0.06, ends="both", lwd=3, col="black", ...)
-        panel.text( x=leg[1]+18, y=leg[2]+25, "100 km", cex=1.7, pos=2 )
+        panel.text( x=leg[1]+18, y=leg[2]+30, "100 km", cex=1.7, pos=2 )
 
         if ( !is.null( annot ) ){
-          panel.text( x=leg[1] + 25, y=ylim[1] + 0.06*(ylim[2]-ylim[1]), annot, cex=2, pos=2 )  # pos=2 is left of (right justified)
+          panel.text( x=leg[1] + 25, y=ylim[1] + 0.05*(ylim[2]-ylim[1]), annot, cex=2, pos=2 )  # pos=2 is left of (right justified)
         }
     } # end panel
     ) # end levelplot
