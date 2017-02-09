@@ -2,7 +2,7 @@
   map = function( xyz, cfa.regions=T, depthcontours=T, pts=NULL, colpts=F, annot=NULL, annot.cex=2.2,
                  leg = NULL, projection = "utm20", col.regions=F, at=0:1,
                  fn=paste("map", trunc(runif(1)*1e8), sep=""), loc=tempdir(),
-                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, pt.cex=0.5, pt.pch=16, pt.col='black',colorkey=NULL, ... ) {
+                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, pt.cex=0.5, pt.pch=16, pt.col='black',colorkey=NULL, fill=T, ... ) {
 
     # map using levelplot ... no GMT dependency
 
@@ -44,6 +44,11 @@
         pts = lonlat2planar(xyz,  proj.type=p$internal.projection)
         pts = pts[, c("plon", "plat")]
       }
+    }
+
+    if(fill){
+      xyz$z[xyz$z>max(at)]=max(at)
+      xyz$z[xyz$z<min(at)]=min(at)
     }
 
 
@@ -120,7 +125,7 @@
         panel.text( x=leg[1]+18, y=leg[2]+30, "100 km", cex=1.7, pos=2 )
 
         if ( !is.null( annot ) ){
-          panel.text( x=leg[1] + 25, y=ylim[1] + 0.05*(ylim[2]-ylim[1]), annot, cex=2, pos=2 )  # pos=2 is left of (right justified)
+          panel.text( x=leg[1] + 25, y=ylim[1] + 0.04*(ylim[2]-ylim[1]), annot, cex=2, pos=2 )  # pos=2 is left of (right justified)
         }
     } # end panel
     ) # end levelplot
