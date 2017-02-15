@@ -11,10 +11,11 @@ spatial_parameters = function( p=NULL, type=NULL ) {
         p$internal.crs =  "+proj=utm +ellps=WGS84 +zone=20 +units=km"
         p$dres = 1/60/4  # this is the 15 second grid from CHS  .. default use highest resolution
         p$pres = 1   # 1 km resolution!
-        p$lon0=-66.34969
-        p$lon1=-57.0
-        p$lat0=42.80828
-        p$lat1=47.42201
+        p$lon0=-66.1
+        # p$lon1=-57.0
+        p$lon1=-56.6
+        p$lat0=42.8
+        p$lat1=47.4
         p$psignif = 1
     }
 
