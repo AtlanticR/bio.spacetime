@@ -2,7 +2,7 @@
   map = function( xyz, cfa.regions=T, depthcontours=T, pts=NULL, colpts=F, annot=NULL, annot.cex=2.2,
                  leg = NULL, projection = "utm20", col.regions=F, at=0:1,
                  fn=paste("map", trunc(runif(1)*1e8), sep=""), loc=tempdir(),
-                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, pt.cex=0.5, pt.pch=16, pt.col='black',colorkey=NULL, fill=T, ... ) {
+                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, save=T, pt.cex=0.5, pt.pch=16, pt.col='black',colorkey=NULL, fill=T, ... ) {
 
     # map using levelplot ... no GMT dependency
 
@@ -132,11 +132,13 @@
 
     if(display)print(lp)
 
-    dir.create (loc, showWarnings=FALSE, recursive =TRUE)
-    fn = file.path( loc, paste(fn, "png", sep="." ) )
-    png(  filename=fn, width=3072, height=2304, pointsize=40, res=300 )
-    print(lp)
-    dev.off()
+    if(save){
+      dir.create (loc, showWarnings=FALSE, recursive =TRUE)
+      fn = file.path( loc, paste(fn, "png", sep="." ) )
+      png(  filename=fn, width=3072, height=2304, pointsize=40, res=300 )
+      print(lp)
+      dev.off()
+    }
 
     return( fn )
 
