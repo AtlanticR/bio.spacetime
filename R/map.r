@@ -2,7 +2,7 @@
   map = function( xyz, cfa.regions=T, depthcontours=T, pts=NULL, colpts=F, annot=NULL, annot.cex=2.2,
                  leg = NULL, projection = "utm20", col.regions=F, at=0:1,
                  fn=paste("map", trunc(runif(1)*1e8), sep=""), loc=tempdir(),
-                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, save=T, pt.cex=0.5, pt.pch=16, pt.col='black',colorkey=NULL, fill=T, ... ) {
+                 corners=NULL, rez=c(1,1), spatial.domain="SSE", display=F, save=T, pt.cex=0.5, pt.pch=16, pt.col='black',colorkey=NULL, fill=T,scalebar=NULL, ... ) {
 
     # map using levelplot ... no GMT dependency
 
@@ -115,17 +115,22 @@
         coast = coastline.db(p=pp, crs=pp$internal.crs)
         sp.polygons( coast, col = "black", cex=1 ,fill='grey')
 
-        if (is.null(leg) ) {
-				  xoffset = 30
-				  leg = c( xlim[2]-xoffset, ylim[1] + 0.12*(ylim[2]-ylim[1]) )
+         
+        #legend
+        lx = xlim[2]-xlim[1]
+        ly = ylim[2]-ylim[1]
+        if (is.null(leg) )leg = c( xlim[2]-0.1*lx, ylim[1] + 0.1*ly )
+        
+        if (!is.null(scalebar)) {
+          lx = xlim[2]-xlim[1]
+          ly = ylim[2]-ylim[1]
+          if (is.null(leg) )leg = c( xlim[2]-0.1*lx, ylim[1] + 0.1*ly )
+          panel.arrows( x0=leg[1]-scalebar, y0=leg[2], x1=leg[1], y1=leg[2], angle=90, length=0.06, ends="both", lwd=3, col="black", ...)
+          panel.text( x=leg[1]-scalebar/2 , y=leg[2]+0.05*ly , paste(scalebar,"km"), cex=1.7 )
         }
 
-        panel.arrows( x0=leg[1]-100, y0=leg[2], x1=leg[1], y1=leg[2],
-						angle=90, length=0.06, ends="both", lwd=3, col="black", ...)
-        panel.text( x=leg[1]+18, y=leg[2]+30, "100 km", cex=1.7, pos=2 )
-
         if ( !is.null( annot ) ){
-          panel.text( x=leg[1] + 25, y=ylim[1] + 0.04*(ylim[2]-ylim[1]), annot, cex=2, pos=2 )  # pos=2 is left of (right justified)
+          panel.text( x=leg[1]-scalebar/2, y=leg[2]-0.05*ly, annot, cex=2 )  # pos=2 is left of (right justified)
         }
     } # end panel
     ) # end levelplot

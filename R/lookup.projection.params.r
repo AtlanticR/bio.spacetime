@@ -5,6 +5,7 @@ lookup.projection.params = function(x) {
     out  = switch( x,
       utm19		= "+proj=utm +ellps=WGS84 +zone=19 +units=km ",
       utm20             = "+proj=utm +ellps=WGS84 +zone=20 +units=km ", 
+      utm21             = "+proj=utm +ellps=WGS84 +zone=21 +units=km ", 
       utm20.substrate   = "+proj=utm +datum=NAD83 +zone=20 +units=km",
       lambert.conic.equidist    = "+proj=eqdc +ellps=WGS84 +lon_0=63W +lat_0=45N +lat_1=43N +lat_2=47N +units=km ",
       lambert.conic             = "+proj=lcc +ellps=WGS84  +lon_0=63W +lat_0=45N +lat_1=43N +lat_2=47N +units=km ",
